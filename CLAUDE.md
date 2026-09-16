@@ -15,6 +15,19 @@ código dele com o que foi de fato escrito.
 
 Idioma do código, comentários, testes (`@DisplayName`) e documentação: português.
 
+## Princípio orientador (definido pelo autor)
+
+**As referências bibliográficas do relatório são o guia de toda decisão** — Martin
+(*Clean Architecture*, *Clean Code*, *Agile PPP*/SOLID, *Clean Coder*), Cockburn (*Writing
+Effective Use Cases*) e as normas de banco (Date, Machado). Na dúvida entre duas soluções,
+vence a que os conceitos dessas referências sustentam, e a decisão deve ser **consistente
+com o que já está aplicado no projeto**: uma regra aceita para o agregado de usuário vale
+igual para restaurante e cardápio. Antes de propor um atalho (anotação de framework no
+núcleo, constante técnica num caso de uso, mapeamento "para economizar"), verificar se ele
+rompe a integridade entre a arquitetura aplicada e os conceitos — se rompe, não fazer.
+Em toda etapa, a seção "O que foi entregue" do relatório deve dizer **qual conceito** cada
+decisão atende, e a revisão de arquitetura da etapa confere isso antes de fechar.
+
 ## Comandos
 
 `mvn` e `java` não estão no PATH desta máquina. Use:
