@@ -97,9 +97,3 @@ Relatório de cobertura: `target/site/jacoco/index.html`.
 - `docker-compose.yml` para subir aplicação e banco de dados.
 - Relatório técnico em [`relatorios/`](relatorios/), organizado por etapa de desenvolvimento.
 - Este README, com arquitetura, endpoints e instruções de execução.
-
-## Autor
-
-- Felipe Dias Mac Dowell
-
-Curso: Pós-Tech — Arquitetura e Desenvolvimento Java
