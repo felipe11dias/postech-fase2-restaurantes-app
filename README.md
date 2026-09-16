@@ -25,10 +25,10 @@ flowchart TB
 |---|---|---|
 | Entidades | `domain/entity`, `domain/vo`, `domain/exception` | Regras de negócio e invariantes, sem dependência de frameworks |
 | Casos de Uso | `application/usecase`, `application/gateway`, `application/dto` | Orquestração das regras de aplicação via interfaces de gateway |
-| Adaptadores de Interface | `adapter/controller`, `adapter/gateway`, `adapter/presenter` | Tradução entre o núcleo e o mundo externo |
-| Frameworks & Drivers | `infrastructure/web`, `infrastructure/persistence`, `infrastructure/security`, `infrastructure/config` | Spring, JPA, JWT, banco de dados — únicos detalhes técnicos do sistema |
+| Adaptadores de Interface | `adapter/controller`, `adapter/gateway`, `adapter/datasource`, `adapter/presenter` | Tradução entre o núcleo e o mundo externo |
+| Frameworks & Drivers | `infrastructure/web`, `infrastructure/persistence`, `infrastructure/security`, `infrastructure/mail`, `infrastructure/config` | Spring, JPA, JWT, banco de dados — únicos detalhes técnicos do sistema |
 
-A regra de dependência é validada automaticamente em build por testes de arquitetura com **ArchUnit**.
+Cada pacote tem um `package-info.java` descrevendo sua regra de dependência. A regra é validada automaticamente em build por testes de arquitetura com **ArchUnit**: nenhum tipo fora de `infrastructure` pode importar Spring, JPA ou Hibernate.
 
 ## Stack tecnológica
 
@@ -45,7 +45,13 @@ A regra de dependência é validada automaticamente em build por testes de arqui
 | JUnit 5 + Mockito | Testes unitários |
 | Testcontainers | Testes de integração com PostgreSQL real |
 | ArchUnit | Testes da regra de dependência arquitetural |
+| JaCoCo | Cobertura de testes unitários — build falha abaixo de 100% |
 | Docker Compose | Orquestração de execução local |
+
+## Pré-requisitos
+
+- JDK 21 e Maven 3.9+
+- Docker e Docker Compose (para o banco, para `docker compose up` e para os testes de integração)
 
 ## Como executar
 
@@ -77,16 +83,23 @@ A suíte cobre cada camada isoladamente:
 - **Persistência** — Testcontainers (PostgreSQL 16), migrations reais.
 - **Arquitetura** — ArchUnit, valida a regra de dependência a cada build.
 
+```bash
+mvn test      # unitários + ArchUnit (sem Docker)
+mvn verify    # + integração com Testcontainers + verificação de 100% de cobertura (JaCoCo)
+```
+
+Relatório de cobertura: `target/site/jacoco/index.html`.
+
 ## Entregáveis
 
 - Coleção Postman (`postman/`) com um request por caso de sucesso e erro de cada endpoint.
 - Documentação Swagger/OpenAPI.
 - `docker-compose.yml` para subir aplicação e banco de dados.
+- Relatório técnico em [`relatorios/`](relatorios/), organizado por etapa de desenvolvimento.
 - Este README, com arquitetura, endpoints e instruções de execução.
 
-## Autores
+## Autor
 
-- Mauricio Borges Florencio
 - Felipe Dias Mac Dowell
 
 Curso: Pós-Tech — Arquitetura e Desenvolvimento Java
