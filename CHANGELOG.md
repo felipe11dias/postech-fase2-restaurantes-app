@@ -36,3 +36,7 @@
   compara contra um hash fictício quando o login não existe (mesmo tempo de resposta) e trata
   senha em branco como credencial inválida; `ChangePasswordUseCase` trata senha atual em branco
   como incorreta.
+- Revisão de arquitetura: `IPasswordEncoder.simulateMatch` substitui o hash BCrypt constante que
+  havia entrado no caso de uso (o núcleo volta a não conhecer o algoritmo); pacotes de
+  `domain`/`application` reorganizados em subpacotes por agregado/feature (`user`, `auth`,
+  `address`, `common`) — *screaming architecture*.

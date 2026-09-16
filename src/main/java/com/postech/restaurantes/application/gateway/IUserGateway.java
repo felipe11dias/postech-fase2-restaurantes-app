@@ -1,8 +1,8 @@
 package com.postech.restaurantes.application.gateway;
 
-import com.postech.restaurantes.application.dto.PageRequest;
-import com.postech.restaurantes.application.dto.PageResult;
-import com.postech.restaurantes.domain.entity.User;
+import com.postech.restaurantes.application.dto.common.PageRequest;
+import com.postech.restaurantes.application.dto.common.PageResult;
+import com.postech.restaurantes.domain.entity.user.User;
 import com.postech.restaurantes.domain.vo.Email;
 import java.util.Optional;
 import java.util.UUID;

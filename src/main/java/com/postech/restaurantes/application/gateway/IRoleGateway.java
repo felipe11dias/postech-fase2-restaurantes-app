@@ -1,7 +1,7 @@
 package com.postech.restaurantes.application.gateway;
 
-import com.postech.restaurantes.domain.entity.Role;
-import com.postech.restaurantes.domain.entity.RoleName;
+import com.postech.restaurantes.domain.entity.user.Role;
+import com.postech.restaurantes.domain.entity.user.RoleName;
 import java.util.Set;
 
 /** Resolução de papéis persistidos a partir dos nomes. */

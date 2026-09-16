@@ -1,4 +1,4 @@
 /**
- * Records de entrada e saída dos casos de uso, incluindo os tipos próprios de paginação (PageRequest, PageResult).
+ * Records de entrada e saída dos casos de uso, em subpacotes por feature (common, user, auth).
  */
 package com.postech.restaurantes.application.dto;

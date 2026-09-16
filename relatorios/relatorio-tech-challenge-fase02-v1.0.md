@@ -208,14 +208,21 @@ src/main/java/com/postech/restaurantes/
 ├── RestaurantesApplication.java
 │
 ├── domain/                        # ENTIDADES — zero dependências
-│   ├── entity/                    # User, Role, Address, PasswordResetToken
+│   ├── entity/
+│   │   ├── user/                  # User (raiz), Role, RoleName, PasswordResetToken
+│   │   └── address/               # Address (compartilhado por usuário e, adiante, restaurante)
 │   ├── vo/                        # Email, ZipCode
 │   └── exception/                 # DuplicateResourceException, ResourceNotFoundException, ...
 │
 ├── application/                   # CASOS DE USO — depende só de domain
-│   ├── usecase/                   # RegisterUserUseCase, AuthenticateUseCase, ...
+│   ├── usecase/
+│   │   ├── user/                  # RegisterUserUseCase, UpdateUserUseCase, SearchUsersUseCase, ...
+│   │   └── auth/                  # AuthenticateUseCase, ForgotPasswordUseCase, ResetPasswordUseCase
 │   ├── gateway/                   # IUserGateway, IRoleGateway, IPasswordEncoder, IMailGateway, ...
-│   └── dto/                       # records de entrada/saída dos casos de uso
+│   └── dto/
+│       ├── common/                # PageRequest, PageResult, SortDirection, AddressDTO
+│       ├── user/                  # NewUserDTO, UpdateUserDTO, ChangePasswordDTO
+│       └── auth/                  # CredentialsDTO, ResetPasswordDTO, IssuedToken
 │
 ├── adapter/                       # ADAPTADORES DE INTERFACE — depende de application e domain
 │   ├── controller/                # UserController, AuthController (orquestração)
@@ -234,6 +241,12 @@ src/main/java/com/postech/restaurantes/
 Cada pacote nasce com um `package-info.java` que documenta sua regra de dependência — o
 que faz a estrutura compilar vazia e deixa a intenção de cada camada registrada no código,
 não só neste relatório.
+
+Dentro de cada camada, entidades, casos de uso e DTOs são agrupados **por agregado ou
+feature** (`user`, `auth`, `address`; depois `restaurant`, `menu`). É a *screaming
+architecture* de Martin: a estrutura deve revelar o domínio, não apenas o padrão
+arquitetural. As regras de ArchUnit usam padrões `..usecase..`/`..gateway..`, então continuam
+válidas para qualquer subpacote.
 
 ### O que foi entregue nesta etapa
 
@@ -433,7 +446,7 @@ VOs, nunca tipos de framework:
 | `IUserGateway`                 | `findById`, `findByLogin`, `findByEmail`, `search(name, PageRequest)`, `insert`, `update`, `delete` |
 | `IRoleGateway`                 | `findByNames(Set<RoleName>)`                                                                     |
 | `IPasswordResetTokenGateway`   | `findByTokenHash`, `insert`, `update`                                                            |
-| `IPasswordEncoder`             | `encode`, `matches`                                                                              |
+| `IPasswordEncoder`             | `encode`, `matches`, `simulateMatch` (gasta o tempo de uma comparação quando não há hash real — o núcleo não conhece o algoritmo) |
 | `ITokenIssuer`                 | `issue(User)` → `IssuedToken(token, expiresAt)`                                                  |
 | `IMailGateway`                 | `sendPasswordReset(Email, rawToken)`                                                             |
 | `ISecureTokenGenerator`        | `generate()` → token aleatório em claro; `hash(rawToken)` → hash determinístico para persistir e consultar |
@@ -531,6 +544,25 @@ falhas reais, que apontou cinco problemas — todos corrigidos com teste corresp
 | `AddressDTO.toEntities`: `"addresses": [null]` produzia NPE (500) no `map`. | Mesma guarda → `IllegalArgumentException("Endereço inválido")` → 400. |
 | `AuthenticateUseCase`: login inexistente retornava **sem** executar o BCrypt; a diferença de latência (~1 ms × ~100 ms) permitia enumerar logins apesar da mensagem única. | Quando o login não existe, a senha é comparada contra um hash BCrypt fixo (`DUMMY_HASH`), igualando o custo dos dois caminhos; o resultado dessa comparação é ignorado. |
 | Senha nula chegava ao `IPasswordEncoder`; o `BCryptPasswordEncoder` lança `IllegalArgumentException("rawPassword cannot be null")`, que viraria 400 com mensagem interna em vez de 401 — e, no login, revelaria que o login existe. | `AuthenticateUseCase` trata login/senha em branco como `InvalidCredentialsException` antes de qualquer consulta; `ChangePasswordUseCase` trata senha atual em branco como `InvalidPasswordException`. |
+
+**Revisão de arquitetura da etapa.** Em seguida o código foi confrontado com as referências
+deste relatório (regra de dependência, entidades donas dos invariantes, "frameworks e banco
+são detalhes", *screaming architecture*). Conformidades verificadas por grep e ArchUnit: zero
+imports fora do JDK em `domain`/`application`, nenhum `now()` no domínio, casos de uso sem
+anotação. Dois ajustes saíram da revisão:
+
+| Achado | Correção |
+| ------ | -------- |
+| A correção do tempo constante no login tinha colocado um **hash BCrypt** constante dentro do caso de uso — o núcleo passou a conhecer o algoritmo, contrariando a própria documentação de `IPasswordEncoder`. Trocar o encoder (Argon2, PBKDF2) quebraria o efeito silenciosamente. | `IPasswordEncoder.simulateMatch(rawPassword)`: a interface promete "gaste o mesmo tempo"; a implementação, na infraestrutura, sabe qual hash fictício usar. O caso de uso volta a não saber nada de BCrypt. |
+| Estrutura "gritava" Clean Architecture, não o domínio: nove casos de uso num só pacote, e o escopo da fase (restaurantes, cardápio) triplicaria isso. | Subpacotes por agregado/feature em cada camada (`domain/entity/user`, `application/usecase/auth`, ...), com `package-info` próprio. Regras de ArchUnit inalteradas. |
+
+Dois pontos ficaram registrados como decisões conscientes, sem mudança: a auditoria
+(`createdAt`/`lastUpdatedAt`) vive na entidade de domínio apenas para leitura, porque a API a
+expõe; e a lista `SORTABLE_PROPERTIES` usa os nomes dos atributos do domínio — o data source
+JPA deve **traduzi-los**, não repassá-los. Um terceiro ponto foi encaminhado para a Etapa 4:
+casos de uso com mais de uma escrita (`ResetPasswordUseCase`) precisam de uma porta de
+unidade de trabalho (`IUnitOfWork`) usada pelo controller de adaptação, já que
+`@Transactional` fica confinado ao data source.
 
 **Verificação.** `mvn verify`: 196 testes (188 unitários + 8 regras de ArchUnit), **BUILD
 SUCCESS**. Cobertura acumulada (`domain` + `application`): 100% de linhas, ramos e
