@@ -20,3 +20,15 @@
 - 111 testes unitários sem mocks; cobertura 100% (170 linhas, 44 ramos) no pacote `domain`.
 - Correção durante os testes: guarda de elemento nulo trocada de `contains(null)` para
   `stream().noneMatch(Objects::isNull)`, pois coleções imutáveis lançam NPE.
+
+## Etapa 3 — Camada de Casos de Uso e Gateways
+- DTOs de aplicação: `PageRequest`/`PageResult` (paginação própria, sem Spring), `AddressDTO`
+  (com conversão para o domínio), `NewUserDTO`, `UpdateUserDTO`, `ChangePasswordDTO`,
+  `CredentialsDTO`, `ResetPasswordDTO`, `IssuedToken`, `SortDirection`.
+- Sete interfaces de gateway: `IUserGateway`, `IRoleGateway`, `IPasswordResetTokenGateway`,
+  `IPasswordEncoder`, `ITokenIssuer`, `IMailGateway` e `ISecureTokenGenerator` (nova, para
+  geração/hash de token de redefinição fora do núcleo e determinística em teste).
+- Nove casos de uso com `create(...)`/`run(...)`: registro, atualização, troca de senha,
+  exclusão, consulta por id, busca paginada, autenticação, esqueci/redefinir senha.
+- 70 testes unitários com Mockito e `Clock.fixed`; cobertura acumulada 100% (357 linhas,
+  112 ramos).

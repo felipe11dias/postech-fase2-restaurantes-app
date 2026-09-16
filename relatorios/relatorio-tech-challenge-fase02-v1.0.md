@@ -28,7 +28,7 @@
 | --- | -------------------------------------------------- | ------ |
 | 1   | Setup do Projeto e Estrutura de Pacotes            | ✅     |
 | 2   | Camada de Entidades (domínio)                      | ✅     |
-| 3   | Camada de Casos de Uso e Gateways                  | ⏳     |
+| 3   | Camada de Casos de Uso e Gateways                  | ✅     |
 | 4   | Adaptadores de Interface (Controllers, Gateways, Presenters) | ⏳ |
 | 5   | Persistência com JPA (infraestrutura)              | ⏳     |
 | 6   | Migrations e Seeds (Flyway)                        | ⏳     |
@@ -39,7 +39,7 @@
 | 11  | Testes — unitários (100% cobertura) e de integração | ⏳    |
 | 12  | Entregáveis (Postman, README)                      | ⏳     |
 
-**Progresso:** 2 de 12 etapas concluídas.
+**Progresso:** 3 de 12 etapas concluídas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -436,25 +436,27 @@ VOs, nunca tipos de framework:
 | `IPasswordEncoder`             | `encode`, `matches`                                                                              |
 | `ITokenIssuer`                 | `issue(User)` → `IssuedToken(token, expiresAt)`                                                  |
 | `IMailGateway`                 | `sendPasswordReset(Email, rawToken)`                                                             |
+| `ISecureTokenGenerator`        | `generate()` → token aleatório em claro; `hash(rawToken)` → hash determinístico para persistir e consultar |
 
 A paginação é expressa por tipos próprios de `application/dto` (`PageRequest`, `PageResult<T>`),
 não por `Pageable`/`Page` do Spring — a tradução acontece na infraestrutura.
+
+`ISecureTokenGenerator` existe por dois motivos: a escolha de algoritmo (`SecureRandom`,
+SHA-256) é detalhe de infraestrutura, e o token gerado precisa ser **determinístico nos
+testes** dos casos de uso — com um mock, o teste sabe exatamente qual hash deve ter sido
+persistido e qual valor em claro deve ter ido para o e-mail.
 
 ### Exemplo
 
 ```java
 // application/usecase/RegisterUserUseCase.java
-public class RegisterUserUseCase {
+public final class RegisterUserUseCase {
     private final IUserGateway userGateway;
     private final IRoleGateway roleGateway;
     private final IPasswordEncoder passwordEncoder;
 
     private RegisterUserUseCase(IUserGateway userGateway, IRoleGateway roleGateway,
-                                IPasswordEncoder passwordEncoder) {
-        this.userGateway = userGateway;
-        this.roleGateway = roleGateway;
-        this.passwordEncoder = passwordEncoder;
-    }
+                                IPasswordEncoder passwordEncoder) { ... }
 
     public static RegisterUserUseCase create(IUserGateway userGateway, IRoleGateway roleGateway,
                                              IPasswordEncoder passwordEncoder) {
@@ -462,24 +464,66 @@ public class RegisterUserUseCase {
     }
 
     public User run(NewUserDTO dto) {
-        if (dto.roles().contains(RoleName.ROLE_ADMIN)) {
-            throw new ForbiddenOperationException("Autocadastro não pode conceder ROLE_ADMIN");
+        Guard.requireNonNull(dto, "Dados de cadastro inválidos");
+        Set<RoleName> roleNames = dto.roles();
+        Guard.require(roleNames != null && !roleNames.isEmpty(), "Usuário deve ter ao menos um papel");
+        if (roleNames.stream().anyMatch(RoleName::isPrivileged)) {
+            throw new ForbiddenOperationException("Autocadastro não pode conceder papel de administrador");
         }
         Email email = Email.of(dto.email());
         if (userGateway.findByEmail(email).isPresent()) {
             throw new DuplicateResourceException("E-mail já cadastrado");
         }
-        if (userGateway.findByLogin(dto.login()).isPresent()) {
+        String login = Guard.requireNonBlank(dto.login(), "Login inválido");
+        if (userGateway.findByLogin(login).isPresent()) {
             throw new DuplicateResourceException("Login já cadastrado");
         }
-        Set<Role> roles = roleGateway.findByNames(dto.roles());
-        User user = User.create(dto.name(), dto.email(), dto.login(),
-                                passwordEncoder.encode(dto.password()), roles,
-                                Address.fromDTOs(dto.addresses()));
+        Set<Role> roles = roleGateway.findByNames(roleNames);
+        if (roles.size() != roleNames.size()) {
+            throw new ResourceNotFoundException("Papel inexistente");
+        }
+        String rawPassword = Guard.requireNonBlank(dto.password(), "Senha inválida");
+        User user = User.create(dto.name(), email.value(), login, passwordEncoder.encode(rawPassword),
+                roles, AddressDTO.toEntities(dto.addresses()));
         return userGateway.insert(user);
     }
 }
 ```
+
+A conversão de endereços fica em `AddressDTO.toEntities(...)` — na camada de aplicação, que
+conhece o domínio — e não em um `Address.fromDTOs(...)`, que faria o domínio conhecer um DTO
+de fora e violaria a regra de dependência.
+
+### O que foi entregue nesta etapa
+
+Pacote `application` completo — **10 DTOs, 7 interfaces de gateway e 9 casos de uso** —
+importando apenas `domain` e o JDK:
+
+| Componente | Decisões de implementação |
+| ---------- | ------------------------- |
+| `PageRequest` / `PageResult<T>` | Records próprios de paginação: página base 0, tamanho 1–100, ordenação opcional. `PageResult.map(...)` permite ao presenter converter o conteúdo sem perder os metadados; o conteúdo é copiado e imutável. |
+| `AddressDTO`, `NewUserDTO`, `UpdateUserDTO`, `ChangePasswordDTO`, `CredentialsDTO`, `ResetPasswordDTO`, `IssuedToken`, `SortDirection` | Records de transporte. Só `IssuedToken` valida (token não vazio, expiração presente); os demais são validados por quem os consome. |
+| Casos de uso | Todos `final`, com construtor privado, `create(...)` recebendo apenas interfaces e `run(...)`. Nenhum `@Service`, nenhum `@Transactional`: a transação é aberta pela origem de dados, na infraestrutura. |
+| `RegisterUserUseCase` | Rejeita papel privilegiado **antes** de qualquer consulta; unicidade de e-mail (já normalizado pelo VO) e de login; confere que todos os papéis pedidos existem (`ResourceNotFoundException` se algum faltar); a senha só chega ao `IPasswordEncoder` depois de validada. |
+| `UpdateUserUseCase` | Unicidade revalidada com `Optional.filter(other -> !other.getId().equals(id))` — o próprio registro não conta como duplicata. Senha intocada. |
+| `ChangePasswordUseCase` / `ResetPasswordUseCase` | Ordem das verificações escolhida para falhar cedo e barato: senha atual (ou token) → nova senha não vazia → confirmação → só então o hash e a gravação. |
+| `SearchUsersUseCase` | Lista fixa `SORTABLE_PROPERTIES`; propriedade fora dela (inclusive `password`) cai em `name ASC` em vez de erro, preservando o contrato de `200` para `sort` desconhecido. |
+| `AuthenticateUseCase` | Login inexistente e senha incorreta lançam a mesma `InvalidCredentialsException` com a mesma mensagem, para não revelar quais logins existem. |
+| `ForgotPasswordUseCase` | Recebe `Duration` de validade e `Clock` na criação (validados). E-mail inexistente retorna em silêncio sem tocar nos gateways de token e e-mail — a resposta é idêntica ao caso de sucesso. Persiste só o hash; o valor em claro vai apenas para `IMailGateway`. |
+
+**Testes unitários — 70 casos em 10 classes** (`PageRequestTest`, `PageResultTest`, `DtoTest`,
+`RegisterUserUseCaseTest`, `UpdateUserUseCaseTest`, `ChangePasswordUseCaseTest`,
+`UserQueryUseCasesTest` com `@Nested` para Find/Delete/Search, `AuthenticateUseCaseTest`,
+`ForgotPasswordUseCaseTest`, `ResetPasswordUseCaseTest`), com **Mockito** para as interfaces
+de gateway e `Clock.fixed` para o tempo — sem contexto Spring, sem banco. `ArgumentCaptor`
+verifica o que foi entregue aos gateways (o hash persistido, o token em claro enviado, a
+ordenação sanitizada). Uma armadilha do JUnit 5 documentada no código: em classes `@Nested` o
+inicializador de campo roda **antes** do `@BeforeEach` externo, então o caso de uso é criado
+em um `@BeforeEach` aninhado.
+
+**Verificação.** `mvn verify`: 189 testes (181 unitários + 8 regras de ArchUnit), **BUILD
+SUCCESS**. Cobertura acumulada (`domain` + `application`): **357/357 linhas, 112/112 ramos,
+143/143 métodos, 34 classes** — 100%.
 
 ---
 
