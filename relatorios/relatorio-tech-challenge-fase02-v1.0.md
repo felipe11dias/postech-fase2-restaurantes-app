@@ -410,9 +410,9 @@ resultante. Ele não sabe de HTTP, de JSON nem de banco de dados.
 | `DeleteUserUseCase`      | remove o usuário (endereços, tokens e vínculos de papel caem por cascade)                                                                                       |
 | `FindUserByIdUseCase`    | consulta por id; `ResourceNotFoundException` se inexistente                                                                                                    |
 | `SearchUsersUseCase`     | listagem paginada, com busca parcial por nome sem diferenciar maiúsculas; ordenação por propriedades permitidas                                                |
-| `AuthenticateUseCase`    | busca por login, compara hash via `IPasswordEncoder`, emite token via `ITokenIssuer`; `InvalidCredentialsException` em falha                                   |
+| `AuthenticateUseCase`    | busca por login, compara hash via `IPasswordEncoder`, emite token via `ITokenIssuer`; `InvalidCredentialsException` em falha — com a **mesma mensagem e o mesmo custo de tempo** para login inexistente e senha incorreta |
 | `ForgotPasswordUseCase`  | se o e-mail existir, gera token de uso único, persiste o hash e envia por `IMailGateway`; **resposta idêntica exista ou não o e-mail**                          |
-| `ResetPasswordUseCase`   | valida token (existe, não expirou, não usado), confere confirmação, grava novo hash e marca o token como usado                                                  |
+| `ResetPasswordUseCase`   | valida token (existe, não expirou, não usado), confere confirmação, **invalida o token e só então** grava o novo hash                                            |
 
 ### Regra de negócio × regra de aplicação
 
@@ -521,9 +521,20 @@ ordenação sanitizada). Uma armadilha do JUnit 5 documentada no código: em cla
 inicializador de campo roda **antes** do `@BeforeEach` externo, então o caso de uso é criado
 em um `@BeforeEach` aninhado.
 
-**Verificação.** `mvn verify`: 189 testes (181 unitários + 8 regras de ArchUnit), **BUILD
-SUCCESS**. Cobertura acumulada (`domain` + `application`): **357/357 linhas, 112/112 ramos,
-143/143 métodos, 34 classes** — 100%.
+**Revisão de código da etapa.** Antes de fechar, o diff passou por uma revisão focada em
+falhas reais, que apontou cinco problemas — todos corrigidos com teste correspondente:
+
+| Achado | Correção |
+| ------ | -------- |
+| `ResetPasswordUseCase` gravava a senha **antes** de marcar o token como usado. Como cada gateway é a própria transação, uma falha entre as duas escritas deixaria a senha trocada e o token reutilizável. | Ordem invertida: o token é invalidado e persistido primeiro; se a gravação da senha falhar, o efeito é "peça um novo token". Teste com `InOrder` e um teste em que `tokenGateway.update` lança e a senha permanece intacta. |
+| `RegisterUserUseCase`: `"roles": [null]` passava pela checagem nulo/vazio e estourava `NullPointerException` (500) em `RoleName::isPrivileged`. | `Guard.require(roleNames.stream().noneMatch(Objects::isNull), ...)` → 400. |
+| `AddressDTO.toEntities`: `"addresses": [null]` produzia NPE (500) no `map`. | Mesma guarda → `IllegalArgumentException("Endereço inválido")` → 400. |
+| `AuthenticateUseCase`: login inexistente retornava **sem** executar o BCrypt; a diferença de latência (~1 ms × ~100 ms) permitia enumerar logins apesar da mensagem única. | Quando o login não existe, a senha é comparada contra um hash BCrypt fixo (`DUMMY_HASH`), igualando o custo dos dois caminhos; o resultado dessa comparação é ignorado. |
+| Senha nula chegava ao `IPasswordEncoder`; o `BCryptPasswordEncoder` lança `IllegalArgumentException("rawPassword cannot be null")`, que viraria 400 com mensagem interna em vez de 401 — e, no login, revelaria que o login existe. | `AuthenticateUseCase` trata login/senha em branco como `InvalidCredentialsException` antes de qualquer consulta; `ChangePasswordUseCase` trata senha atual em branco como `InvalidPasswordException`. |
+
+**Verificação.** `mvn verify`: 196 testes (188 unitários + 8 regras de ArchUnit), **BUILD
+SUCCESS**. Cobertura acumulada (`domain` + `application`): 100% de linhas, ramos e
+métodos.
 
 ---
 

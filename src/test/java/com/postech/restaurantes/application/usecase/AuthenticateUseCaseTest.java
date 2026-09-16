@@ -67,6 +67,37 @@ class AuthenticateUseCaseTest {
     }
 
     @Test
+    @DisplayName("Login inexistente ainda executa a comparação de senha (contra um hash fictício), igualando o tempo")
+    void deveCompararContraHashFicticioQuandoLoginInexistente() {
+        when(userGateway.findByLogin(anyString())).thenReturn(Optional.empty());
+
+        assertThrows(InvalidCredentialsException.class, () -> useCase.run(new CredentialsDTO("ninguem", "senha")));
+
+        verify(passwordEncoder).matches("senha", AuthenticateUseCase.DUMMY_HASH);
+    }
+
+    @Test
+    @DisplayName("Hash fictício confere: mesmo que o encoder devolva true, login inexistente falha")
+    void deveFalharMesmoQueHashFicticioConfira() {
+        when(userGateway.findByLogin(anyString())).thenReturn(Optional.empty());
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
+
+        assertThrows(InvalidCredentialsException.class, () -> useCase.run(new CredentialsDTO("ninguem", "senha")));
+
+        verify(tokenIssuer, never()).issue(any());
+    }
+
+    @Test
+    @DisplayName("Senha nula ou em branco falha como credencial inválida, sem chegar ao encoder")
+    void deveFalharQuandoSenhaEmBranco() {
+        assertThrows(InvalidCredentialsException.class, () -> useCase.run(new CredentialsDTO("joao.silva", null)));
+        assertThrows(InvalidCredentialsException.class, () -> useCase.run(new CredentialsDTO("joao.silva", "  ")));
+
+        verify(passwordEncoder, never()).matches(any(), any());
+        verify(userGateway, never()).findByLogin(anyString());
+    }
+
+    @Test
     @DisplayName("Senha incorreta falha com a mesma mensagem de login inexistente")
     void deveFalharQuandoSenhaIncorreta() {
         when(userGateway.findByLogin("joao.silva")).thenReturn(Optional.of(existingUser()));
@@ -80,9 +111,10 @@ class AuthenticateUseCaseTest {
     }
 
     @Test
-    @DisplayName("Recusa credenciais nulas ou login em branco")
+    @DisplayName("Credenciais nulas são erro de argumento; login em branco é credencial inválida")
     void deveRecusarEntradaInvalida() {
         assertThrows(IllegalArgumentException.class, () -> useCase.run(null));
-        assertThrows(IllegalArgumentException.class, () -> useCase.run(new CredentialsDTO(" ", "senha")));
+        assertThrows(InvalidCredentialsException.class, () -> useCase.run(new CredentialsDTO(" ", "senha")));
+        assertThrows(InvalidCredentialsException.class, () -> useCase.run(new CredentialsDTO(null, "senha")));
     }
 }

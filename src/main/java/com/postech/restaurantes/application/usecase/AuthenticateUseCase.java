@@ -8,14 +8,22 @@ import com.postech.restaurantes.application.gateway.IUserGateway;
 import com.postech.restaurantes.domain.Guard;
 import com.postech.restaurantes.domain.entity.User;
 import com.postech.restaurantes.domain.exception.InvalidCredentialsException;
+import java.util.Optional;
 
 /**
- * Validação de login. Login inexistente e senha incorreta produzem a mesma exceção e a mesma
- * mensagem, para não revelar quais logins existem.
+ * Validação de login. Login inexistente e senha incorreta produzem a mesma exceção, a mesma
+ * mensagem e o mesmo custo de tempo, para não revelar quais logins existem.
  */
 public final class AuthenticateUseCase {
 
     private static final String FAILURE = "Login ou senha incorretos";
+
+    /**
+     * Hash BCrypt válido de uma senha descartável. Quando o login não existe, a senha
+     * informada é comparada contra ele para que o caminho "não encontrado" gaste o mesmo tempo
+     * do caminho "senha errada" — sem isso, a latência revelaria quais logins existem.
+     */
+    static final String DUMMY_HASH = "$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG";
 
     private final IUserGateway userGateway;
     private final IPasswordEncoder passwordEncoder;
@@ -34,11 +42,21 @@ public final class AuthenticateUseCase {
 
     public IssuedToken run(CredentialsDTO credentials) {
         Guard.requireNonNull(credentials, "Credenciais inválidas");
-        User user = userGateway.findByLogin(Guard.requireNonBlank(credentials.login(), FAILURE))
-                .orElseThrow(() -> new InvalidCredentialsException(FAILURE));
-        if (!passwordEncoder.matches(credentials.password(), user.getPasswordHash())) {
+        String login = credentials.login();
+        String password = credentials.password();
+        if (isBlank(login) || isBlank(password)) {
             throw new InvalidCredentialsException(FAILURE);
         }
-        return tokenIssuer.issue(user);
+        Optional<User> user = userGateway.findByLogin(login);
+        String hash = user.map(User::getPasswordHash).orElse(DUMMY_HASH);
+        boolean matches = passwordEncoder.matches(password, hash);
+        if (user.isEmpty() || !matches) {
+            throw new InvalidCredentialsException(FAILURE);
+        }
+        return tokenIssuer.issue(user.get());
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

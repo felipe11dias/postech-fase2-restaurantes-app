@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -30,6 +31,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 
 class ResetPasswordUseCaseTest {
 
@@ -68,8 +70,25 @@ class ResetPasswordUseCaseTest {
 
         assertEquals("novoHash", user.getPasswordHash());
         assertTrue(token.isUsed());
-        verify(userGateway).update(user);
-        verify(tokenGateway).update(token);
+        InOrder inOrder = inOrder(tokenGateway, userGateway);
+        inOrder.verify(tokenGateway).update(token);
+        inOrder.verify(userGateway).update(user);
+    }
+
+    @Test
+    @DisplayName("Se invalidar o token falhar, a senha não é alterada nem gravada")
+    void naoDeveGravarSenhaQuandoInvalidarTokenFalha() {
+        PasswordResetToken token = usableToken();
+        User user = existingUser();
+        when(tokenGateway.findByTokenHash("hash-do-token")).thenReturn(Optional.of(token));
+        when(userGateway.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(tokenGateway.update(token)).thenThrow(new IllegalStateException("banco indisponível"));
+
+        assertThrows(IllegalStateException.class, () -> useCase.run(DTO));
+
+        assertEquals(HASH, user.getPasswordHash());
+        verify(passwordEncoder, never()).encode(anyString());
+        verify(userGateway, never()).update(any());
     }
 
     @Test

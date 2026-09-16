@@ -65,6 +65,19 @@ class ChangePasswordUseCaseTest {
     }
 
     @Test
+    @DisplayName("Senha atual nula ou em branco é tratada como incorreta, sem chegar ao encoder")
+    void deveRecusarQuandoSenhaAtualEmBranco() {
+        when(userGateway.findById(USER_ID)).thenReturn(Optional.of(existingUser()));
+
+        assertThrows(InvalidPasswordException.class,
+                () -> useCase.run(USER_ID, new ChangePasswordDTO(null, "nova", "nova")));
+        assertThrows(InvalidPasswordException.class,
+                () -> useCase.run(USER_ID, new ChangePasswordDTO("  ", "nova", "nova")));
+
+        verify(passwordEncoder, never()).matches(any(), any());
+    }
+
+    @Test
     @DisplayName("Recusa quando a confirmação diverge da nova senha")
     void deveRecusarQuandoConfirmacaoDiverge() {
         when(userGateway.findById(USER_ID)).thenReturn(Optional.of(existingUser()));

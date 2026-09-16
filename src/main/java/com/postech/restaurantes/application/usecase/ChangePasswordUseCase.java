@@ -29,7 +29,9 @@ public final class ChangePasswordUseCase {
         User user = userGateway.findById(Guard.requireNonNull(id, "Id inválido"))
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-        if (!passwordEncoder.matches(dto.currentPassword(), user.getPasswordHash())) {
+        String currentPassword = dto.currentPassword();
+        if (currentPassword == null || currentPassword.isBlank()
+                || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
             throw new InvalidPasswordException("Senha atual incorreta");
         }
         String newPassword = Guard.requireNonBlank(dto.newPassword(), "Nova senha inválida");

@@ -25,6 +25,8 @@ import com.postech.restaurantes.domain.exception.DuplicateResourceException;
 import com.postech.restaurantes.domain.exception.ForbiddenOperationException;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
 import com.postech.restaurantes.domain.vo.Email;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -91,6 +93,16 @@ class RegisterUserUseCaseTest {
     void deveRecusarQuandoSemPapeis() {
         assertThrows(IllegalArgumentException.class, () -> useCase.run(dto(null)));
         assertThrows(IllegalArgumentException.class, () -> useCase.run(dto(Set.of())));
+    }
+
+    @Test
+    @DisplayName("Recusa papel nulo dentro do conjunto com 400, não com NPE")
+    void deveRecusarQuandoPapelNuloNoConjunto() {
+        Set<RoleName> comNulo = new HashSet<>(Arrays.asList(RoleName.ROLE_CUSTOMER, null));
+
+        assertThrows(IllegalArgumentException.class, () -> useCase.run(dto(comNulo)));
+
+        verify(userGateway, never()).findByEmail(any());
     }
 
     @Test

@@ -13,6 +13,7 @@ import com.postech.restaurantes.domain.exception.DuplicateResourceException;
 import com.postech.restaurantes.domain.exception.ForbiddenOperationException;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
 import com.postech.restaurantes.domain.vo.Email;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -40,6 +41,7 @@ public final class RegisterUserUseCase {
         Guard.requireNonNull(dto, "Dados de cadastro inválidos");
         Set<RoleName> roleNames = dto.roles();
         Guard.require(roleNames != null && !roleNames.isEmpty(), "Usuário deve ter ao menos um papel");
+        Guard.require(roleNames.stream().noneMatch(Objects::isNull), "Papel inválido");
         if (roleNames.stream().anyMatch(RoleName::isPrivileged)) {
             throw new ForbiddenOperationException("Autocadastro não pode conceder papel de administrador");
         }

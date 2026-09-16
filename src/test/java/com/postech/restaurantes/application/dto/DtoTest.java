@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.postech.restaurantes.domain.entity.Address;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -49,6 +50,15 @@ class DtoTest {
 
         assertEquals(2, entities.size());
         assertEquals("RJ", entities.get(1).getState());
+    }
+
+    @Test
+    @DisplayName("AddressDTO: elemento nulo na lista é entrada inválida, não NPE")
+    void deveRecusarElementoNuloNaLista() {
+        List<AddressDTO> comNulo = new ArrayList<>();
+        comNulo.add(null);
+
+        assertThrows(IllegalArgumentException.class, () -> AddressDTO.toEntities(comNulo));
     }
 
     @Test

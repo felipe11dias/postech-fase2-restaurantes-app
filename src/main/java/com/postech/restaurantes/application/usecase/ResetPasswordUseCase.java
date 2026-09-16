@@ -59,9 +59,12 @@ public final class ResetPasswordUseCase {
         User user = userGateway.findById(token.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-        user.changePasswordHash(passwordEncoder.encode(newPassword));
-        userGateway.update(user);
+        // O token é invalidado ANTES de gravar a senha: cada gateway é a própria transação,
+        // então se a segunda escrita falhar o efeito é "peça um novo token" — nunca uma senha
+        // trocada com um token ainda reutilizável.
         token.markUsed();
         tokenGateway.update(token);
+        user.changePasswordHash(passwordEncoder.encode(newPassword));
+        userGateway.update(user);
     }
 }
