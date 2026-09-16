@@ -12,3 +12,11 @@
 - `application.yml` (JPA `ddl-auto: validate`, `open-in-view: false`, Flyway, JWT, mail,
   Actuator), Dockerfile multi-stage, `docker-compose.yml`, `.env.example`.
 
+## Etapa 2 — Camada de Entidades (domínio)
+- `Guard` (invariantes), VOs `Email` e `ZipCode` (records normalizados), `RoleName`, `Role`
+  (igualdade por nome), `Address`, `User` (raiz do agregado, `create`/`restore`),
+  `PasswordResetToken` (instante por parâmetro, uso único).
+- `DomainException` e as seis exceções de domínio.
+- 111 testes unitários sem mocks; cobertura 100% (170 linhas, 44 ramos) no pacote `domain`.
+- Correção durante os testes: guarda de elemento nulo trocada de `contains(null)` para
+  `stream().noneMatch(Objects::isNull)`, pois coleções imutáveis lançam NPE.

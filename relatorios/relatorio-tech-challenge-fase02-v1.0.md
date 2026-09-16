@@ -27,7 +27,7 @@
 | #   | Etapa                                              | Status |
 | --- | -------------------------------------------------- | ------ |
 | 1   | Setup do Projeto e Estrutura de Pacotes            | ✅     |
-| 2   | Camada de Entidades (domínio)                      | ⏳     |
+| 2   | Camada de Entidades (domínio)                      | ✅     |
 | 3   | Camada de Casos de Uso e Gateways                  | ⏳     |
 | 4   | Adaptadores de Interface (Controllers, Gateways, Presenters) | ⏳ |
 | 5   | Persistência com JPA (infraestrutura)              | ⏳     |
@@ -39,7 +39,7 @@
 | 11  | Testes — unitários (100% cobertura) e de integração | ⏳    |
 | 12  | Entregáveis (Postman, README)                      | ⏳     |
 
-**Progresso:** 1 de 12 etapas concluídas.
+**Progresso:** 2 de 12 etapas concluídas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -292,44 +292,56 @@ antes de qualquer consulta.
 ### Exemplo
 
 ```java
-// domain/entity/User.java — sem Spring, sem JPA, sem Lombok
-public class User {
-    private UUID id;
+// domain/entity/User.java — sem Spring, sem JPA, sem Lombok (trecho)
+public final class User {
+    private final UUID id;
     private String name;
     private Email email;
     private String login;
     private String passwordHash;
-    private final Set<Role> roles = new HashSet<>();
+    private final Set<Role> roles = new LinkedHashSet<>();
     private final List<Address> addresses = new ArrayList<>();
+    private final LocalDateTime createdAt;
+    private final LocalDateTime lastUpdatedAt;
 
-    private User() {}
+    private User(UUID id, LocalDateTime createdAt, LocalDateTime lastUpdatedAt) { ... }
 
+    /** Usuário novo, ainda sem id nem auditoria. */
     public static User create(String name, String email, String login, String passwordHash,
                               Set<Role> roles, List<Address> addresses) {
-        User user = new User();
+        return fill(new User(null, null, null), name, email, login, passwordHash, roles, addresses);
+    }
+
+    /** Usuário reconstruído a partir da origem de dados, com id e auditoria conhecidos. */
+    public static User restore(UUID id, String name, String email, String login, String passwordHash,
+                               Set<Role> roles, List<Address> addresses,
+                               LocalDateTime createdAt, LocalDateTime lastUpdatedAt) {
+        User user = new User(Guard.requireNonNull(id, "Id do usuário inválido"), createdAt, lastUpdatedAt);
+        return fill(user, name, email, login, passwordHash, roles, addresses);
+    }
+
+    private static User fill(User user, String name, String email, String login, String passwordHash,
+                             Set<Role> roles, List<Address> addresses) {
         user.setName(name);
         user.setEmail(Email.of(email));      // valida formato e normaliza para minúsculas
         user.setLogin(login);
-        user.setPasswordHash(passwordHash);
+        user.changePasswordHash(passwordHash);
         user.replaceRoles(roles);            // exige ao menos um papel
         user.replaceAddresses(addresses);
         return user;
     }
 
-    public static User restore(UUID id, String name, String email, String login,
-                               String passwordHash, Set<Role> roles, List<Address> addresses) {
-        User user = create(name, email, login, passwordHash, roles, addresses);
-        user.id = Objects.requireNonNull(id);
-        return user;
+    public void setName(String name) {
+        this.name = Guard.requireNonBlank(name, "Nome inválido");
     }
 
-    public void setName(String name) {
-        if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("Nome inválido");
-        }
-        this.name = name;
+    public void replaceRoles(Set<Role> newRoles) {
+        Guard.require(newRoles != null && !newRoles.isEmpty(), "Usuário deve ter ao menos um papel");
+        Guard.require(newRoles.stream().noneMatch(Objects::isNull), "Papel inválido");
+        roles.clear();
+        roles.addAll(newRoles);
     }
-    // demais setters validam do mesmo modo; getters omitidos
+    // demais setters validam do mesmo modo; getters devolvem visões imutáveis das coleções
 }
 ```
 
@@ -348,7 +360,36 @@ da origem de dados, com id conhecido. Ambos passam pela mesma validação.
 | `InvalidCredentialsException`    | login ou senha incorretos                                  |
 
 São exceções não verificadas, sem nenhuma anotação: quem as traduz para HTTP é a
-infraestrutura (Etapa 8).
+infraestrutura (Etapa 8). Todas estendem a base abstrata `DomainException`, o que permite ao
+handler tratá-las por família quando conveniente.
+
+### O que foi entregue nesta etapa
+
+Pacote `domain` completo, com **15 classes e zero imports** fora do JDK:
+
+| Tipo | Decisões de implementação |
+| ---- | ------------------------- |
+| `Guard` | Utilitário de invariantes (`requireNonNull`, `requireNonBlank`, `require`, `trimToNull`). Concentra as verificações para que as entidades leiam como regras, não como `if`s. Toda violação é `IllegalArgumentException`. |
+| `Email`, `ZipCode` | `record`s com construtor compacto: validam e normalizam na construção (minúsculas / só dígitos), então a igualdade por valor do record já embute a normalização — `Email.of("Joao@x.com").equals(Email.of("joao@x.com"))` é verdadeiro. |
+| `RoleName` | Enum com `from(String)` tolerante a caixa e `isPrivileged()` (só `ROLE_ADMIN`). |
+| `Role` | Identidade de negócio pelo nome: `equals`/`hashCode` ignoram o id, permitindo comparar um papel recém-criado com um restaurado do banco dentro de um `Set`. |
+| `Address` | Rua, cidade, UF (2 letras, normalizada para maiúsculas) e CEP obrigatórios; número, complemento e bairro opcionais com "em branco vira ausente". |
+| `User` | Raiz do agregado. `create` (sem id/auditoria) e `restore` (com id, `createdAt`, `lastUpdatedAt`) passam pelo mesmo `fill`, então não há caminho que produza instância inválida. `replaceRoles`/`replaceAddresses` substituem as coleções por completo; `getRoles`/`getAddresses` devolvem visões imutáveis. O domínio recebe o **hash** da senha — nunca a senha nem o algoritmo. |
+| `PasswordResetToken` | Guarda só o hash do token. O instante de referência é parâmetro (`create(..., now)`, `isExpired(now)`, `isUsable(now)`), mantendo a entidade sem relógio e os testes determinísticos. `markUsed()` é de uso único e a segunda chamada é `IllegalStateException` — violação de estado, não de argumento. |
+| `DomainException` + 6 subclasses | `RuntimeException` com mensagem; sem anotação e sem código HTTP. |
+
+**Testes unitários — 111 casos em 8 classes** (`GuardTest`, `EmailTest`, `ZipCodeTest`,
+`RoleNameTest`, `RoleTest`, `AddressTest`, `UserTest`, `PasswordResetTokenTest`,
+`DomainExceptionsTest`), sem mocks e sem Spring. Cada invariante tem um teste que prova a
+recusa (`assertThrows`) e um que prova a aceitação; os casos de "em branco" usam
+`@ParameterizedTest` com `@NullAndEmptySource`. Cobertura medida pelo JaCoCo no pacote
+`domain`: **170/170 linhas, 44/44 ramos, 83/83 métodos** — 100%.
+
+**Verificação.** `mvn verify`: 119 testes (111 unitários + 8 regras de ArchUnit), **BUILD
+SUCCESS**, regra de cobertura aprovada. Os testes pegaram um defeito real antes do primeiro
+uso: a verificação "nenhum elemento nulo" usava `contains(null)`, que em coleções imutáveis
+(`Set.of`, `List.of`) lança `NullPointerException` em vez de responder `false`. Foi trocada
+por `stream().noneMatch(Objects::isNull)`.
 
 ---
 
