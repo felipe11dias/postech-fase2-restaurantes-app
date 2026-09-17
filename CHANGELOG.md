@@ -30,7 +30,7 @@
   geração/hash de token de redefinição fora do núcleo e determinística em teste).
 - Nove casos de uso com `create(...)`/`run(...)`: registro, atualização, troca de senha,
   exclusão, consulta por id, busca paginada, autenticação, esqueci/redefinir senha.
-- 77 testes unitários com Mockito e `Clock.fixed`; cobertura acumulada 100%.
+- 78 testes unitários com Mockito e `Clock.fixed`; cobertura acumulada 100%.
 - Correções da revisão de código: `ResetPasswordUseCase` invalida o token antes de gravar a
   senha; elementos nulos em `roles`/`addresses` viram 400 em vez de NPE; `AuthenticateUseCase`
   compara contra um hash fictício quando o login não existe (mesmo tempo de resposta) e trata
@@ -40,3 +40,5 @@
   havia entrado no caso de uso (o núcleo volta a não conhecer o algoritmo); pacotes de
   `domain`/`application` reorganizados em subpacotes por agregado/feature (`user`, `auth`,
   `address`, `common`) — *screaming architecture*.
+- Correção: `AuthenticateUseCase` volta a aparar o login antes da busca, como fazem os casos
+  de uso de escrita (login com espaços nas bordas era aceito no cadastro e recusado no login).
