@@ -15,6 +15,19 @@ código dele com o que foi de fato escrito.
 
 Idioma do código, comentários, testes (`@DisplayName`) e documentação: português.
 
+## Princípio orientador (definido pelo autor)
+
+**As referências bibliográficas do relatório são o guia de toda decisão** — Martin
+(*Clean Architecture*, *Clean Code*, *Agile PPP*/SOLID, *Clean Coder*), Cockburn (*Writing
+Effective Use Cases*) e as normas de banco (Date, Machado). Na dúvida entre duas soluções,
+vence a que os conceitos dessas referências sustentam, e a decisão deve ser **consistente
+com o que já está aplicado no projeto**: uma regra aceita para o agregado de usuário vale
+igual para restaurante e cardápio. Antes de propor um atalho (anotação de framework no
+núcleo, constante técnica num caso de uso, mapeamento "para economizar"), verificar se ele
+rompe a integridade entre a arquitetura aplicada e os conceitos — se rompe, não fazer.
+Em toda etapa, a seção "O que foi entregue" do relatório deve dizer **qual conceito** cada
+decisão atende, e a revisão de arquitetura da etapa confere isso antes de fechar.
+
 ## Comandos
 
 `mvn` e `java` não estão no PATH desta máquina. Use:
@@ -54,7 +67,10 @@ infrastructure  → qualquer camada. ÚNICO pacote que pode importar Spring, JPA
                   springdoc, jjwt, jakarta.validation, jakarta.mail, Flyway.
 ```
 
-Cada pacote tem um `package-info.java` com sua regra. Convenções também verificadas:
+Cada pacote tem um `package-info.java` com sua regra. Dentro de cada camada, entidades, casos de
+uso e DTOs ficam em **subpacotes por agregado/feature** (`domain/entity/user`,
+`application/usecase/auth`, `application/dto/common`...) — *screaming architecture*: uma feature
+nova (restaurante, cardápio) ganha o próprio subpacote em cada camada. Convenções também verificadas:
 classes em `application.usecase` terminam em `UseCase`; tudo em `application.gateway` e
 `adapter.datasource` são interfaces com prefixo `I`.
 
@@ -94,6 +110,11 @@ Pontos que só ficam claros lendo várias camadas:
 - `Role` tem igualdade pelo `RoleName` (ignora id) para funcionar em `Set`.
 - O domínio recebe o **hash** da senha, nunca a senha; entidades não chamam
   `LocalDateTime.now()` — o instante vem por parâmetro.
+- Nenhuma string ou constante de tecnologia no núcleo (hash BCrypt, nome de coluna, JWT).
+  Se um caso de uso precisa de um comportamento técnico (ex.: "gaste o tempo de uma
+  comparação de senha"), ele vira método da interface de gateway (`IPasswordEncoder.simulateMatch`).
+- Casos de uso com mais de uma escrita ainda não são atômicos (`@Transactional` só no data
+  source). Decisão pendente para a Etapa 4: porta `IUnitOfWork` usada pelo controller de adaptação.
 - Exceções de negócio estendem `domain/exception/DomainException`; a tradução para HTTP é
   do handler em `infrastructure/web`.
 - Ao verificar "nenhum elemento nulo" em coleções use `stream().noneMatch(Objects::isNull)`

@@ -1,4 +1,4 @@
-package com.postech.restaurantes.domain.entity;
+package com.postech.restaurantes.domain.entity.address;
 
 import com.postech.restaurantes.domain.Guard;
 import com.postech.restaurantes.domain.vo.ZipCode;

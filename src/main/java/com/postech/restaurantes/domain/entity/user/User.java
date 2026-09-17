@@ -1,4 +1,4 @@
-package com.postech.restaurantes.domain.entity;
+package com.postech.restaurantes.domain.entity.user;
 
 import com.postech.restaurantes.domain.Guard;
 import com.postech.restaurantes.domain.vo.Email;
@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import com.postech.restaurantes.domain.entity.address.Address;
 
 /**
  * Raiz do agregado de usuário. Não existe instância inválida: {@link #create} e

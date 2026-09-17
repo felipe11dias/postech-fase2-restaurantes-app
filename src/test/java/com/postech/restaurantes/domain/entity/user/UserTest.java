@@ -1,4 +1,4 @@
-package com.postech.restaurantes.domain.entity;
+package com.postech.restaurantes.domain.entity.user;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
+import com.postech.restaurantes.domain.entity.address.Address;
 
 class UserTest {
 

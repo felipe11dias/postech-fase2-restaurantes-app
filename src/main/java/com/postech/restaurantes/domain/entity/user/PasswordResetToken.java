@@ -1,4 +1,4 @@
-package com.postech.restaurantes.domain.entity;
+package com.postech.restaurantes.domain.entity.user;
 
 import com.postech.restaurantes.domain.Guard;
 import java.time.LocalDateTime;

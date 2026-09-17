@@ -28,7 +28,7 @@ flowchart TB
 | Adaptadores de Interface | `adapter/controller`, `adapter/gateway`, `adapter/datasource`, `adapter/presenter` | Tradução entre o núcleo e o mundo externo |
 | Frameworks & Drivers | `infrastructure/web`, `infrastructure/persistence`, `infrastructure/security`, `infrastructure/mail`, `infrastructure/config` | Spring, JPA, JWT, banco de dados — únicos detalhes técnicos do sistema |
 
-Cada pacote tem um `package-info.java` descrevendo sua regra de dependência. A regra é validada automaticamente em build por testes de arquitetura com **ArchUnit**: nenhum tipo fora de `infrastructure` pode importar Spring, JPA ou Hibernate.
+Cada pacote tem um `package-info.java` descrevendo sua regra de dependência. Dentro das camadas, o código é agrupado por agregado/feature (`user`, `auth`, `address`...), para que a estrutura revele o domínio e não só o padrão arquitetural. A regra é validada automaticamente em build por testes de arquitetura com **ArchUnit**: nenhum tipo fora de `infrastructure` pode importar Spring, JPA ou Hibernate.
 
 ## Stack tecnológica
 

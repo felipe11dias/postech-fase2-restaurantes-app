@@ -28,7 +28,7 @@
 | --- | -------------------------------------------------- | ------ |
 | 1   | Setup do Projeto e Estrutura de Pacotes            | ✅     |
 | 2   | Camada de Entidades (domínio)                      | ✅     |
-| 3   | Camada de Casos de Uso e Gateways                  | ⏳     |
+| 3   | Camada de Casos de Uso e Gateways                  | ✅     |
 | 4   | Adaptadores de Interface (Controllers, Gateways, Presenters) | ⏳ |
 | 5   | Persistência com JPA (infraestrutura)              | ⏳     |
 | 6   | Migrations e Seeds (Flyway)                        | ⏳     |
@@ -39,7 +39,7 @@
 | 11  | Testes — unitários (100% cobertura) e de integração | ⏳    |
 | 12  | Entregáveis (Postman, README)                      | ⏳     |
 
-**Progresso:** 2 de 12 etapas concluídas.
+**Progresso:** 3 de 12 etapas concluídas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -208,14 +208,21 @@ src/main/java/com/postech/restaurantes/
 ├── RestaurantesApplication.java
 │
 ├── domain/                        # ENTIDADES — zero dependências
-│   ├── entity/                    # User, Role, Address, PasswordResetToken
+│   ├── entity/
+│   │   ├── user/                  # User (raiz), Role, RoleName, PasswordResetToken
+│   │   └── address/               # Address (compartilhado por usuário e, adiante, restaurante)
 │   ├── vo/                        # Email, ZipCode
 │   └── exception/                 # DuplicateResourceException, ResourceNotFoundException, ...
 │
 ├── application/                   # CASOS DE USO — depende só de domain
-│   ├── usecase/                   # RegisterUserUseCase, AuthenticateUseCase, ...
+│   ├── usecase/
+│   │   ├── user/                  # RegisterUserUseCase, UpdateUserUseCase, SearchUsersUseCase, ...
+│   │   └── auth/                  # AuthenticateUseCase, ForgotPasswordUseCase, ResetPasswordUseCase
 │   ├── gateway/                   # IUserGateway, IRoleGateway, IPasswordEncoder, IMailGateway, ...
-│   └── dto/                       # records de entrada/saída dos casos de uso
+│   └── dto/
+│       ├── common/                # PageRequest, PageResult, SortDirection, AddressDTO
+│       ├── user/                  # NewUserDTO, UpdateUserDTO, ChangePasswordDTO
+│       └── auth/                  # CredentialsDTO, ResetPasswordDTO, IssuedToken
 │
 ├── adapter/                       # ADAPTADORES DE INTERFACE — depende de application e domain
 │   ├── controller/                # UserController, AuthController (orquestração)
@@ -234,6 +241,12 @@ src/main/java/com/postech/restaurantes/
 Cada pacote nasce com um `package-info.java` que documenta sua regra de dependência — o
 que faz a estrutura compilar vazia e deixa a intenção de cada camada registrada no código,
 não só neste relatório.
+
+Dentro de cada camada, entidades, casos de uso e DTOs são agrupados **por agregado ou
+feature** (`user`, `auth`, `address`; depois `restaurant`, `menu`). É a *screaming
+architecture* de Martin: a estrutura deve revelar o domínio, não apenas o padrão
+arquitetural. As regras de ArchUnit usam padrões `..usecase..`/`..gateway..`, então continuam
+válidas para qualquer subpacote.
 
 ### O que foi entregue nesta etapa
 
@@ -410,9 +423,9 @@ resultante. Ele não sabe de HTTP, de JSON nem de banco de dados.
 | `DeleteUserUseCase`      | remove o usuário (endereços, tokens e vínculos de papel caem por cascade)                                                                                       |
 | `FindUserByIdUseCase`    | consulta por id; `ResourceNotFoundException` se inexistente                                                                                                    |
 | `SearchUsersUseCase`     | listagem paginada, com busca parcial por nome sem diferenciar maiúsculas; ordenação por propriedades permitidas                                                |
-| `AuthenticateUseCase`    | busca por login, compara hash via `IPasswordEncoder`, emite token via `ITokenIssuer`; `InvalidCredentialsException` em falha                                   |
+| `AuthenticateUseCase`    | busca por login, compara hash via `IPasswordEncoder`, emite token via `ITokenIssuer`; `InvalidCredentialsException` em falha — com a **mesma mensagem e o mesmo custo de tempo** para login inexistente e senha incorreta |
 | `ForgotPasswordUseCase`  | se o e-mail existir, gera token de uso único, persiste o hash e envia por `IMailGateway`; **resposta idêntica exista ou não o e-mail**                          |
-| `ResetPasswordUseCase`   | valida token (existe, não expirou, não usado), confere confirmação, grava novo hash e marca o token como usado                                                  |
+| `ResetPasswordUseCase`   | valida token (existe, não expirou, não usado), confere confirmação, **invalida o token e só então** grava o novo hash                                            |
 
 ### Regra de negócio × regra de aplicação
 
@@ -433,28 +446,30 @@ VOs, nunca tipos de framework:
 | `IUserGateway`                 | `findById`, `findByLogin`, `findByEmail`, `search(name, PageRequest)`, `insert`, `update`, `delete` |
 | `IRoleGateway`                 | `findByNames(Set<RoleName>)`                                                                     |
 | `IPasswordResetTokenGateway`   | `findByTokenHash`, `insert`, `update`                                                            |
-| `IPasswordEncoder`             | `encode`, `matches`                                                                              |
+| `IPasswordEncoder`             | `encode`, `matches`, `simulateMatch` (gasta o tempo de uma comparação quando não há hash real — o núcleo não conhece o algoritmo) |
 | `ITokenIssuer`                 | `issue(User)` → `IssuedToken(token, expiresAt)`                                                  |
 | `IMailGateway`                 | `sendPasswordReset(Email, rawToken)`                                                             |
+| `ISecureTokenGenerator`        | `generate()` → token aleatório em claro; `hash(rawToken)` → hash determinístico para persistir e consultar |
 
 A paginação é expressa por tipos próprios de `application/dto` (`PageRequest`, `PageResult<T>`),
 não por `Pageable`/`Page` do Spring — a tradução acontece na infraestrutura.
+
+`ISecureTokenGenerator` existe por dois motivos: a escolha de algoritmo (`SecureRandom`,
+SHA-256) é detalhe de infraestrutura, e o token gerado precisa ser **determinístico nos
+testes** dos casos de uso — com um mock, o teste sabe exatamente qual hash deve ter sido
+persistido e qual valor em claro deve ter ido para o e-mail.
 
 ### Exemplo
 
 ```java
 // application/usecase/RegisterUserUseCase.java
-public class RegisterUserUseCase {
+public final class RegisterUserUseCase {
     private final IUserGateway userGateway;
     private final IRoleGateway roleGateway;
     private final IPasswordEncoder passwordEncoder;
 
     private RegisterUserUseCase(IUserGateway userGateway, IRoleGateway roleGateway,
-                                IPasswordEncoder passwordEncoder) {
-        this.userGateway = userGateway;
-        this.roleGateway = roleGateway;
-        this.passwordEncoder = passwordEncoder;
-    }
+                                IPasswordEncoder passwordEncoder) { ... }
 
     public static RegisterUserUseCase create(IUserGateway userGateway, IRoleGateway roleGateway,
                                              IPasswordEncoder passwordEncoder) {
@@ -462,24 +477,96 @@ public class RegisterUserUseCase {
     }
 
     public User run(NewUserDTO dto) {
-        if (dto.roles().contains(RoleName.ROLE_ADMIN)) {
-            throw new ForbiddenOperationException("Autocadastro não pode conceder ROLE_ADMIN");
+        Guard.requireNonNull(dto, "Dados de cadastro inválidos");
+        Set<RoleName> roleNames = dto.roles();
+        Guard.require(roleNames != null && !roleNames.isEmpty(), "Usuário deve ter ao menos um papel");
+        if (roleNames.stream().anyMatch(RoleName::isPrivileged)) {
+            throw new ForbiddenOperationException("Autocadastro não pode conceder papel de administrador");
         }
         Email email = Email.of(dto.email());
         if (userGateway.findByEmail(email).isPresent()) {
             throw new DuplicateResourceException("E-mail já cadastrado");
         }
-        if (userGateway.findByLogin(dto.login()).isPresent()) {
+        String login = Guard.requireNonBlank(dto.login(), "Login inválido");
+        if (userGateway.findByLogin(login).isPresent()) {
             throw new DuplicateResourceException("Login já cadastrado");
         }
-        Set<Role> roles = roleGateway.findByNames(dto.roles());
-        User user = User.create(dto.name(), dto.email(), dto.login(),
-                                passwordEncoder.encode(dto.password()), roles,
-                                Address.fromDTOs(dto.addresses()));
+        Set<Role> roles = roleGateway.findByNames(roleNames);
+        if (roles.size() != roleNames.size()) {
+            throw new ResourceNotFoundException("Papel inexistente");
+        }
+        String rawPassword = Guard.requireNonBlank(dto.password(), "Senha inválida");
+        User user = User.create(dto.name(), email.value(), login, passwordEncoder.encode(rawPassword),
+                roles, AddressDTO.toEntities(dto.addresses()));
         return userGateway.insert(user);
     }
 }
 ```
+
+A conversão de endereços fica em `AddressDTO.toEntities(...)` — na camada de aplicação, que
+conhece o domínio — e não em um `Address.fromDTOs(...)`, que faria o domínio conhecer um DTO
+de fora e violaria a regra de dependência.
+
+### O que foi entregue nesta etapa
+
+Pacote `application` completo — **10 DTOs, 7 interfaces de gateway e 9 casos de uso** —
+importando apenas `domain` e o JDK:
+
+| Componente | Decisões de implementação |
+| ---------- | ------------------------- |
+| `PageRequest` / `PageResult<T>` | Records próprios de paginação: página base 0, tamanho 1–100, ordenação opcional. `PageResult.map(...)` permite ao presenter converter o conteúdo sem perder os metadados; o conteúdo é copiado e imutável. |
+| `AddressDTO`, `NewUserDTO`, `UpdateUserDTO`, `ChangePasswordDTO`, `CredentialsDTO`, `ResetPasswordDTO`, `IssuedToken`, `SortDirection` | Records de transporte. Só `IssuedToken` valida (token não vazio, expiração presente); os demais são validados por quem os consome. |
+| Casos de uso | Todos `final`, com construtor privado, `create(...)` recebendo apenas interfaces e `run(...)`. Nenhum `@Service`, nenhum `@Transactional`: a transação é aberta pela origem de dados, na infraestrutura. |
+| `RegisterUserUseCase` | Rejeita papel privilegiado **antes** de qualquer consulta; unicidade de e-mail (já normalizado pelo VO) e de login; confere que todos os papéis pedidos existem (`ResourceNotFoundException` se algum faltar); a senha só chega ao `IPasswordEncoder` depois de validada. |
+| `UpdateUserUseCase` | Unicidade revalidada com `Optional.filter(other -> !other.getId().equals(id))` — o próprio registro não conta como duplicata. Senha intocada. |
+| `ChangePasswordUseCase` / `ResetPasswordUseCase` | Ordem das verificações escolhida para falhar cedo e barato: senha atual (ou token) → nova senha não vazia → confirmação → só então o hash e a gravação. |
+| `SearchUsersUseCase` | Lista fixa `SORTABLE_PROPERTIES`; propriedade fora dela (inclusive `password`) cai em `name ASC` em vez de erro, preservando o contrato de `200` para `sort` desconhecido. |
+| `AuthenticateUseCase` | Login inexistente e senha incorreta lançam a mesma `InvalidCredentialsException` com a mesma mensagem, para não revelar quais logins existem. |
+| `ForgotPasswordUseCase` | Recebe `Duration` de validade e `Clock` na criação (validados). E-mail inexistente retorna em silêncio sem tocar nos gateways de token e e-mail — a resposta é idêntica ao caso de sucesso. Persiste só o hash; o valor em claro vai apenas para `IMailGateway`. |
+
+**Testes unitários — 70 casos em 10 classes** (`PageRequestTest`, `PageResultTest`, `DtoTest`,
+`RegisterUserUseCaseTest`, `UpdateUserUseCaseTest`, `ChangePasswordUseCaseTest`,
+`UserQueryUseCasesTest` com `@Nested` para Find/Delete/Search, `AuthenticateUseCaseTest`,
+`ForgotPasswordUseCaseTest`, `ResetPasswordUseCaseTest`), com **Mockito** para as interfaces
+de gateway e `Clock.fixed` para o tempo — sem contexto Spring, sem banco. `ArgumentCaptor`
+verifica o que foi entregue aos gateways (o hash persistido, o token em claro enviado, a
+ordenação sanitizada). Uma armadilha do JUnit 5 documentada no código: em classes `@Nested` o
+inicializador de campo roda **antes** do `@BeforeEach` externo, então o caso de uso é criado
+em um `@BeforeEach` aninhado.
+
+**Revisão de código da etapa.** Antes de fechar, o diff passou por uma revisão focada em
+falhas reais, que apontou cinco problemas — todos corrigidos com teste correspondente:
+
+| Achado | Correção |
+| ------ | -------- |
+| `ResetPasswordUseCase` gravava a senha **antes** de marcar o token como usado. Como cada gateway é a própria transação, uma falha entre as duas escritas deixaria a senha trocada e o token reutilizável. | Ordem invertida: o token é invalidado e persistido primeiro; se a gravação da senha falhar, o efeito é "peça um novo token". Teste com `InOrder` e um teste em que `tokenGateway.update` lança e a senha permanece intacta. |
+| `RegisterUserUseCase`: `"roles": [null]` passava pela checagem nulo/vazio e estourava `NullPointerException` (500) em `RoleName::isPrivileged`. | `Guard.require(roleNames.stream().noneMatch(Objects::isNull), ...)` → 400. |
+| `AddressDTO.toEntities`: `"addresses": [null]` produzia NPE (500) no `map`. | Mesma guarda → `IllegalArgumentException("Endereço inválido")` → 400. |
+| `AuthenticateUseCase`: login inexistente retornava **sem** executar o BCrypt; a diferença de latência (~1 ms × ~100 ms) permitia enumerar logins apesar da mensagem única. | Quando o login não existe, a senha é comparada contra um hash BCrypt fixo (`DUMMY_HASH`), igualando o custo dos dois caminhos; o resultado dessa comparação é ignorado. |
+| Senha nula chegava ao `IPasswordEncoder`; o `BCryptPasswordEncoder` lança `IllegalArgumentException("rawPassword cannot be null")`, que viraria 400 com mensagem interna em vez de 401 — e, no login, revelaria que o login existe. | `AuthenticateUseCase` trata login/senha em branco como `InvalidCredentialsException` antes de qualquer consulta; `ChangePasswordUseCase` trata senha atual em branco como `InvalidPasswordException`. |
+
+**Revisão de arquitetura da etapa.** Em seguida o código foi confrontado com as referências
+deste relatório (regra de dependência, entidades donas dos invariantes, "frameworks e banco
+são detalhes", *screaming architecture*). Conformidades verificadas por grep e ArchUnit: zero
+imports fora do JDK em `domain`/`application`, nenhum `now()` no domínio, casos de uso sem
+anotação. Dois ajustes saíram da revisão:
+
+| Achado | Correção |
+| ------ | -------- |
+| A correção do tempo constante no login tinha colocado um **hash BCrypt** constante dentro do caso de uso — o núcleo passou a conhecer o algoritmo, contrariando a própria documentação de `IPasswordEncoder`. Trocar o encoder (Argon2, PBKDF2) quebraria o efeito silenciosamente. | `IPasswordEncoder.simulateMatch(rawPassword)`: a interface promete "gaste o mesmo tempo"; a implementação, na infraestrutura, sabe qual hash fictício usar. O caso de uso volta a não saber nada de BCrypt. |
+| Estrutura "gritava" Clean Architecture, não o domínio: nove casos de uso num só pacote, e o escopo da fase (restaurantes, cardápio) triplicaria isso. | Subpacotes por agregado/feature em cada camada (`domain/entity/user`, `application/usecase/auth`, ...), com `package-info` próprio. Regras de ArchUnit inalteradas. |
+
+Dois pontos ficaram registrados como decisões conscientes, sem mudança: a auditoria
+(`createdAt`/`lastUpdatedAt`) vive na entidade de domínio apenas para leitura, porque a API a
+expõe; e a lista `SORTABLE_PROPERTIES` usa os nomes dos atributos do domínio — o data source
+JPA deve **traduzi-los**, não repassá-los. Um terceiro ponto foi encaminhado para a Etapa 4:
+casos de uso com mais de uma escrita (`ResetPasswordUseCase`) precisam de uma porta de
+unidade de trabalho (`IUnitOfWork`) usada pelo controller de adaptação, já que
+`@Transactional` fica confinado ao data source.
+
+**Verificação.** `mvn verify`: 196 testes (188 unitários + 8 regras de ArchUnit), **BUILD
+SUCCESS**. Cobertura acumulada (`domain` + `application`): 100% de linhas, ramos e
+métodos.
 
 ---
 
