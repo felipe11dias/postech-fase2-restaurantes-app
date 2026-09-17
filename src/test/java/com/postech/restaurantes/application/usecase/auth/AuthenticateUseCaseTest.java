@@ -67,6 +67,19 @@ class AuthenticateUseCaseTest {
     }
 
     @Test
+    @DisplayName("Login com espaços nas bordas é aparado antes da busca, como no cadastro")
+    void deveApararLoginAntesDeBuscar() {
+        User user = existingUser();
+        when(userGateway.findByLogin("joao.silva")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("senha", HASH)).thenReturn(true);
+        when(tokenIssuer.issue(user)).thenReturn(new IssuedToken("jwt", NOW.plusHours(1)));
+
+        useCase.run(new CredentialsDTO("  joao.silva  ", "senha"));
+
+        verify(userGateway).findByLogin("joao.silva");
+    }
+
+    @Test
     @DisplayName("Login inexistente pede ao encoder que gaste o tempo de uma comparação, sem comparar hash real")
     void deveSimularComparacaoQuandoLoginInexistente() {
         when(userGateway.findByLogin(anyString())).thenReturn(Optional.empty());

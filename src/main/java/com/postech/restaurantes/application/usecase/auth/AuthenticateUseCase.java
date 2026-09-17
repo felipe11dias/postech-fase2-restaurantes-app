@@ -42,7 +42,8 @@ public final class AuthenticateUseCase {
         if (isBlank(login) || isBlank(password)) {
             throw new InvalidCredentialsException(FAILURE);
         }
-        Optional<User> user = userGateway.findByLogin(login);
+        // Mesma normalização dos casos de uso de escrita (Guard.requireNonBlank apara o login).
+        Optional<User> user = userGateway.findByLogin(login.trim());
         if (user.isEmpty()) {
             passwordEncoder.simulateMatch(password);
             throw new InvalidCredentialsException(FAILURE);
