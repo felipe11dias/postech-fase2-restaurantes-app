@@ -42,3 +42,15 @@
   `address`, `common`) — *screaming architecture*.
 - Correção: `AuthenticateUseCase` volta a aparar o login antes da busca, como fazem os casos
   de uso de escrita (login com espaços nas bordas era aceito no cadastro e recusado no login).
+
+## Etapa 4 — Adaptadores de Interface
+- Porta `IUnitOfWork` em `application/gateway`: o controller de adaptação envolve cada caso de uso;
+  implementação transacional fica para a infraestrutura.
+- `adapter/datasource`: `IUserDataSource`, `IRoleDataSource`, `IPasswordResetTokenDataSource` e os
+  records `UserData`, `RoleData`, `AddressData`, `PasswordResetTokenData`.
+- `adapter/gateway`: `UserGateway`, `RoleGateway`, `PasswordResetTokenGateway` (tradução entidade ↔ record).
+- `adapter/presenter`: `UserPresenter`, `AuthPresenter` e as views `UserView`, `RoleView`, `AddressView`,
+  `AuthView` (sem hash de senha, por construção).
+- `adapter/controller`: `UserController` e `AuthController`.
+- ArchUnit: três regras novas (sufixos `Data`/`View`; gateways do adapter implementam porta do núcleo).
+- 45 testes unitários; cobertura acumulada 100% (487 linhas, 126 ramos).

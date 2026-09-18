@@ -94,9 +94,35 @@ class ArchitectureTest {
 
     @ArchTest
     static final ArchRule origens_de_dados_sao_interfaces_com_prefixo_I =
-            classes().that().resideInAPackage("..adapter.datasource..")
+            classes().that().resideInAPackage("..adapter.datasource")
                     .and().doNotHaveSimpleName(PACKAGE_INFO)
                     .should().beInterfaces()
                     .andShould().haveSimpleNameStartingWith("I")
+                    .allowEmptyShould(true);
+
+    @ArchTest
+    static final ArchRule records_de_origem_de_dados_sao_records_com_sufixo_Data =
+            classes().that().resideInAPackage("..adapter.datasource.data")
+                    .and().doNotHaveSimpleName(PACKAGE_INFO)
+                    .should().beRecords()
+                    .andShould().haveSimpleNameEndingWith("Data")
+                    .allowEmptyShould(true);
+
+    @ArchTest
+    static final ArchRule views_sao_records_com_sufixo_View =
+            classes().that().resideInAPackage("..adapter.presenter.view")
+                    .and().doNotHaveSimpleName(PACKAGE_INFO)
+                    .should().beRecords()
+                    .andShould().haveSimpleNameEndingWith("View")
+                    .allowEmptyShould(true);
+
+    @ArchTest
+    static final ArchRule gateways_do_adapter_implementam_uma_porta_do_nucleo =
+            classes().that().resideInAPackage("..adapter.gateway")
+                    .and().doNotHaveSimpleName(PACKAGE_INFO)
+                    .should().implement(com.tngtech.archunit.base.DescribedPredicate.describe(
+                            "interface em application.gateway",
+                            (com.tngtech.archunit.core.domain.JavaClass c) ->
+                                    c.getPackageName().endsWith("application.gateway")))
                     .allowEmptyShould(true);
 }

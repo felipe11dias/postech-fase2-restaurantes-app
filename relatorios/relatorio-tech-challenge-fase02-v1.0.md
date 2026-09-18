@@ -29,7 +29,7 @@
 | 1   | Setup do Projeto e Estrutura de Pacotes            | ✅     |
 | 2   | Camada de Entidades (domínio)                      | ✅     |
 | 3   | Camada de Casos de Uso e Gateways                  | ✅     |
-| 4   | Adaptadores de Interface (Controllers, Gateways, Presenters) | ⏳ |
+| 4   | Adaptadores de Interface (Controllers, Gateways, Presenters) | ✅ |
 | 5   | Persistência com JPA (infraestrutura)              | ⏳     |
 | 6   | Migrations e Seeds (Flyway)                        | ⏳     |
 | 7   | API REST, Segurança e JWT (infraestrutura)         | ⏳     |
@@ -39,7 +39,7 @@
 | 11  | Testes — unitários (100% cobertura) e de integração | ⏳    |
 | 12  | Entregáveis (Postman, README)                      | ⏳     |
 
-**Progresso:** 3 de 12 etapas concluídas.
+**Progresso:** 4 de 12 etapas concluídas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -226,9 +226,11 @@ src/main/java/com/postech/restaurantes/
 │
 ├── adapter/                       # ADAPTADORES DE INTERFACE — depende de application e domain
 │   ├── controller/                # UserController, AuthController (orquestração)
-│   ├── gateway/                   # UserGateway, RoleGateway (implementam I*Gateway)
-│   ├── datasource/                # IUserDataSource, IRoleDataSource (interfaces de origem de dados)
+│   ├── gateway/                   # UserGateway, RoleGateway, PasswordResetTokenGateway (implementam I*Gateway)
+│   ├── datasource/                # IUserDataSource, IRoleDataSource, IPasswordResetTokenDataSource
+│   │   └── data/                  # UserData, RoleData, AddressData, PasswordResetTokenData (records)
 │   └── presenter/                 # UserPresenter, AuthPresenter
+│       └── view/                  # UserView, RoleView, AddressView, AuthView (records de saída)
 │
 └── infrastructure/                # FRAMEWORKS & DRIVERS — único lugar com Spring/JPA
     ├── web/                       # @RestController v1, DTOs Request/Response, assemblers HATEOAS, handler de erros
@@ -450,6 +452,7 @@ VOs, nunca tipos de framework:
 | `ITokenIssuer`                 | `issue(User)` → `IssuedToken(token, expiresAt)`                                                  |
 | `IMailGateway`                 | `sendPasswordReset(Email, rawToken)`                                                             |
 | `ISecureTokenGenerator`        | `generate()` → token aleatório em claro; `hash(rawToken)` → hash determinístico para persistir e consultar |
+| `IUnitOfWork`                  | `execute(Supplier)` / `execute(Runnable)` — executa um bloco de forma atômica; usada pelo controller de adaptação ao invocar um caso de uso |
 
 A paginação é expressa por tipos próprios de `application/dto` (`PageRequest`, `PageResult<T>`),
 não por `Pageable`/`Page` do Spring — a tradução acontece na infraestrutura.
@@ -591,25 +594,35 @@ controller funciona com JPA, com um mapa em memória nos testes, ou com qualquer
 implementação.
 
 ```java
-// adapter/controller/UserController.java
-public class UserController {
+// adapter/controller/UserController.java (trecho)
+public final class UserController {
     private final IUserDataSource userDataSource;
     private final IRoleDataSource roleDataSource;
     private final IPasswordEncoder passwordEncoder;
+    private final IUnitOfWork unitOfWork;
 
-    public static UserController create(IUserDataSource userDataSource,
-                                        IRoleDataSource roleDataSource,
-                                        IPasswordEncoder passwordEncoder) { ... }
+    public static UserController create(IUserDataSource userDataSource, IRoleDataSource roleDataSource,
+                                        IPasswordEncoder passwordEncoder, IUnitOfWork unitOfWork) { ... }
 
-    public UserDTO register(NewUserDTO dto) {
-        var userGateway = UserGateway.create(userDataSource);
-        var roleGateway = RoleGateway.create(roleDataSource);
-        var useCase = RegisterUserUseCase.create(userGateway, roleGateway, passwordEncoder);
-        User user = useCase.run(dto);
-        return UserPresenter.toDTO(user);
+    public UserView register(NewUserDTO dto) {
+        var useCase = RegisterUserUseCase.create(userGateway(), RoleGateway.create(roleDataSource), passwordEncoder);
+        return UserPresenter.toView(unitOfWork.execute(() -> useCase.run(dto)));
+    }
+
+    public void changePassword(UUID id, ChangePasswordDTO dto) {
+        var useCase = ChangePasswordUseCase.create(userGateway(), passwordEncoder);
+        unitOfWork.execute(() -> useCase.run(id, dto));
+    }
+
+    private UserGateway userGateway() {
+        return UserGateway.create(userDataSource);
     }
 }
 ```
+
+O `execute` da unidade de trabalho envolve **cada** `run`: é o controller — e não o caso de uso — que
+demarca a atomicidade, porque o caso de uso não deve saber que existe transação; e é
+`IUnitOfWork`, e não `@Transactional`, porque o adaptador não pode conhecer o Spring.
 
 ### Gateways (adapter/gateway)
 
@@ -626,10 +639,52 @@ a Etapa 5 implementa com JPA.
 
 ### Presenters (adapter/presenter)
 
-Preparam a saída. `UserPresenter.toDTO(user)` produz o `UserDTO` que o cliente pode consumir —
-e é o único lugar onde se decide o que **não** sai: a senha (hash) nunca cruza para fora. O
+Preparam a saída. `UserPresenter.toView(user)` produz a `UserView` que o cliente pode consumir —
+e é o único lugar onde se decide o que **não** sai: a senha (hash) nunca cruza para fora.
+Os modelos de saída chamam-se *views* (`UserView`, `RoleView`, `AddressView`, `AuthView`)
+para não se confundirem com os DTOs de **entrada** dos casos de uso. O
 presenter retira do controller a obrigação de adaptar entidades e garante um formato padrão
 de retorno, independentemente de quem consome (REST hoje, outro canal amanhã).
+
+### Unidade de trabalho (decisão desta etapa)
+
+A revisão de arquitetura da Etapa 3 deixou registrado que casos de uso com mais de uma
+escrita (`ResetPasswordUseCase`) não eram atômicos, porque `@Transactional` fica confinado ao
+data source. Pelo princípio orientador, a solução tinha de ser consistente com a
+arquitetura: a **transação** é detalhe de infraestrutura (Martin), mas a **demarcação** —
+"estas escritas acontecem juntas ou nenhuma" — é regra de aplicação. Por isso:
+
+- a porta `IUnitOfWork` é declarada em `application/gateway`, ao lado das demais;
+- quem a usa é o **controller de adaptação**, envolvendo cada `run` — o caso de uso continua
+  sem saber que transação existe;
+- a implementação (Etapa 5) usa o `TransactionTemplate` do Spring, em `infrastructure`.
+
+A ordem "token antes da senha" adotada na Etapa 3 permanece como defesa em profundidade.
+
+### O que foi entregue nesta etapa
+
+Pacote `adapter` completo — **3 interfaces de origem de dados + 4 records, 3 gateways, 2
+presenters + 4 views, 2 controllers** — importando apenas `application`, `domain` e o JDK:
+
+| Componente | Decisão e conceito que a sustenta |
+| ---------- | --------------------------------- |
+| `adapter/datasource` (`IUserDataSource`, `IRoleDataSource`, `IPasswordResetTokenDataSource`) | Contrato em termos de **records simples** (`UserData`, `RoleData`, `AddressData`, `PasswordResetTokenData`), sem entidade de domínio nem tipo de framework. É a interface que o gateway consome e a infraestrutura implementa — inversão de dependência (SOLID/DIP): o detalhe depende da abstração. |
+| `adapter/gateway` (`UserGateway`, `RoleGateway`, `PasswordResetTokenGateway`) | Implementam `I*Gateway` do núcleo e **traduzem** entidade ↔ record: `toData` desmonta o agregado (e-mail já normalizado, CEP sem máscara, papéis pelo nome), `toEntity` reconstrói com `restore(...)`, que revalida os invariantes — um registro corrompido no banco não vira entidade inválida em memória. Recebem a origem de dados por `create(dataSource)`, como o curso prescreve. |
+| `adapter/presenter` (`UserPresenter`, `AuthPresenter`) | Únicos pontos que decidem o que sai. `UserView` não tem campo para o hash — a omissão é estrutural, não um `if`. `PageResult.map` preserva os metadados da página. `AuthPresenter` acrescenta o esquema `Bearer`: convenção de apresentação, não do núcleo. |
+| `adapter/controller` (`UserController`, `AuthController`) | O "maestro": recebe origens de dados e serviços técnicos **por interface**, monta gateway + caso de uso por operação, executa em `IUnitOfWork` e entrega ao presenter. Nenhuma regra de negócio; todas as dependências validadas na criação. |
+| `IUnitOfWork` | Porta de unidade de trabalho (ver acima). |
+| ArchUnit | Três regras novas: records de `adapter.datasource.data` terminam em `Data`; views terminam em `View`; **toda classe em `adapter.gateway` implementa uma interface de `application.gateway`** — um gateway sem porta no núcleo não compila o build. A regra de prefixo `I` passou a mirar exatamente o pacote `adapter.datasource` (os records ficam em `data`). |
+
+**Testes unitários — 45 casos em 5 classes** (`UserGatewayTest`, `RoleAndTokenGatewaysTest`,
+`PresentersTest`, `UserControllerTest`, `AuthControllerTest`). Gateways e presenters com
+mocks de `I*DataSource`; os controllers são testados "de ponta a ponta dentro do núcleo" — origens
+de dados mockadas, mas casos de uso, gateways e presenters **reais** — provando a
+orquestração sem repetir os testes de regra. Uma `CountingUnitOfWork` de teste confirma que cada
+operação passa exatamente uma vez pela unidade de trabalho.
+
+**Verificação.** `mvn verify`: 242 testes (231 unitários + 11 regras de ArchUnit), **BUILD
+SUCCESS**. Cobertura acumulada (`domain` + `application` + `adapter`): **487/487 linhas,
+126/126 ramos, 211/211 métodos, 50 classes** — 100%.
 
 ---
 
