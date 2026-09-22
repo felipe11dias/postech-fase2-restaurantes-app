@@ -57,7 +57,7 @@ aplicação (exceto SMTP).
 
 ## Arquitetura — a regra de dependência é verificada em build
 
-`src/test/java/.../ArchitectureTest.java` (ArchUnit, 8 regras) falha o build se violada:
+`src/test/java/.../ArchitectureTest.java` (ArchUnit, 14 regras) falha o build se violada:
 
 ```
 domain          → só JDK. Nenhum import de outro pacote do projeto nem de biblioteca.
@@ -80,7 +80,7 @@ classes em `application.usecase` terminam em `UseCase`; tudo em `application.gat
 `UserGateway(IUserDataSource)` (adapter/gateway) e `XxxUseCase.create(gateway, ...)` →
 `useCase.run(dto)` → entidades de `domain` → `gateway` traduz entidade ↔ record da origem de
 dados → `UserDataSourceJpa` (infrastructure/persistence) → `JpaRepository` → volta →
-`UserPresenter.toDTO` (adapter/presenter) → `@RestController` monta `Response` + HATEOAS.
+`UserPresenter.toView` (adapter/presenter) → `@RestController` monta `Response` + HATEOAS.
 
 Pontos que só ficam claros lendo várias camadas:
 
@@ -94,10 +94,32 @@ Pontos que só ficam claros lendo várias camadas:
   dígitos) → entidade; regra que depende do ponto de entrada (`ROLE_ADMIN` proibido no
   autocadastro, resposta idêntica no "esqueci minha senha") → caso de uso.
 - **Interfaces de gateway ficam em `application`** (quem as consome as declara);
-  interfaces de origem de dados (`I*DataSource`) ficam em `adapter` e são implementadas em
-  `infrastructure/persistence`.
+  interfaces de origem de dados (`I*DataSource`) ficam em `adapter/datasource`, com os records
+  `*Data` em `adapter/datasource/data`, e são implementadas em `infrastructure/persistence`.
+- **Saída do núcleo são views** (`adapter/presenter/view`, records `*View`), produzidas só pelos
+  presenters; `UserView` não tem campo de senha. Gateways do adapter reconstroem entidades com
+  `restore(...)` (revalida invariantes) e desmontam com `toData`. ArchUnit exige que toda
+  classe em `adapter.gateway` implemente uma interface de `application.gateway`.
 - **Schema é do Flyway** (`db/migration`); JPA roda com `ddl-auto: validate` e
-  `open-in-view: false`. `@Transactional` só em `*DataSourceJpa`.
+  `open-in-view: false`. A transação é aberta pela implementação de `IUnitOfWork` (`TransactionTemplate`), não por `@Transactional` em casos de uso.
+
+### Persistência (Etapa 5, já implementada)
+
+- Entidades JPA (`*JpaEntity`) são classes **separadas** das de domínio, só com mapeamento e
+  acessores — nenhuma invariante. Ficam em `infrastructure/persistence/<agregado>`, espelhando
+  `domain/entity/<agregado>`. ArchUnit: `@Entity` só existe nesse pacote e a classe termina em
+  `JpaEntity`; implementação de `I*DataSource` termina em `DataSourceJpa`.
+- Coleções mapeadas **não** são campos `final` (o Hibernate substitui a instância ao carregar).
+- Auditoria: o **instante** vem do núcleo pelo record (`created_at`/`last_updated_at`); o
+  **autor** (`created_by`/`last_updated_by`) é do `AuditingEntityListener` via
+  `AuthenticatedAuditorAware` (`system` quando não há autenticado). Não deixar o listener
+  sobrescrever o instante — o domínio recebe o momento por parâmetro de propósito.
+- Busca paginada em **duas consultas** (ids paginados no banco, depois carga com
+  `@EntityGraph`): `join fetch` junto com paginação faz o Hibernate recortar a página em memória.
+- Ordenação é **traduzida** por mapa `propriedade do núcleo → atributo JPA` na origem de dados;
+  propriedade fora do mapa cai no padrão. Nunca repassar `sortBy` direto para o `Sort`.
+- Leitura traz o agregado inteiro (hash inclusive), porque o gateway reconstrói com `restore`;
+  quem esconde a senha é o presenter, por ausência de campo na view — não projeção no SQL.
 
 ## Convenções do domínio (Etapa 2, já implementadas)
 
@@ -113,8 +135,9 @@ Pontos que só ficam claros lendo várias camadas:
 - Nenhuma string ou constante de tecnologia no núcleo (hash BCrypt, nome de coluna, JWT).
   Se um caso de uso precisa de um comportamento técnico (ex.: "gaste o tempo de uma
   comparação de senha"), ele vira método da interface de gateway (`IPasswordEncoder.simulateMatch`).
-- Casos de uso com mais de uma escrita ainda não são atômicos (`@Transactional` só no data
-  source). Decisão pendente para a Etapa 4: porta `IUnitOfWork` usada pelo controller de adaptação.
+- Atomicidade: o **controller de adaptação** envolve cada `run` em `IUnitOfWork.execute`
+  (porta em `application/gateway`); casos de uso não sabem que transação existe. A implementação
+  (`TransactionTemplate`) fica em `infrastructure`.
 - Exceções de negócio estendem `domain/exception/DomainException`; a tradução para HTTP é
   do handler em `infrastructure/web`.
 - Ao verificar "nenhum elemento nulo" em coleções use `stream().noneMatch(Objects::isNull)`

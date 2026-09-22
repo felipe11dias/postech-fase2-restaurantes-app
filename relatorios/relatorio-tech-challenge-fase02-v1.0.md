@@ -29,8 +29,8 @@
 | 1   | Setup do Projeto e Estrutura de Pacotes            | ✅     |
 | 2   | Camada de Entidades (domínio)                      | ✅     |
 | 3   | Camada de Casos de Uso e Gateways                  | ✅     |
-| 4   | Adaptadores de Interface (Controllers, Gateways, Presenters) | ⏳ |
-| 5   | Persistência com JPA (infraestrutura)              | ⏳     |
+| 4   | Adaptadores de Interface (Controllers, Gateways, Presenters) | ✅ |
+| 5   | Persistência com JPA (infraestrutura)              | ✅     |
 | 6   | Migrations e Seeds (Flyway)                        | ⏳     |
 | 7   | API REST, Segurança e JWT (infraestrutura)         | ⏳     |
 | 8   | Tratamento de Erros (ProblemDetail)                | ⏳     |
@@ -39,7 +39,7 @@
 | 11  | Testes — unitários (100% cobertura) e de integração | ⏳    |
 | 12  | Entregáveis (Postman, README)                      | ⏳     |
 
-**Progresso:** 3 de 12 etapas concluídas.
+**Progresso:** 5 de 12 etapas concluídas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -226,16 +226,20 @@ src/main/java/com/postech/restaurantes/
 │
 ├── adapter/                       # ADAPTADORES DE INTERFACE — depende de application e domain
 │   ├── controller/                # UserController, AuthController (orquestração)
-│   ├── gateway/                   # UserGateway, RoleGateway (implementam I*Gateway)
-│   ├── datasource/                # IUserDataSource, IRoleDataSource (interfaces de origem de dados)
+│   ├── gateway/                   # UserGateway, RoleGateway, PasswordResetTokenGateway (implementam I*Gateway)
+│   ├── datasource/                # IUserDataSource, IRoleDataSource, IPasswordResetTokenDataSource
+│   │   └── data/                  # UserData, RoleData, AddressData, PasswordResetTokenData (records)
 │   └── presenter/                 # UserPresenter, AuthPresenter
+│       └── view/                  # UserView, RoleView, AddressView, AuthView (records de saída)
 │
 └── infrastructure/                # FRAMEWORKS & DRIVERS — único lugar com Spring/JPA
     ├── web/                       # @RestController v1, DTOs Request/Response, assemblers HATEOAS, handler de erros
-    ├── persistence/               # @Entity JPA, JpaRepository, *DataSourceJpa, mapeadores JPA ↔ domínio
+    ├── persistence/               # AuditableJpaEntity, TransactionalUnitOfWork, AuthenticatedAuditorAware
+    │   ├── user/                  # UserJpaEntity, RoleJpaEntity, PasswordResetTokenJpaEntity, SpringData*Repository, *DataSourceJpa
+    │   └── address/               # AddressJpaEntity
     ├── security/                  # JWT, filtro, BCrypt, UserDetailsService
     ├── mail/                      # implementação SMTP de IMailGateway
-    └── config/                    # SecurityConfig, OpenApiConfig, JpaAuditingConfig, composição de beans
+    └── config/                    # SecurityConfig, OpenApiConfig, PersistenceConfig, composição de beans
 ```
 
 Cada pacote nasce com um `package-info.java` que documenta sua regra de dependência — o
@@ -450,6 +454,7 @@ VOs, nunca tipos de framework:
 | `ITokenIssuer`                 | `issue(User)` → `IssuedToken(token, expiresAt)`                                                  |
 | `IMailGateway`                 | `sendPasswordReset(Email, rawToken)`                                                             |
 | `ISecureTokenGenerator`        | `generate()` → token aleatório em claro; `hash(rawToken)` → hash determinístico para persistir e consultar |
+| `IUnitOfWork`                  | `execute(Supplier)` / `execute(Runnable)` — executa um bloco de forma atômica; usada pelo controller de adaptação ao invocar um caso de uso |
 
 A paginação é expressa por tipos próprios de `application/dto` (`PageRequest`, `PageResult<T>`),
 não por `Pageable`/`Page` do Spring — a tradução acontece na infraestrutura.
@@ -591,25 +596,35 @@ controller funciona com JPA, com um mapa em memória nos testes, ou com qualquer
 implementação.
 
 ```java
-// adapter/controller/UserController.java
-public class UserController {
+// adapter/controller/UserController.java (trecho)
+public final class UserController {
     private final IUserDataSource userDataSource;
     private final IRoleDataSource roleDataSource;
     private final IPasswordEncoder passwordEncoder;
+    private final IUnitOfWork unitOfWork;
 
-    public static UserController create(IUserDataSource userDataSource,
-                                        IRoleDataSource roleDataSource,
-                                        IPasswordEncoder passwordEncoder) { ... }
+    public static UserController create(IUserDataSource userDataSource, IRoleDataSource roleDataSource,
+                                        IPasswordEncoder passwordEncoder, IUnitOfWork unitOfWork) { ... }
 
-    public UserDTO register(NewUserDTO dto) {
-        var userGateway = UserGateway.create(userDataSource);
-        var roleGateway = RoleGateway.create(roleDataSource);
-        var useCase = RegisterUserUseCase.create(userGateway, roleGateway, passwordEncoder);
-        User user = useCase.run(dto);
-        return UserPresenter.toDTO(user);
+    public UserView register(NewUserDTO dto) {
+        var useCase = RegisterUserUseCase.create(userGateway(), RoleGateway.create(roleDataSource), passwordEncoder);
+        return UserPresenter.toView(unitOfWork.execute(() -> useCase.run(dto)));
+    }
+
+    public void changePassword(UUID id, ChangePasswordDTO dto) {
+        var useCase = ChangePasswordUseCase.create(userGateway(), passwordEncoder);
+        unitOfWork.execute(() -> useCase.run(id, dto));
+    }
+
+    private UserGateway userGateway() {
+        return UserGateway.create(userDataSource);
     }
 }
 ```
+
+O `execute` da unidade de trabalho envolve **cada** `run`: é o controller — e não o caso de uso — que
+demarca a atomicidade, porque o caso de uso não deve saber que existe transação; e é
+`IUnitOfWork`, e não `@Transactional`, porque o adaptador não pode conhecer o Spring.
 
 ### Gateways (adapter/gateway)
 
@@ -626,10 +641,52 @@ a Etapa 5 implementa com JPA.
 
 ### Presenters (adapter/presenter)
 
-Preparam a saída. `UserPresenter.toDTO(user)` produz o `UserDTO` que o cliente pode consumir —
-e é o único lugar onde se decide o que **não** sai: a senha (hash) nunca cruza para fora. O
+Preparam a saída. `UserPresenter.toView(user)` produz a `UserView` que o cliente pode consumir —
+e é o único lugar onde se decide o que **não** sai: a senha (hash) nunca cruza para fora.
+Os modelos de saída chamam-se *views* (`UserView`, `RoleView`, `AddressView`, `AuthView`)
+para não se confundirem com os DTOs de **entrada** dos casos de uso. O
 presenter retira do controller a obrigação de adaptar entidades e garante um formato padrão
 de retorno, independentemente de quem consome (REST hoje, outro canal amanhã).
+
+### Unidade de trabalho (decisão desta etapa)
+
+A revisão de arquitetura da Etapa 3 deixou registrado que casos de uso com mais de uma
+escrita (`ResetPasswordUseCase`) não eram atômicos, porque `@Transactional` fica confinado ao
+data source. Pelo princípio orientador, a solução tinha de ser consistente com a
+arquitetura: a **transação** é detalhe de infraestrutura (Martin), mas a **demarcação** —
+"estas escritas acontecem juntas ou nenhuma" — é regra de aplicação. Por isso:
+
+- a porta `IUnitOfWork` é declarada em `application/gateway`, ao lado das demais;
+- quem a usa é o **controller de adaptação**, envolvendo cada `run` — o caso de uso continua
+  sem saber que transação existe;
+- a implementação (Etapa 5) usa o `TransactionTemplate` do Spring, em `infrastructure`.
+
+A ordem "token antes da senha" adotada na Etapa 3 permanece como defesa em profundidade.
+
+### O que foi entregue nesta etapa
+
+Pacote `adapter` completo — **3 interfaces de origem de dados + 4 records, 3 gateways, 2
+presenters + 4 views, 2 controllers** — importando apenas `application`, `domain` e o JDK:
+
+| Componente | Decisão e conceito que a sustenta |
+| ---------- | --------------------------------- |
+| `adapter/datasource` (`IUserDataSource`, `IRoleDataSource`, `IPasswordResetTokenDataSource`) | Contrato em termos de **records simples** (`UserData`, `RoleData`, `AddressData`, `PasswordResetTokenData`), sem entidade de domínio nem tipo de framework. É a interface que o gateway consome e a infraestrutura implementa — inversão de dependência (SOLID/DIP): o detalhe depende da abstração. |
+| `adapter/gateway` (`UserGateway`, `RoleGateway`, `PasswordResetTokenGateway`) | Implementam `I*Gateway` do núcleo e **traduzem** entidade ↔ record: `toData` desmonta o agregado (e-mail já normalizado, CEP sem máscara, papéis pelo nome), `toEntity` reconstrói com `restore(...)`, que revalida os invariantes — um registro corrompido no banco não vira entidade inválida em memória. Recebem a origem de dados por `create(dataSource)`, como o curso prescreve. |
+| `adapter/presenter` (`UserPresenter`, `AuthPresenter`) | Únicos pontos que decidem o que sai. `UserView` não tem campo para o hash — a omissão é estrutural, não um `if`. `PageResult.map` preserva os metadados da página. `AuthPresenter` acrescenta o esquema `Bearer`: convenção de apresentação, não do núcleo. |
+| `adapter/controller` (`UserController`, `AuthController`) | O "maestro": recebe origens de dados e serviços técnicos **por interface**, monta gateway + caso de uso por operação, executa em `IUnitOfWork` e entrega ao presenter. Nenhuma regra de negócio; todas as dependências validadas na criação. |
+| `IUnitOfWork` | Porta de unidade de trabalho (ver acima). |
+| ArchUnit | Três regras novas: records de `adapter.datasource.data` terminam em `Data`; views terminam em `View`; **toda classe em `adapter.gateway` implementa uma interface de `application.gateway`** — um gateway sem porta no núcleo não compila o build. A regra de prefixo `I` passou a mirar exatamente o pacote `adapter.datasource` (os records ficam em `data`). |
+
+**Testes unitários — 45 casos em 5 classes** (`UserGatewayTest`, `RoleAndTokenGatewaysTest`,
+`PresentersTest`, `UserControllerTest`, `AuthControllerTest`). Gateways e presenters com
+mocks de `I*DataSource`; os controllers são testados "de ponta a ponta dentro do núcleo" — origens
+de dados mockadas, mas casos de uso, gateways e presenters **reais** — provando a
+orquestração sem repetir os testes de regra. Uma `CountingUnitOfWork` de teste confirma que cada
+operação passa exatamente uma vez pela unidade de trabalho.
+
+**Verificação.** `mvn verify`: 242 testes (231 unitários + 11 regras de ArchUnit), **BUILD
+SUCCESS**. Cobertura acumulada (`domain` + `application` + `adapter`): **487/487 linhas,
+126/126 ramos, 211/211 métodos, 50 classes** — 100%.
 
 ---
 
@@ -639,23 +696,27 @@ de retorno, independentemente de quem consome (REST hoje, outro canal amanhã).
 
 Anotar as entidades de domínio com `@Entity` acoplaria o núcleo ao Hibernate e faria as regras
 de negócio dependerem do ciclo de vida do ORM. Por isso a persistência tem **as próprias
-classes**: `UserJpaEntity`, `RoleJpaEntity`, `AddressJpaEntity`, `PasswordResetTokenJpaEntity`,
-em `infrastructure/persistence`, com todas as anotações de mapeamento. A tradução entre elas e
-os DTOs da origem de dados é responsabilidade de `UserDataSourceJpa`.
+classes**: `UserJpaEntity`, `RoleJpaEntity`, `PasswordResetTokenJpaEntity` em
+`infrastructure/persistence/user` e `AddressJpaEntity` em `infrastructure/persistence/address`
+— os subpacotes espelham `domain/entity/user` e `domain/entity/address`, de modo que cada
+agregado novo (restaurante, cardápio) ganhe o seu também aqui. Elas não têm nenhuma invariante:
+são mapeamento e nada mais. A tradução entre elas e os records da origem de dados é
+responsabilidade dos `*DataSourceJpa`.
 
 ### Decisões de mapeamento
 
 | Decisão | Detalhe |
 | ------- | ------- |
-| **Relacionamentos declarativos** | `@OneToMany(mappedBy = "user", cascade = ALL, orphanRemoval = true)` para endereços; `@ManyToMany` + `@JoinTable(name = "user_roles")` para papéis. Substituir a lista de endereços na entidade JPA remove os órfãos automaticamente. |
+| **Relacionamentos declarativos** | `@OneToMany(mappedBy = "user", cascade = ALL, orphanRemoval = true)` para endereços; `@ManyToMany` + `@JoinTable(name = "user_roles")` para papéis. `replaceAddresses` troca a coleção inteira e o `orphanRemoval` apaga os que saíram — é a tradução literal de `User.replaceAddresses`, que também substitui a lista como um todo. Consequência assumida: endereço trocado recebe um id novo. |
+| **Papéis são catálogo** | O vínculo N:M aponta para linhas que já existem em `roles` (resolvidas por id antes de gravar); a origem de dados nunca cria um papel. |
 | **Identificadores UUID** | Chaves primárias `UUID`, geradas pelo banco via `DEFAULT gen_random_uuid()`. A entidade JPA declara `@Id @GeneratedValue(strategy = GenerationType.UUID)`. Ids aleatórios evitam enumeração de recursos pela API. |
-| **Auditoria** | `@EnableJpaAuditing` + `@EntityListeners(AuditingEntityListener.class)` em uma superclasse `AuditableJpaEntity` com `created_at`, `last_updated_at`, `created_by`, `last_updated_by`. O `AuditorAware` lê o login autenticado no `SecurityContextHolder`, com fallback `"system"` para requisições anônimas e seeds. |
+| **Auditoria: "quando" é do núcleo, "quem" é do contexto** | `AuditableJpaEntity` (`@MappedSuperclass` + `@EntityListeners(AuditingEntityListener.class)`) concentra as quatro colunas, mas com donos diferentes. O **instante** (`created_at`, `last_updated_at`) chega pronto do núcleo — as entidades de domínio recebem o momento por parâmetro e nunca chamam o relógio, e deixar o listener sobrescrevê-lo tornaria esse parâmetro decorativo. O **autor** (`created_by`, `last_updated_by`) é informação do contexto de execução, que o núcleo não conhece: esse o listener preenche, lendo o `AuthenticatedAuditorAware` — login autenticado, ou `"system"` para requisição anônima, migration e seed. |
 | **Schema é do Flyway** | `spring.jpa.hibernate.ddl-auto: validate` — o Hibernate confere o mapeamento contra o schema migrado e nunca o altera. |
-| **Sem sessão aberta na view** | `spring.jpa.open-in-view: false`. Todo mapeamento JPA → DTO acontece dentro da transação do data source. |
-| **N+1** | A consulta paginada usa `@EntityGraph(attributePaths = {"roles", "addresses"})`, carregando as associações da página inteira em uma consulta. |
-| **Senha fora da listagem** | A página é lida por uma projeção sem a coluna `password`; `findById` e `findByLogin` carregam a entidade inteira, porque alimentam a gravação e a autenticação. |
-| **Ordenação** | `Sort` do Spring Data é montado a partir do `PageRequest` do núcleo. Apenas `id`, `name`, `email`, `login`, `createdAt` e `lastUpdatedAt` são aceitos; `password` é rejeitado no data source. |
-| **Transação** | `@Transactional` fica no `*DataSourceJpa` — o único componente que conhece a unidade de trabalho do Hibernate. |
+| **Sem sessão aberta na view** | `spring.jpa.open-in-view: false`. Todo mapeamento JPA → record acontece dentro da transação da origem de dados. |
+| **N+1 e paginação, sem escolher entre os dois** | Paginar e fazer `join fetch` na mesma consulta faz o Hibernate trazer todas as linhas e recortar a página em memória. Por isso a busca usa **duas consultas**: a primeira pagina só os ids no banco; a segunda carrega os usuários daquela página com `@EntityGraph(attributePaths = {"roles", "addresses"})`, em um único `select`. `findById`, `findByLogin` e `findByEmail` usam o mesmo grafo. |
+| **Senha fora da resposta, por construção** | A leitura traz o registro inteiro, hash inclusive: o gateway reconstrói o agregado com `User.restore(...)`, e hash de senha é invariante — uma projeção sem ele exigiria afrouxar a entidade para acomodar uma otimização de consulta, que é exatamente o detalhe mandando na regra. Quem decide o que sai é o presenter, e `UserView` **não tem campo** de senha: a garantia é estrutural, não depende de lembrar de projetar. |
+| **Ordenação é traduzida, não repassada** | A origem de dados mantém um mapa `propriedade do núcleo → atributo JPA` e monta o `Sort` a partir dele. Propriedade fora do mapa — `password` inclusive — cai em `name`: o caso de uso já filtra, e a origem de dados filtra de novo, porque é ela quem emite o `ORDER BY`. |
+| **Transação** | `@Transactional` fica nos `*DataSourceJpa` e em `TransactionalUnitOfWork` — os únicos componentes que conhecem a unidade de trabalho do Hibernate. Nenhum caso de uso é anotado. |
 
 ### Modelo relacional
 
@@ -718,6 +779,54 @@ erDiagram
 
 Todas as FKs usam `ON DELETE CASCADE`: remover um usuário remove endereços, tokens e vínculos
 de papel sem deixar órfãos — no banco, independentemente do cascade do ORM.
+
+### Unidade de trabalho: a implementação da porta da Etapa 4
+
+`TransactionalUnitOfWork` implementa `IUnitOfWork` com o `TransactionTemplate` do Spring.
+A divisão fecha o desenho começado na etapa anterior: a **demarcação** ("estas escritas
+acontecem juntas ou nenhuma") é regra de aplicação e vive no controlador de adaptação; o
+**mecanismo** — transação JDBC, propagação, rollback — é detalhe e vive aqui. É por isso que
+nenhum caso de uso leva `@Transactional`: a anotação arrastaria o Spring para dentro do núcleo,
+e o núcleo deixaria de compilar sem o framework.
+
+### O que foi entregue nesta etapa
+
+Pacote `infrastructure/persistence` completo — **1 superclasse de auditoria + 4 entidades JPA,
+3 repositórios Spring Data, 3 origens de dados, a unidade de trabalho e o `AuditorAware`** —
+e, com ele, a primeira implementação concreta das interfaces que o adaptador declarou:
+
+| Componente | Decisão e conceito que a sustenta |
+| ---------- | --------------------------------- |
+| `UserJpaEntity`, `RoleJpaEntity`, `AddressJpaEntity`, `PasswordResetTokenJpaEntity` | Classes **separadas** das entidades de domínio, com todas as anotações do ORM e nenhuma regra. O banco é detalhe (Martin): trocar o Hibernate por outra coisa reescreve este pacote e não toca em nenhuma camada de dentro. O token referencia o dono **por identidade** (`user_id`), como o domínio o modela, em vez de inventar uma associação navegável que ninguém percorre. |
+| `SpringData*Repository` | Detalhe de acesso, invisível para o núcleo. A busca paginada é deliberadamente dividida em duas consultas para não pagar paginação em memória (ver acima). |
+| `UserDataSourceJpa`, `RoleDataSourceJpa`, `PasswordResetTokenDataSourceJpa` | Implementam as interfaces de `adapter/datasource` — inversão de dependência na prática: a seta de código aponta para dentro, contra a seta do fluxo de controle. São o único lugar que sabe que existe um banco relacional, e traduzem record ↔ entidade JPA. |
+| `AuditableJpaEntity` + `AuthenticatedAuditorAware` | Auditoria com dono definido para cada campo (ver acima). Consultar o `SecurityContextHolder` é assunto do contexto de execução, e por isso fica confinado à infraestrutura. |
+| `TransactionalUnitOfWork` | Implementa `IUnitOfWork` da Etapa 4 (ver acima). |
+| `PersistenceConfig` | Só liga a auditoria (`@EnableJpaAuditing`). Configuração puramente declarativa, sem regra — por isso fica fora da medição de cobertura. |
+| ArchUnit | Três regras novas: classe anotada com `@Entity` **só existe em `infrastructure.persistence`** e termina em `JpaEntity`; o sufixo `JpaEntity` é exclusivo desse pacote; toda implementação de uma interface de `adapter.datasource` mora ali e termina em `DataSourceJpa`. Uma anotação de ORM numa entidade de domínio passa a quebrar o build, e não apenas a revisão. |
+
+**Correção na regra de anéis concêntricos.** Com `infrastructure` finalmente povoado, a regra
+de *onion architecture* acusou 53 violações — ela tratava `adapter` e `infrastructure` como
+dois adaptadores **irmãos**, e o DSL proíbe que irmãos se conheçam. O desenho correto é o dos
+anéis: Frameworks & Drivers é o anel externo e depende, para dentro, dos Adaptadores de
+Interface. A regra passou a declarar `infrastructure` como o único adaptador, com `adapter`
+no anel interno; a fronteira entre `application` e `adapter` continua garantida pelas regras
+explícitas, que são mais precisas que o DSL.
+
+**Testes unitários — 48 casos em 5 classes** (`JpaEntitiesTest`, `UserDataSourceJpaTest`,
+`RoleAndTokenDataSourcesJpaTest`, `TransactionalUnitOfWorkTest`,
+`AuthenticatedAuditorAwareTest`). Repositórios Spring Data mockados: nenhum teste desta etapa
+sobe contexto nem banco. Verificam a tradução nos dois sentidos, a tradução da ordenação
+(inclusive a recusa de `password`), a segunda consulta que não acontece quando a página vem
+vazia, e que a unidade de trabalho confirma no sucesso e desfaz na falha.
+
+**Verificação.** `mvn verify`: 290 testes (276 unitários + 14 regras de ArchUnit), **BUILD
+SUCCESS**. Cobertura acumulada (`domain` + `application` + `adapter` + `infrastructure`):
+**670/670 linhas, 140/140 ramos, 300/300 métodos, 60 classes** — 100%.
+
+> Os **testes de integração** com Testcontainers, que provam o mapeamento contra um PostgreSQL
+> real, entram na Etapa 6: antes das migrations não existe schema para o `ddl-auto: validate`
+> conferir.
 
 ---
 
@@ -1030,6 +1139,11 @@ mvn verify    # + integração com Testcontainers + verificação de 100% de cob
 | nenhum tipo fora de `infrastructure` importa `org.springframework..`, `jakarta.persistence..`, `org.hibernate..` | a regra de dependência inteira |
 | classes em `..usecase..` têm sufixo `UseCase` e método público `run`                 | convenção dos casos de uso                   |
 | interfaces em `..gateway..` do `application` têm prefixo `I`                         | convenção dos gateways                       |
+| interfaces em `adapter.datasource` têm prefixo `I`; os records de `..data` têm sufixo `Data` | contrato da origem de dados          |
+| records de `adapter.presenter.view` têm sufixo `View`                                | saída do núcleo passa pelo presenter         |
+| toda classe em `adapter.gateway` implementa uma interface de `application.gateway`   | gateway sempre tem porta no núcleo           |
+| classe anotada com `@Entity` reside em `infrastructure.persistence` e termina em `JpaEntity`; o sufixo é exclusivo desse pacote | ORM nunca anota entidade de domínio |
+| toda implementação de uma interface de `adapter.datasource` reside em `infrastructure.persistence` e termina em `DataSourceJpa` | persistência é detalhe substituível |
 
 ---
 
