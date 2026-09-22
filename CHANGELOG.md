@@ -79,3 +79,20 @@
   de Interface. `infrastructure` passa a ser o único adaptador do DSL.
 - 48 testes unitários com repositórios mockados; cobertura acumulada 100%
   (670 linhas, 140 ramos, 300 métodos, 60 classes) em 290 testes.
+
+## Etapa 6 — Migrations e Seeds (Flyway)
+- `V1__create_schema.sql`: DDL de `roles`, `users`, `user_roles`, `addresses` e
+  `password_reset_tokens` — PKs `UUID` com `DEFAULT gen_random_uuid()`, colunas de auditoria,
+  FKs com `ON DELETE CASCADE`, índice funcional `LOWER(name)` para a busca paginada e os dois
+  índices de FK; seed do catálogo com os três papéis de `RoleName`.
+- `V2__seed_demo_users.sql`: usuários de demonstração (`dono.restaurante`, `cliente.demo`,
+  `admin.demo`) com senha em hash BCrypt, ids fixos, vínculo de papel resolvido pelo nome e um
+  endereço para o dono.
+- Primeiros testes de integração: `IntegrationTestSupport` (contexto Spring completo sobre
+  PostgreSQL 16 do Testcontainers, sem nenhum bean mockado) e as classes `SchemaMigrationIT`,
+  `UserPersistenceIT`, `PasswordResetTokenPersistenceIT` e `TransactionalUnitOfWorkIT`.
+- Container único compartilhado pelas classes (iniciado no carregamento da classe base): com
+  `@Testcontainers`/`@Container` o JUnit encerrava o container após a primeira classe e as
+  seguintes reaproveitavam o contexto Spring apontando para um banco morto.
+- `mvn verify`: 290 testes unitários e 27 de integração, BUILD SUCCESS; cobertura unitária
+  permanece 100% (670 linhas, 140 ramos).

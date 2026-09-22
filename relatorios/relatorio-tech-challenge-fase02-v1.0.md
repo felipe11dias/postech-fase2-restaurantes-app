@@ -31,7 +31,7 @@
 | 3   | Camada de Casos de Uso e Gateways                  | ✅     |
 | 4   | Adaptadores de Interface (Controllers, Gateways, Presenters) | ✅ |
 | 5   | Persistência com JPA (infraestrutura)              | ✅     |
-| 6   | Migrations e Seeds (Flyway)                        | ⏳     |
+| 6   | Migrations e Seeds (Flyway)                        | ✅     |
 | 7   | API REST, Segurança e JWT (infraestrutura)         | ⏳     |
 | 8   | Tratamento de Erros (ProblemDetail)                | ⏳     |
 | 9   | Documentação Swagger                               | ⏳     |
@@ -39,7 +39,7 @@
 | 11  | Testes — unitários (100% cobertura) e de integração | ⏳    |
 | 12  | Entregáveis (Postman, README)                      | ⏳     |
 
-**Progresso:** 5 de 12 etapas concluídas.
+**Progresso:** 6 de 12 etapas concluídas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -709,7 +709,7 @@ responsabilidade dos `*DataSourceJpa`.
 | ------- | ------- |
 | **Relacionamentos declarativos** | `@OneToMany(mappedBy = "user", cascade = ALL, orphanRemoval = true)` para endereços; `@ManyToMany` + `@JoinTable(name = "user_roles")` para papéis. `replaceAddresses` troca a coleção inteira e o `orphanRemoval` apaga os que saíram — é a tradução literal de `User.replaceAddresses`, que também substitui a lista como um todo. Consequência assumida: endereço trocado recebe um id novo. |
 | **Papéis são catálogo** | O vínculo N:M aponta para linhas que já existem em `roles` (resolvidas por id antes de gravar); a origem de dados nunca cria um papel. |
-| **Identificadores UUID** | Chaves primárias `UUID`, geradas pelo banco via `DEFAULT gen_random_uuid()`. A entidade JPA declara `@Id @GeneratedValue(strategy = GenerationType.UUID)`. Ids aleatórios evitam enumeração de recursos pela API. |
+| **Identificadores UUID** | Chaves primárias `UUID`. A entidade JPA declara `@Id @GeneratedValue(strategy = GenerationType.UUID)` — nas linhas criadas pela aplicação quem emite o valor é o Hibernate, antes do `INSERT`; o `DEFAULT gen_random_uuid()` da migration atende seeds e inserções manuais. Ids aleatórios evitam enumeração de recursos pela API. |
 | **Auditoria: "quando" é do núcleo, "quem" é do contexto** | `AuditableJpaEntity` (`@MappedSuperclass` + `@EntityListeners(AuditingEntityListener.class)`) concentra as quatro colunas, mas com donos diferentes. O **instante** (`created_at`, `last_updated_at`) chega pronto do núcleo — as entidades de domínio recebem o momento por parâmetro e nunca chamam o relógio, e deixar o listener sobrescrevê-lo tornaria esse parâmetro decorativo. O **autor** (`created_by`, `last_updated_by`) é informação do contexto de execução, que o núcleo não conhece: esse o listener preenche, lendo o `AuthenticatedAuditorAware` — login autenticado, ou `"system"` para requisição anônima, migration e seed. |
 | **Schema é do Flyway** | `spring.jpa.hibernate.ddl-auto: validate` — o Hibernate confere o mapeamento contra o schema migrado e nunca o altera. |
 | **Sem sessão aberta na view** | `spring.jpa.open-in-view: false`. Todo mapeamento JPA → record acontece dentro da transação da origem de dados. |
@@ -824,9 +824,9 @@ vazia, e que a unidade de trabalho confirma no sucesso e desfaz na falha.
 SUCCESS**. Cobertura acumulada (`domain` + `application` + `adapter` + `infrastructure`):
 **670/670 linhas, 140/140 ramos, 300/300 métodos, 60 classes** — 100%.
 
-> Os **testes de integração** com Testcontainers, que provam o mapeamento contra um PostgreSQL
-> real, entram na Etapa 6: antes das migrations não existe schema para o `ddl-auto: validate`
-> conferir.
+> Os **testes de integração** com Testcontainers, que provam este mapeamento contra um
+> PostgreSQL real, são entregues na Etapa 6 — antes das migrations não existe schema para o
+> `ddl-auto: validate` conferir.
 
 ---
 
@@ -837,8 +837,11 @@ O schema é **gerenciado exclusivamente pelo Flyway**, por scripts SQL versionad
 
 | Versão | Arquivo                                  | Conteúdo                                                                                      |
 | ------ | ---------------------------------------- | --------------------------------------------------------------------------------------------- |
-| V1     | `V1__create_schema.sql`                  | DDL de `users`, `roles`, `user_roles`, `addresses`, `password_reset_tokens` (PKs `UUID`, colunas de auditoria, FKs com cascade) + seed dos papéis |
-| V2     | `V2__seed_demo_users.sql`                | Usuários de demonstração: um dono, um cliente e um administrador, com senhas em hash BCrypt   |
+| V1     | `V1__create_schema.sql`                  | DDL de `users`, `roles`, `user_roles`, `addresses`, `password_reset_tokens` (PKs `UUID`, colunas de auditoria, FKs com cascade), três índices e o seed do catálogo de papéis |
+| V2     | `V2__seed_demo_users.sql`                | Usuários de demonstração: um dono, um cliente e um administrador, com senhas em hash BCrypt, seus vínculos de papel e um endereço |
+
+Índices criados em V1: `LOWER(name)` em `users` — a expressão exata que a busca paginada usa —
+e as duas FKs mais percorridas (`addresses.user_id`, `password_reset_tokens.user_id`).
 
 | Login              | Senha           | Papel            |
 | ------------------ | --------------- | ---------------- |
@@ -853,6 +856,40 @@ O schema é **gerenciado exclusivamente pelo Flyway**, por scripts SQL versionad
 Regras: migrations aplicadas são imutáveis (o Flyway valida o checksum); toda mudança entra
 como uma nova migration `V<n>__descricao.sql`; o histórico fica em `flyway_schema_history` e
 no `CHANGELOG.md` do módulo.
+
+### Testes de integração: a outra metade da rede de proteção
+
+Com o schema existindo, entra o segundo nível de teste exigido pelo projeto. Um PostgreSQL
+`postgres:16-alpine` real sobe pelo Testcontainers, o Flyway aplica as migrations e o contexto
+Spring inteiro é levantado — **nenhum bean da aplicação é mockado**. O `ddl-auto: validate` faz
+dessa subida uma verificação em si: qualquer divergência entre as entidades JPA da Etapa 5 e o
+DDL desta etapa impede o contexto de iniciar, e toda a suíte falha.
+
+| Classe | O que prova |
+| ------ | ----------- |
+| `SchemaMigrationIT` | As duas migrations aplicadas e registradas no histórico; exatamente as cinco tabelas do modelo; o catálogo com os três papéis de `RoleName`; os três usuários de demonstração com o papel previsto, senha em hash e `created_by = system`; o endereço da seed lido junto com o agregado; e o `ON DELETE CASCADE` agindo **no banco**, por comando SQL direto, sem passar pelo ORM. |
+| `UserPersistenceIT` | O agregado de usuário de ponta a ponta: gravação e leitura completa, reconstrução da entidade de domínio pelo gateway, consulta por login e por e-mail, autor da auditoria preenchido, substituição de endereços removendo os órfãos, troca de papel sem tocar no catálogo, identidade e data de criação preservadas na atualização, busca paginada sem diferenciar caixa, ordenação chegando ao `ORDER BY`, propriedade não permitida caindo no padrão, e exclusão em cascata. |
+| `PasswordResetTokenPersistenceIT` | Gravação e recuperação pelo hash, consumo registrado sem reescrever o resto, unicidade do hash imposta pelo banco e tokens apagados junto com o dono. |
+| `TransactionalUnitOfWorkIT` | A promessa da unidade de trabalho onde ela é observável: bloco concluído confirma tudo; exceção no meio desfaz inclusive o que já havia sido gravado. |
+
+**Container único.** As classes compartilham um único container, iniciado no carregamento de
+`IntegrationTestSupport` e removido pelo Ryuk ao fim da execução. Com `@Testcontainers` +
+`@Container`, a extensão do JUnit encerra o container ao fim da **primeira** classe, enquanto o
+Spring reaproveita o contexto em cache — as classes seguintes passam a apontar para um banco
+morto. Os testes são escritos para conviver com o banco compartilhado: cada um cria seus
+próprios dados com marcas únicas, em vez de depender do estado deixado por outro.
+
+### O que foi entregue nesta etapa
+
+| Componente | Decisão e conceito que a sustenta |
+| ---------- | --------------------------------- |
+| `V1__create_schema.sql` | O schema é do Flyway, versionado e imutável — o mesmo DDL em toda máquina e em todo ambiente. O Hibernate valida e nunca altera: sem `ddl-auto: update`, não há schema que dependa de qual código subiu primeiro. |
+| `V2__seed_demo_users.sql` | Seeds de demonstração com senha **em hash**: o valor em claro não é persistido nem em migration. `admin.demo` existe porque `ROLE_ADMIN` é proibido no autocadastro público — a migration é a via legítima de criar um administrador nesta fase. O vínculo de papel é resolvido pelo **nome**, não pelo id gerado em V1, então a migration não depende de valores que ela não controla. |
+| `IntegrationTestSupport` + 4 classes `*IT` | O segundo nível de teste (ver acima). Rodam só no `mvn verify`, pelo Failsafe, e exigem Docker; o `mvn test` continua rápido e sem dependência externa. |
+
+**Verificação.** `mvn verify`: **290 testes unitários** (276 + 14 regras de ArchUnit) e
+**27 testes de integração** contra PostgreSQL real — **BUILD SUCCESS**. Cobertura pelos testes
+unitários, sem contar os de integração: **670/670 linhas, 140/140 ramos, 300/300 métodos** — 100%.
 
 ---
 

@@ -52,8 +52,12 @@ Cobertura: `target/site/jacoco/index.html` (XML em `jacoco.xml`). **O `verify` f
 quebra. Únicas exclusões: `RestaurantesApplication` e `infrastructure/config/*Config`.
 
 Surefire roda `**/*Test`; Failsafe roda `**/*IT` (só no `verify`). Testes de integração
-usam `@SpringBootTest` + Testcontainers `postgres:16-alpine` e nunca mockam beans da
-aplicação (exceto SMTP).
+estendem `IntegrationTestSupport` (`@SpringBootTest` + Testcontainers `postgres:16-alpine`) e
+nunca mockam beans da aplicação (exceto SMTP). O container é **único e compartilhado**,
+iniciado em bloco `static` na classe base — **não** usar `@Testcontainers`/`@Container`: o
+JUnit encerraria o container ao fim da primeira classe e as seguintes reaproveitariam o
+contexto Spring apontando para um banco morto. Como o banco é compartilhado entre classes,
+cada teste cria seus próprios dados com marca única em vez de depender de estado alheio.
 
 ## Arquitetura — a regra de dependência é verificada em build
 
