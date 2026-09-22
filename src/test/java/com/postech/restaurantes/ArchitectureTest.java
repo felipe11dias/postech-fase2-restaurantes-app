@@ -41,13 +41,20 @@ class ArchitectureTest {
         "org.flywaydb.."
     };
 
+    /**
+     * O anel mais externo — Frameworks & Drivers — é {@code infrastructure}. Os adaptadores de
+     * interface ({@code adapter}) são um anel <em>interno</em> a ele, e não um segundo adaptador
+     * irmão: o DSL de onion architecture proíbe que dois adaptadores se conheçam, e
+     * {@code infrastructure} precisa implementar as origens de dados declaradas em
+     * {@code adapter}. A fronteira entre {@code application} e {@code adapter} é garantida
+     * pelas regras explícitas abaixo, que são mais precisas que o DSL.
+     */
     @ArchTest
     static final ArchRule camadas_concentricas_so_apontam_para_dentro =
             Architectures.onionArchitecture()
-                    .domainModels("..domain..")
-                    .domainServices("..domain..")
-                    .applicationServices(APPLICATION)
-                    .adapter("adapter", ADAPTER)
+                    .domainModels(DOMAIN)
+                    .domainServices(DOMAIN)
+                    .applicationServices(APPLICATION, ADAPTER)
                     .adapter("infrastructure", INFRASTRUCTURE)
                     .withOptionalLayers(true)
                     .allowEmptyShould(true);
@@ -114,6 +121,29 @@ class ArchitectureTest {
                     .and().doNotHaveSimpleName(PACKAGE_INFO)
                     .should().beRecords()
                     .andShould().haveSimpleNameEndingWith("View")
+                    .allowEmptyShould(true);
+
+    @ArchTest
+    static final ArchRule entidades_jpa_so_existem_em_infrastructure_persistence =
+            classes().that().areAnnotatedWith(jakarta.persistence.Entity.class)
+                    .should().resideInAPackage("..infrastructure.persistence..")
+                    .andShould().haveSimpleNameEndingWith("JpaEntity")
+                    .allowEmptyShould(true);
+
+    @ArchTest
+    static final ArchRule nome_JpaEntity_e_exclusivo_da_persistencia =
+            classes().that().haveSimpleNameEndingWith("JpaEntity")
+                    .should().resideInAPackage("..infrastructure.persistence..")
+                    .allowEmptyShould(true);
+
+    @ArchTest
+    static final ArchRule implementacoes_de_origem_de_dados_terminam_em_DataSourceJpa =
+            classes().that().implement(com.tngtech.archunit.base.DescribedPredicate.describe(
+                            "interface em adapter.datasource",
+                            (com.tngtech.archunit.core.domain.JavaClass c) ->
+                                    c.getPackageName().endsWith("adapter.datasource")))
+                    .should().resideInAPackage("..infrastructure.persistence..")
+                    .andShould().haveSimpleNameEndingWith("DataSourceJpa")
                     .allowEmptyShould(true);
 
     @ArchTest

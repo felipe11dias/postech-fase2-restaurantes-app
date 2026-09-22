@@ -57,7 +57,7 @@ aplicação (exceto SMTP).
 
 ## Arquitetura — a regra de dependência é verificada em build
 
-`src/test/java/.../ArchitectureTest.java` (ArchUnit, 11 regras) falha o build se violada:
+`src/test/java/.../ArchitectureTest.java` (ArchUnit, 14 regras) falha o build se violada:
 
 ```
 domain          → só JDK. Nenhum import de outro pacote do projeto nem de biblioteca.
@@ -102,6 +102,24 @@ Pontos que só ficam claros lendo várias camadas:
   classe em `adapter.gateway` implemente uma interface de `application.gateway`.
 - **Schema é do Flyway** (`db/migration`); JPA roda com `ddl-auto: validate` e
   `open-in-view: false`. A transação é aberta pela implementação de `IUnitOfWork` (`TransactionTemplate`), não por `@Transactional` em casos de uso.
+
+### Persistência (Etapa 5, já implementada)
+
+- Entidades JPA (`*JpaEntity`) são classes **separadas** das de domínio, só com mapeamento e
+  acessores — nenhuma invariante. Ficam em `infrastructure/persistence/<agregado>`, espelhando
+  `domain/entity/<agregado>`. ArchUnit: `@Entity` só existe nesse pacote e a classe termina em
+  `JpaEntity`; implementação de `I*DataSource` termina em `DataSourceJpa`.
+- Coleções mapeadas **não** são campos `final` (o Hibernate substitui a instância ao carregar).
+- Auditoria: o **instante** vem do núcleo pelo record (`created_at`/`last_updated_at`); o
+  **autor** (`created_by`/`last_updated_by`) é do `AuditingEntityListener` via
+  `AuthenticatedAuditorAware` (`system` quando não há autenticado). Não deixar o listener
+  sobrescrever o instante — o domínio recebe o momento por parâmetro de propósito.
+- Busca paginada em **duas consultas** (ids paginados no banco, depois carga com
+  `@EntityGraph`): `join fetch` junto com paginação faz o Hibernate recortar a página em memória.
+- Ordenação é **traduzida** por mapa `propriedade do núcleo → atributo JPA` na origem de dados;
+  propriedade fora do mapa cai no padrão. Nunca repassar `sortBy` direto para o `Sort`.
+- Leitura traz o agregado inteiro (hash inclusive), porque o gateway reconstrói com `restore`;
+  quem esconde a senha é o presenter, por ausência de campo na view — não projeção no SQL.
 
 ## Convenções do domínio (Etapa 2, já implementadas)
 

@@ -54,3 +54,28 @@
 - `adapter/controller`: `UserController` e `AuthController`.
 - ArchUnit: três regras novas (sufixos `Data`/`View`; gateways do adapter implementam porta do núcleo).
 - 45 testes unitários; cobertura acumulada 100% (487 linhas, 126 ramos).
+
+## Etapa 5 — Persistência com JPA (infraestrutura)
+- Entidades JPA separadas do domínio: `UserJpaEntity`, `RoleJpaEntity`,
+  `PasswordResetTokenJpaEntity` (`infrastructure/persistence/user`) e `AddressJpaEntity`
+  (`infrastructure/persistence/address`), com `@OneToMany` cascade/orphanRemoval, `@ManyToMany`
+  via `user_roles` e ids `UUID`.
+- `AuditableJpaEntity`: instante (`created_at`/`last_updated_at`) vem do núcleo; autor
+  (`created_by`/`last_updated_by`) é preenchido pelo `AuditingEntityListener` a partir de
+  `AuthenticatedAuditorAware` (login autenticado ou `system`).
+- Repositórios Spring Data e as três origens de dados `*DataSourceJpa`, implementando as
+  interfaces de `adapter/datasource`.
+- Busca paginada em duas consultas (ids paginados no banco + carga da página com
+  `@EntityGraph`), evitando paginação em memória; ordenação traduzida por mapa
+  propriedade do núcleo → atributo JPA, com `password` sempre rejeitado.
+- `TransactionalUnitOfWork`: implementação de `IUnitOfWork` com `TransactionTemplate`;
+  nenhum caso de uso anotado com `@Transactional`.
+- `PersistenceConfig` com `@EnableJpaAuditing`.
+- ArchUnit: três regras novas (`@Entity` só em `infrastructure.persistence` e com sufixo
+  `JpaEntity`; sufixo exclusivo do pacote; implementações de origem de dados terminam em
+  `DataSourceJpa`).
+- Correção na regra de anéis concêntricos: `adapter` e `infrastructure` eram declarados como
+  adaptadores irmãos, o que proibia a dependência legítima Frameworks & Drivers → Adaptadores
+  de Interface. `infrastructure` passa a ser o único adaptador do DSL.
+- 48 testes unitários com repositórios mockados; cobertura acumulada 100%
+  (670 linhas, 140 ramos, 300 métodos, 60 classes) em 290 testes.
