@@ -112,14 +112,18 @@ public class UserDataSourceJpa implements IUserDataSource {
         users.deleteById(id);
     }
 
-    /** Copia o registro para a entidade gerenciada, resolvendo os papéis já persistidos. */
+    /**
+     * Copia o registro para a entidade gerenciada, resolvendo os papéis já persistidos.
+     *
+     * <p>As colunas de auditoria ficam de fora de propósito: quem as escreve é o listener do
+     * Spring Data. Copiá-las do registro deixaria o núcleo definir "quando" — e no cadastro
+     * ele não tem essa informação, porque {@code User.create} não recebe instante nenhum.
+     */
     private void apply(UserJpaEntity entity, UserData data) {
         entity.setName(data.name());
         entity.setEmail(data.email());
         entity.setLogin(data.login());
         entity.setPassword(data.passwordHash());
-        entity.setCreatedAt(data.createdAt());
-        entity.setLastUpdatedAt(data.lastUpdatedAt());
         entity.replaceRoles(resolveRoles(data.roles()));
         entity.replaceAddresses(data.addresses().stream().map(UserDataSourceJpa::toEntity).toList());
     }

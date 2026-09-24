@@ -32,14 +32,14 @@
 | 4   | Adaptadores de Interface (Controllers, Gateways, Presenters) | ✅ |
 | 5   | Persistência com JPA (infraestrutura)              | ✅     |
 | 6   | Migrations e Seeds (Flyway)                        | ✅     |
-| 7   | API REST, Segurança e JWT (infraestrutura)         | ⏳     |
+| 7   | API REST, Segurança e JWT (infraestrutura)         | ✅     |
 | 8   | Tratamento de Erros (ProblemDetail)                | ⏳     |
 | 9   | Documentação Swagger                               | ⏳     |
 | 10  | Execução com Docker Compose                        | ⏳     |
 | 11  | Testes — unitários (100% cobertura) e de integração | ⏳    |
 | 12  | Entregáveis (Postman, README)                      | ⏳     |
 
-**Progresso:** 6 de 12 etapas concluídas.
+**Progresso:** 7 de 12 etapas concluídas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -233,13 +233,15 @@ src/main/java/com/postech/restaurantes/
 │       └── view/                  # UserView, RoleView, AddressView, AuthView (records de saída)
 │
 └── infrastructure/                # FRAMEWORKS & DRIVERS — único lugar com Spring/JPA
-    ├── web/                       # @RestController v1, DTOs Request/Response, assemblers HATEOAS, handler de erros
+    ├── web/                       # handler de erros (Etapa 8)
+    │   ├── user/                  # UserRestController, Request/Response, UserModelAssembler
+    │   └── auth/                  # AuthRestController, Request/Response
     ├── persistence/               # AuditableJpaEntity, TransactionalUnitOfWork, AuthenticatedAuditorAware
     │   ├── user/                  # UserJpaEntity, RoleJpaEntity, PasswordResetTokenJpaEntity, SpringData*Repository, *DataSourceJpa
     │   └── address/               # AddressJpaEntity
-    ├── security/                  # JWT, filtro, BCrypt, UserDetailsService
-    ├── mail/                      # implementação SMTP de IMailGateway
-    └── config/                    # SecurityConfig, OpenApiConfig, PersistenceConfig, composição de beans
+    ├── security/                  # JwtTokenIssuer, JwtAuthenticationFilter, BCryptPasswordAdapter, UserSecurity
+    ├── mail/                      # SmtpMailGateway, MailProperties
+    └── config/                    # SecurityConfig, PersistenceConfig, CompositionConfig (raiz de composição)
 ```
 
 Cada pacote nasce com um `package-info.java` que documenta sua regra de dependência — o
@@ -710,7 +712,7 @@ responsabilidade dos `*DataSourceJpa`.
 | **Relacionamentos declarativos** | `@OneToMany(mappedBy = "user", cascade = ALL, orphanRemoval = true)` para endereços; `@ManyToMany` + `@JoinTable(name = "user_roles")` para papéis. `replaceAddresses` troca a coleção inteira e o `orphanRemoval` apaga os que saíram — é a tradução literal de `User.replaceAddresses`, que também substitui a lista como um todo. Consequência assumida: endereço trocado recebe um id novo. |
 | **Papéis são catálogo** | O vínculo N:M aponta para linhas que já existem em `roles` (resolvidas por id antes de gravar); a origem de dados nunca cria um papel. |
 | **Identificadores UUID** | Chaves primárias `UUID`. A entidade JPA declara `@Id @GeneratedValue(strategy = GenerationType.UUID)` — nas linhas criadas pela aplicação quem emite o valor é o Hibernate, antes do `INSERT`; o `DEFAULT gen_random_uuid()` da migration atende seeds e inserções manuais. Ids aleatórios evitam enumeração de recursos pela API. |
-| **Auditoria: "quando" é do núcleo, "quem" é do contexto** | `AuditableJpaEntity` (`@MappedSuperclass` + `@EntityListeners(AuditingEntityListener.class)`) concentra as quatro colunas, mas com donos diferentes. O **instante** (`created_at`, `last_updated_at`) chega pronto do núcleo — as entidades de domínio recebem o momento por parâmetro e nunca chamam o relógio, e deixar o listener sobrescrevê-lo tornaria esse parâmetro decorativo. O **autor** (`created_by`, `last_updated_by`) é informação do contexto de execução, que o núcleo não conhece: esse o listener preenche, lendo o `AuthenticatedAuditorAware` — login autenticado, ou `"system"` para requisição anônima, migration e seed. |
+| **Auditoria é de quem grava** | `AuditableJpaEntity` (`@MappedSuperclass` + `@EntityListeners(AuditingEntityListener.class)`) concentra as quatro colunas, todas preenchidas pelo listener. Auditoria é **metadado de gravação**, não regra: nenhuma invariante depende de quando ou por quem uma linha foi escrita, e `User.create` sequer recebe um instante — quem recebe é `PasswordResetToken`, porque ali o tempo **é** regra (o token vence). O **instante** vem do `ClockDateTimeProvider`, ligado ao mesmo `Clock` injetado nos casos de uso, para que a aplicação tenha um relógio só; o **autor** vem do `AuthenticatedAuditorAware` — login autenticado, ou `"system"` para requisição anônima, migration e seed. A origem de dados **não** escreve essas colunas, e há teste guardando isso. |
 | **Schema é do Flyway** | `spring.jpa.hibernate.ddl-auto: validate` — o Hibernate confere o mapeamento contra o schema migrado e nunca o altera. |
 | **Sem sessão aberta na view** | `spring.jpa.open-in-view: false`. Todo mapeamento JPA → record acontece dentro da transação da origem de dados. |
 | **N+1 e paginação, sem escolher entre os dois** | Paginar e fazer `join fetch` na mesma consulta faz o Hibernate trazer todas as linhas e recortar a página em memória. Por isso a busca usa **duas consultas**: a primeira pagina só os ids no banco; a segunda carrega os usuários daquela página com `@EntityGraph(attributePaths = {"roles", "addresses"})`, em um único `select`. `findById`, `findByLogin` e `findByEmail` usam o mesmo grafo. |
@@ -800,7 +802,7 @@ e, com ele, a primeira implementação concreta das interfaces que o adaptador d
 | `UserJpaEntity`, `RoleJpaEntity`, `AddressJpaEntity`, `PasswordResetTokenJpaEntity` | Classes **separadas** das entidades de domínio, com todas as anotações do ORM e nenhuma regra. O banco é detalhe (Martin): trocar o Hibernate por outra coisa reescreve este pacote e não toca em nenhuma camada de dentro. O token referencia o dono **por identidade** (`user_id`), como o domínio o modela, em vez de inventar uma associação navegável que ninguém percorre. |
 | `SpringData*Repository` | Detalhe de acesso, invisível para o núcleo. A busca paginada é deliberadamente dividida em duas consultas para não pagar paginação em memória (ver acima). |
 | `UserDataSourceJpa`, `RoleDataSourceJpa`, `PasswordResetTokenDataSourceJpa` | Implementam as interfaces de `adapter/datasource` — inversão de dependência na prática: a seta de código aponta para dentro, contra a seta do fluxo de controle. São o único lugar que sabe que existe um banco relacional, e traduzem record ↔ entidade JPA. |
-| `AuditableJpaEntity` + `AuthenticatedAuditorAware` | Auditoria com dono definido para cada campo (ver acima). Consultar o `SecurityContextHolder` é assunto do contexto de execução, e por isso fica confinado à infraestrutura. |
+| `AuditableJpaEntity` + `AuthenticatedAuditorAware` | Auditoria é da camada que grava (ver acima). Consultar o `SecurityContextHolder` é assunto do contexto de execução, e por isso fica confinado à infraestrutura. |
 | `TransactionalUnitOfWork` | Implementa `IUnitOfWork` da Etapa 4 (ver acima). |
 | `PersistenceConfig` | Só liga a auditoria (`@EnableJpaAuditing`). Configuração puramente declarativa, sem regra — por isso fica fora da medição de cobertura. |
 | ArchUnit | Três regras novas: classe anotada com `@Entity` **só existe em `infrastructure.persistence`** e termina em `JpaEntity`; o sufixo `JpaEntity` é exclusivo desse pacote; toda implementação de uma interface de `adapter.datasource` mora ali e termina em `DataSourceJpa`. Uma anotação de ORM numa entidade de domínio passa a quebrar o build, e não apenas a revisão. |
@@ -966,8 +968,16 @@ Resposta `201 Created`:
 Resposta `200 OK`:
 
 ```json
-{ "token": "eyJhbGciOiJIUzI1NiJ9...", "type": "Bearer", "expiresIn": 3600000 }
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9...",
+  "type": "Bearer",
+  "expiresAt": "2026-09-15T11:00:00"
+}
 ```
+
+A expiração sai como **instante absoluto**, e não como "vale por N milissegundos": um prazo
+relativo depende de quando a resposta chegou e de o relógio do cliente estar certo. É o
+presenter quem decide isso — a `AuthView` já carrega `expiresAt`, e a borda HTTP só o repassa.
 
 ### Segurança
 
@@ -985,7 +995,54 @@ complementa a defesa dificultando a descoberta de ids, mas não a substitui.
 **Recuperação de senha.** Token de 32 bytes de `SecureRandom` em Base64 URL, enviado por
 e-mail; o banco guarda apenas o hash SHA-256. Uso único e com expiração. A resposta do
 "esqueci minha senha" é idêntica exista ou não o e-mail, para não revelar quais endereços
-estão cadastrados.
+estão cadastrados. SHA-256 puro, e não BCrypt, porque o segredo já tem 256 bits de entropia:
+não há dicionário a encarecer, e a consulta pelo hash precisa ser determinística.
+
+**401 e 403 querem dizer coisas diferentes.** Sem credenciais a resposta é `401`
+("identifique-se"); com credenciais válidas mas sem direito ao recurso, `403` ("você não
+pode"). O padrão do Spring, sem login por formulário nem básico, devolveria `403` nos dois
+casos — um `HttpStatusEntryPoint` corrige isso.
+
+### O que foi entregue nesta etapa
+
+| Componente | Decisão e conceito que a sustenta |
+| ---------- | --------------------------------- |
+| `infrastructure/web/user` e `.../auth` | Dois `@RestController` finos: validam a sintaxe do corpo, convertem para o DTO do caso de uso, delegam ao controller de adaptação e devolvem a representação. Nenhuma regra de negócio — trocar REST por outro canal não reescreve nada de dentro. Subpacotes por feature, como nas demais camadas. |
+| `*Request` / `*Response` separados dos DTOs do núcleo | A segunda fronteira de mapeamento prometida no desenho. Bean Validation (`@NotBlank`, `@Email`, `@Size`) vive **só** aqui: é validação **sintática**, e a consistência continua sendo do domínio — "as duas senhas conferem" é regra e ficou no caso de uso, não em uma anotação. Papel desconhecido é convertido por `RoleName.from`, para que o erro seja a mensagem do domínio e não um erro de formato do Jackson. |
+| `UserResponse.from(UserView)` | A resposta nasce da view, que não tem campo de senha: não existe caminho de código capaz de serializar o hash. |
+| `UserModelAssembler` | HATEOAS é característica do canal REST, não do caso de uso — por isso nenhum rastro dele chega à `UserView`. `PagedModel` preserva os metadados do `PageResult` do núcleo. |
+| `BCryptPasswordAdapter` | Implementa `IPasswordEncoder`; é o único lugar que conhece BCrypt. `simulateMatch` gasta o tempo de uma comparação real contra um hash descartável, de modo que "login inexistente" não responda mais rápido que "senha errada". |
+| `JwtTokenIssuer` | Implementa `ITokenIssuer` e também **lê** o token: emitir e validar o mesmo formato é uma responsabilidade só. Para o núcleo o token é texto opaco com uma expiração. O instante vem do `Clock` injetado, o que torna a expiração verificável em teste. Recusa devolve vazio sem dizer o motivo — a explicação só ajudaria quem está sondando. |
+| `JwtAuthenticationFilter` | Apenas **traduz** o `Bearer` em contexto de segurança; nunca decide se a requisição passa. Token inválido segue anônimo, e quem recusa é a configuração — assim a regra de "o que exige autenticação" fica em um lugar só. |
+| `UserSecurity` + `@PreAuthorize` | Fecha a referência direta a objeto (IDOR): conhecer o id de outra pessoa não dá acesso a ela. O UUID aleatório dificulta descobrir ids — dificultar não é impedir, e a verificação é o que impede. |
+| `SecureRandomTokenGenerator`, `SmtpMailGateway` | Implementam `ISecureTokenGenerator` e `IMailGateway`. O token em claro existe em um lugar só: o corpo do e-mail. |
+| `CompositionConfig` | A raiz de composição — o único ponto onde o núcleo é amarrado às implementações concretas. Os controllers de adaptação são objetos comuns, criados pelas fábricas estáticas e recebendo tudo por interface: não são componentes do Spring e não sabem que ele existe. É aqui que a inversão de dependência deixa de ser desenho e vira montagem. |
+
+**Correção na auditoria (Etapa 5).** O primeiro `POST /api/v1/users` de verdade falhou com
+`created_at` nulo, e o defeito era de desenho, não de código: a Etapa 5 dizia que o instante
+"vem do núcleo", mas `User.create` nunca recebeu instante nenhum — só `restore` os carrega, ao
+reconstruir o que já estava gravado. Auditoria é metadado de gravação, e passou a ser escrita
+inteiramente pelo listener, com o instante vindo do mesmo `Clock` da aplicação. A tabela da
+Etapa 5 foi reescrita, e um teste impede que a origem de dados volte a carimbar essas colunas.
+
+**Testes unitários — 57 casos em 7 classes**, com o controller de adaptação mockado: provam a
+delegação, a conversão nas duas bordas, a montagem dos links, a emissão e leitura do token
+(inclusive expirado, adulterado e com outra assinatura), o filtro, a regra de posse e o e-mail.
+
+**Testes de integração — 18 casos em 2 classes**, por HTTP de verdade, com a cadeia de filtros
+inteira: é a única forma de provar que o `@PreAuthorize` está mesmo ligado — um teste de
+unidade do controller passaria igual com a anotação apagada. `UserApiIT` cobre cadastro
+público, `401` sem token, `403` no cadastro alheio, acesso do administrador, listagem paginada,
+atualização, troca de senha e exclusão. `AuthApiIT` cobre o ciclo completo de recuperação:
+pedir, capturar o token no e-mail (único bean mockado), redefinir, entrar com a senha nova e
+ver o mesmo token ser recusado na segunda vez.
+
+**Verificação.** `mvn verify`: **347 testes unitários** e **46 de integração** — **BUILD
+SUCCESS**. Cobertura pelos testes unitários: **833/833 linhas, 184/184 ramos, 368/368
+métodos** — 100%.
+
+> Exceção de domínio ainda responde `500`: a tradução para `ProblemDetail` é a Etapa 8. Os
+> testes de integração registram isso explicitamente onde esbarram no assunto.
 
 ---
 

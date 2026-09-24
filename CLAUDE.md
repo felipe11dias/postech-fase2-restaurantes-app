@@ -114,16 +114,39 @@ Pontos que só ficam claros lendo várias camadas:
   `domain/entity/<agregado>`. ArchUnit: `@Entity` só existe nesse pacote e a classe termina em
   `JpaEntity`; implementação de `I*DataSource` termina em `DataSourceJpa`.
 - Coleções mapeadas **não** são campos `final` (o Hibernate substitui a instância ao carregar).
-- Auditoria: o **instante** vem do núcleo pelo record (`created_at`/`last_updated_at`); o
-  **autor** (`created_by`/`last_updated_by`) é do `AuditingEntityListener` via
-  `AuthenticatedAuditorAware` (`system` quando não há autenticado). Não deixar o listener
-  sobrescrever o instante — o domínio recebe o momento por parâmetro de propósito.
+- Auditoria é **inteiramente do listener**: `@CreatedDate`/`@LastModifiedDate` (instante, vindo
+  do `ClockDateTimeProvider` ligado ao `Clock` da aplicação) e `@CreatedBy`/`@LastModifiedBy`
+  (autor, do `AuthenticatedAuditorAware`; `system` quando não há autenticado). A origem de
+  dados **não** copia essas colunas do record — `User.create` não recebe instante, e copiar
+  gravaria nulo. Instante como parâmetro do domínio vale onde o tempo é regra
+  (`PasswordResetToken`), não para metadado de gravação.
 - Busca paginada em **duas consultas** (ids paginados no banco, depois carga com
   `@EntityGraph`): `join fetch` junto com paginação faz o Hibernate recortar a página em memória.
 - Ordenação é **traduzida** por mapa `propriedade do núcleo → atributo JPA` na origem de dados;
   propriedade fora do mapa cai no padrão. Nunca repassar `sortBy` direto para o `Sort`.
 - Leitura traz o agregado inteiro (hash inclusive), porque o gateway reconstrói com `restore`;
   quem esconde a senha é o presenter, por ausência de campo na view — não projeção no SQL.
+
+### Web e segurança (Etapa 7, já implementada)
+
+- `infrastructure/web/<feature>`: `@RestController` fino + DTOs `*Request`/`*Response` +
+  assembler HATEOAS. Bean Validation só aqui, e só **sintática** (`@NotBlank`, `@Email`,
+  `@Size`); consistência e comparação de campos ("as senhas conferem") ficam no domínio/caso de
+  uso. Conversão por `toDTO()` no próprio record; papel vem como `String` e passa por
+  `RoleName.from`, para o erro ser a mensagem do domínio.
+- `SecurityConfig`: stateless, sem CSRF, lista de rotas públicas em um lugar só.
+  **Liberar `DispatcherType.ERROR`/`FORWARD`** — sem isso todo erro vira `403` sem corpo e a
+  causa real some. `HttpStatusEntryPoint(UNAUTHORIZED)` para dar `401` sem credenciais e `403`
+  com credenciais insuficientes.
+- `JwtAuthenticationFilter` só traduz o `Bearer` em contexto; quem recusa é a configuração.
+  Principal é `AuthenticatedUser` (implementa `Principal` para `getName()` devolver o login,
+  que é o que a auditoria grava) e carrega o id, que `UserSecurity.isSelf` usa no
+  `@PreAuthorize("hasRole('ADMIN') or @userSecurity.isSelf(#id, authentication)")`.
+- `CompositionConfig` é a raiz de composição: os controllers de adaptação são objetos comuns
+  criados pelas fábricas estáticas, nunca `@Component`.
+- Nos testes de integração por HTTP, estender `WebIntegrationTestSupport` (`RANDOM_PORT`).
+  Ao substituir o `JavaMailSender` por dublê, desligar `management.health.mail.enabled` —
+  o indicador de saúde se monta a partir dos beans concretos e derruba o contexto.
 
 ## Convenções do domínio (Etapa 2, já implementadas)
 

@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
  * declarativa: nenhuma regra mora aqui.
  */
 @Configuration
-@EnableJpaAuditing(auditorAwareRef = "authenticatedAuditorAware")
+@EnableJpaAuditing(
+        auditorAwareRef = "authenticatedAuditorAware",
+        dateTimeProviderRef = "auditingDateTimeProvider")
 public class PersistenceConfig {
 }

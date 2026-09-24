@@ -96,3 +96,27 @@
   seguintes reaproveitavam o contexto Spring apontando para um banco morto.
 - `mvn verify`: 290 testes unitários e 27 de integração, BUILD SUCCESS; cobertura unitária
   permanece 100% (670 linhas, 140 ramos).
+
+## Etapa 7 — API REST, Segurança e JWT (infraestrutura)
+- `infrastructure/web/user` e `infrastructure/web/auth`: `UserRestController` e
+  `AuthRestController` (`/api/v1`), DTOs `*Request`/`*Response` com Bean Validation e
+  `UserModelAssembler` (HATEOAS, `EntityModel`/`PagedModel`).
+- `infrastructure/security`: `BCryptPasswordAdapter` (`IPasswordEncoder`), `JwtTokenIssuer`
+  (`ITokenIssuer`, emite e lê o token, relógio injetado), `JwtAuthenticationFilter`,
+  `AuthenticatedUser`, `UserSecurity` (regra de posse) e `SecureRandomTokenGenerator`
+  (`ISecureTokenGenerator`, 32 bytes + SHA-256).
+- `infrastructure/mail`: `SmtpMailGateway` (`IMailGateway`) e `MailProperties`.
+- `infrastructure/config`: `SecurityConfig` (stateless, sem CSRF, `@PreAuthorize`,
+  `401` para não autenticado via `HttpStatusEntryPoint`) e `CompositionConfig` (raiz de
+  composição: `Clock`, `UserController`, `AuthController`).
+- Correção de desenho na auditoria (Etapa 5): `created_at`/`last_updated_at` passam a ser
+  escritos pelo `AuditingEntityListener` (`@CreatedDate`/`@LastModifiedDate`), com o instante
+  vindo do novo `ClockDateTimeProvider` ligado ao `Clock` da aplicação. O texto anterior dizia
+  que o instante vinha do núcleo, mas `User.create` não recebe instante — o primeiro cadastro
+  real falhava com `created_at` nulo. A origem de dados não escreve mais essas colunas, e há
+  teste guardando a regra.
+- Correção na configuração de segurança: o encaminhamento interno para `/error` precisa ser
+  liberado, senão todo erro da aplicação vira um `403` sem corpo, escondendo a causa.
+- 57 testes unitários novos (347 no total) e 18 de integração por HTTP real (46 no total),
+  incluindo `401`/`403` de posse e o ciclo completo de recuperação de senha; cobertura
+  unitária permanece 100% (833 linhas, 184 ramos).

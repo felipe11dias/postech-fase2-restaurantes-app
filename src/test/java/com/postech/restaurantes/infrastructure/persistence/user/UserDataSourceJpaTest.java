@@ -198,9 +198,22 @@ class UserDataSourceJpaTest {
         assertNull(gravado.getId());
         assertEquals("joao.silva", gravado.getLogin());
         assertEquals(HASH, gravado.getPassword());
-        assertEquals(NOW, gravado.getCreatedAt());
         assertEquals(ROLE_ID, gravado.getRoles().iterator().next().getId());
         assertEquals("joao.silva", salvo.login());
+    }
+
+    @Test
+    @DisplayName("A origem de dados não carimba a auditoria: quem escreve os instantes é o listener")
+    void naoDeveEscreverAAuditoria() {
+        when(roles.findAllById(any())).thenReturn(List.of(roleEntity()));
+        when(users.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        dataSource.insert(new UserData(null, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
+                USER_DATA.roles(), List.of(), NOW, NOW));
+
+        UserJpaEntity gravado = capturarGravado();
+        assertNull(gravado.getCreatedAt());
+        assertNull(gravado.getLastUpdatedAt());
     }
 
     @Test
@@ -236,7 +249,6 @@ class UserDataSourceJpaTest {
         assertEquals("Novo Nome", existente.getName());
         assertEquals("novo@email.com", existente.getEmail());
         assertTrue(existente.getAddresses().isEmpty());
-        assertEquals(NOW.plusHours(1), existente.getLastUpdatedAt());
         assertEquals("Novo Nome", atualizado.name());
     }
 

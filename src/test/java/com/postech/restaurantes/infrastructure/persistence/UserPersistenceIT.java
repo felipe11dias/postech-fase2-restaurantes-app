@@ -1,7 +1,7 @@
 package com.postech.restaurantes.infrastructure.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -122,19 +122,40 @@ class UserPersistenceIT extends IntegrationTestSupport {
         assertEquals(3, (int) jdbc.queryForObject("SELECT count(*) FROM roles", Integer.class));
     }
 
+    /**
+     * A comparação é feita contra o valor <em>relido do banco</em>, e não contra o que ficou
+     * em memória logo após a inserção: o PostgreSQL guarda {@code timestamp} em microssegundos
+     * e descarta os nanossegundos do Java.
+     */
     @Test
     @DisplayName("Alterar o nome não recria a linha: id e data de criação são preservados")
     void devePreservarIdentidadeNaAtualizacao() {
         UserData gravado = inserir("Gustavo Integração", List.of());
+        UserData persistido = userDataSource.findById(gravado.id()).orElseThrow();
 
-        UserData atualizado = userDataSource.update(new UserData(gravado.id(), "Gustavo Renomeado", gravado.email(),
-                gravado.login(), gravado.passwordHash(), gravado.roles(), List.of(),
-                gravado.createdAt(), gravado.lastUpdatedAt().plusHours(1)));
+        UserData atualizado = userDataSource.update(new UserData(persistido.id(), "Gustavo Renomeado",
+                persistido.email(), persistido.login(), persistido.passwordHash(), persistido.roles(), List.of(),
+                persistido.createdAt(), persistido.lastUpdatedAt()));
 
-        assertEquals(gravado.id(), atualizado.id());
+        assertEquals(persistido.id(), atualizado.id());
         assertEquals("Gustavo Renomeado", atualizado.name());
-        assertEquals(gravado.createdAt(), atualizado.createdAt());
-        assertNotEquals(gravado.lastUpdatedAt(), atualizado.lastUpdatedAt());
+        assertEquals(persistido.createdAt(), atualizado.createdAt());
+    }
+
+    @Test
+    @DisplayName("A auditoria é carimbada na gravação, mesmo quando o registro chega sem instante")
+    void deveCarimbarAAuditoriaNaGravacao() {
+        String sufixo = UUID.randomUUID().toString().substring(0, 8);
+        UserData semInstante = new UserData(null, "Sem Instante", "semdata." + sufixo + "@email.com",
+                "semdata." + sufixo, "$2a$10$hashDeIntegracaoComTamanhoSuficiente",
+                roleDataSource.findByNames(Set.of("ROLE_CUSTOMER")), List.of(), null, null);
+
+        UserData gravado = userDataSource.insert(semInstante);
+
+        assertNotNull(gravado.createdAt());
+        assertNotNull(gravado.lastUpdatedAt());
+        assertEquals("system", jdbc.queryForObject(
+                "SELECT created_by FROM users WHERE id = ?", String.class, gravado.id()));
     }
 
     @Test
