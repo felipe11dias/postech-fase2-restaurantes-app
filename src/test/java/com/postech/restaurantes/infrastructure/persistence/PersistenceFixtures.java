@@ -65,8 +65,7 @@ public final class PersistenceFixtures {
         user.setEmail("joao.silva@email.com");
         user.setLogin("joao.silva");
         user.setPassword(HASH);
-        user.setCreatedAt(NOW.minusDays(1));
-        user.setLastUpdatedAt(NOW);
+        user.auditadaEm(NOW.minusDays(1), NOW);
         user.replaceRoles(Set.of(roleEntity()));
         user.replaceAddresses(List.of(addressEntity()));
         return user;
