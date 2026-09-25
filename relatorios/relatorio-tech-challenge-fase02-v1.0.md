@@ -33,13 +33,13 @@
 | 5   | Persistência com JPA (infraestrutura)              | ✅     |
 | 6   | Migrations e Seeds (Flyway)                        | ✅     |
 | 7   | API REST, Segurança e JWT (infraestrutura)         | ✅     |
-| 8   | Tratamento de Erros (ProblemDetail)                | ⏳     |
+| 8   | Tratamento de Erros (ProblemDetail)                | ✅     |
 | 9   | Documentação Swagger                               | ⏳     |
 | 10  | Execução com Docker Compose                        | ⏳     |
 | 11  | Testes — unitários (100% cobertura) e de integração | ⏳    |
 | 12  | Entregáveis (Postman, README)                      | ⏳     |
 
-**Progresso:** 7 de 12 etapas concluídas.
+**Progresso:** 8 de 12 etapas concluídas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -233,13 +233,15 @@ src/main/java/com/postech/restaurantes/
 │       └── view/                  # UserView, RoleView, AddressView, AuthView (records de saída)
 │
 └── infrastructure/                # FRAMEWORKS & DRIVERS — único lugar com Spring/JPA
-    ├── web/                       # handler de erros (Etapa 8)
+    ├── web/
+    │   ├── error/                 # GlobalExceptionHandler, ProblemDetailFactory, ProblemType
+    │   ├── validation/            # @ValidPassword
     │   ├── user/                  # UserRestController, Request/Response, UserModelAssembler
     │   └── auth/                  # AuthRestController, Request/Response
     ├── persistence/               # AuditableJpaEntity, TransactionalUnitOfWork, AuthenticatedAuditorAware
     │   ├── user/                  # UserJpaEntity, RoleJpaEntity, PasswordResetTokenJpaEntity, SpringData*Repository, *DataSourceJpa
     │   └── address/               # AddressJpaEntity
-    ├── security/                  # JwtTokenIssuer, JwtAuthenticationFilter, BCryptPasswordAdapter, UserSecurity
+    ├── security/                  # JwtTokenIssuer, JwtAuthenticationFilter, BCryptPasswordAdapter, UserSecurity, JwtAuthenticationEntryPoint
     ├── mail/                      # SmtpMailGateway, MailProperties
     └── config/                    # SecurityConfig, PersistenceConfig, CompositionConfig (raiz de composição)
 ```
@@ -282,8 +284,9 @@ negócio. A primeira execução da regra revelou um detalhe útil: o ArchUnit en
 Cada entidade é responsável pela própria consistência. Não existe, em nenhum ponto do
 sistema, uma instância de `User` com e-mail inválido ou sem papel — porque a única forma de
 obter uma é pela fábrica `create(...)`, e ela recusa dados inválidos lançando
-`IllegalArgumentException`. Os setters aplicam a mesma validação, de modo que a entidade não
-pode ser corrompida depois de criada.
+`InvariantViolationException` — uma `IllegalArgumentException` cuja mensagem é escrita para o
+usuário e, por isso, pode chegar à resposta HTTP (Etapa 8). Os setters aplicam a mesma
+validação, de modo que a entidade não pode ser corrompida depois de criada.
 
 ### Entidades
 
@@ -1068,29 +1071,75 @@ métodos** — 100%.
 
 ## Etapa 8 — Tratamento de Erros (ProblemDetail)
 
-O `GlobalExceptionHandler` (`@RestControllerAdvice`, em `infrastructure/web`) traduz as
-exceções de domínio e as do próprio Spring para **ProblemDetail (RFC 7807)**, com `timestamp`
-e um `type` próprio por categoria. Um `JwtAuthenticationEntryPoint` estende o padrão ao 401 de
-acesso sem token.
+O `GlobalExceptionHandler` (`@RestControllerAdvice`, em `infrastructure/web/error`) traduz as
+exceções de domínio e as do próprio Spring para **ProblemDetail (RFC 9457, sucessora da
+7807)**, com `timestamp` e um `type` próprio por categoria. Um `JwtAuthenticationEntryPoint`
+estende o padrão ao 401 de acesso sem token.
 
-| Exceção / situação                                       | HTTP | Título                                            |
-| -------------------------------------------------------- | ---- | ------------------------------------------------- |
-| `MethodArgumentNotValidException` (Bean Validation)      | 400  | Requisição inválida (com mapa `errors` por campo) |
-| `MethodArgumentTypeMismatchException` (`{id}` não é UUID) | 400 | Requisição inválida                               |
-| `HttpMessageNotReadableException` (corpo malformado)     | 400  | Requisição inválida                               |
-| `IllegalArgumentException` (invariante de entidade/VO)   | 400  | Requisição inválida                               |
-| `InvalidPasswordException`                               | 400  | Senha inválida                                    |
-| `InvalidOrExpiredTokenException`                         | 400  | Token inválido ou expirado                        |
-| `InvalidCredentialsException`                            | 401  | Falha na autenticação                             |
-| acesso sem token (entry point)                           | 401  | Não autenticado                                   |
-| `ForbiddenOperationException`                            | 403  | Operação não permitida                            |
-| `AccessDeniedException` (recurso de outro usuário)       | 403  | Acesso negado                                     |
-| `ResourceNotFoundException`                              | 404  | Recurso não encontrado                            |
-| `DuplicateResourceException`                             | 409  | Conflito de dados                                 |
-| `Exception` (não prevista)                               | 500  | Erro inesperado — resposta genérica, exceção completa no log em nível ERROR |
+| Exceção / situação                                       | HTTP | `type` (`urn:restaurantes:problema:…`) | Detalhe na resposta |
+| -------------------------------------------------------- | ---- | -------------------------------------- | ------------------- |
+| `MethodArgumentNotValidException` (Bean Validation)      | 400  | `requisicao-invalida`   | fixo, mais o mapa `errors` por campo |
+| `MethodArgumentTypeMismatchException` (`{id}` não é UUID) | 400 | `requisicao-invalida`   | cita o parâmetro, nunca o valor |
+| `HttpMessageNotReadableException` (corpo malformado)     | 400  | `requisicao-invalida`   | fixo — a mensagem do parser não sai |
+| `InvariantViolationException` (invariante de entidade/VO) | 400 | `requisicao-invalida`   | a mensagem do domínio |
+| outra `IllegalArgumentException` (biblioteca)            | 400  | `requisicao-invalida`   | fixo; exceção no log em WARN |
+| `InvalidPasswordException`                               | 400  | `senha-invalida`        | a mensagem do domínio |
+| `InvalidOrExpiredTokenException`                         | 400  | `token-invalido`        | a mensagem do domínio |
+| `InvalidCredentialsException`                            | 401  | `falha-na-autenticacao` | a mensagem do domínio (a mesma para login e senha) |
+| acesso sem token (entry point)                           | 401  | `nao-autenticado`       | fixo, igual para token ausente, expirado ou adulterado |
+| `ForbiddenOperationException`                            | 403  | `operacao-nao-permitida`| a mensagem do domínio |
+| `AccessDeniedException` (recurso de outro usuário)       | 403  | `acesso-negado`         | fixo |
+| `ResourceNotFoundException`                              | 404  | `recurso-nao-encontrado`| a mensagem do domínio |
+| `DuplicateResourceException`                             | 409  | `conflito-de-dados`     | a mensagem do domínio |
+| `DataIntegrityViolationException` (restrição única no banco) | 409 | `conflito-de-dados`  | fixo, sem o nome da restrição; exceção no log em WARN |
+| `Exception` (não prevista)                               | 500  | `erro-inesperado`       | fixo; exceção completa no log em ERROR |
+| demais exceções do Spring MVC (405, 415, rota inexistente) | conforme o caso | `about:blank` | o padrão do Spring, acrescido do `timestamp` |
 
 Princípio: resposta vaga para o cliente, registro detalhado para quem opera. Mensagens de
 parser ou de exceções internas nunca são repassadas na resposta.
+
+**Exemplo** — cadastro com CEP de três dígitos (`POST /api/v1/users`):
+
+```json
+{
+  "type": "urn:restaurantes:problema:requisicao-invalida",
+  "title": "Requisição inválida",
+  "status": 400,
+  "detail": "CEP deve ter 8 dígitos",
+  "instance": "/api/v1/users",
+  "timestamp": "2026-09-25T17:10:42.118"
+}
+```
+
+### O que foi entregue nesta etapa
+
+| Componente | Decisão e conceito que a sustenta |
+| ---------- | --------------------------------- |
+| `GlobalExceptionHandler` | O **único** lugar que transforma "o que deu errado" em "que status e que corpo". O núcleo lança exceções de domínio sem saber que HTTP existe; os controllers não capturam nada. Estende `ResponseEntityExceptionHandler` para que as exceções do próprio Spring MVC (405, 415, rota inexistente) também saiam como `ProblemDetail` em vez de caírem no tratamento genérico como 500. Uma entrada por linha da tabela acima, cada uma legível e verificável isoladamente. |
+| `InvariantViolationException` (domínio) | A especificação pedia duas coisas incompatíveis: `IllegalArgumentException` → 400 **e** nunca repassar mensagem interna. O `Guard` lança esse tipo com mensagens escritas para o usuário, mas bibliotecas também — o BCrypt diz "password cannot be more than 72 bytes", o `Assert` do Spring diz "'beans' must not be empty". A subclasse própria resolve sem heurística: a mensagem dela vai para a resposta, a das outras não. Estende `IllegalArgumentException`, então todo teste e todo código que já a tratavam como tal continuam certos; e fica em `domain/exception`, só com JDK. |
+| `ProblemType` | Catálogo das categorias: `type`, título e status em um lugar só. O `type` é **URN**, e não URL: a RFC aceita identificadores não resolvíveis, e uma URL que não leva a lugar nenhum prometeria uma documentação que não existe. É nele — e não no título, que pode ser reescrito — que o cliente deve se apoiar. |
+| `ProblemDetailFactory` | Um formato só para todas as respostas de erro, venham do handler ou da cadeia de segurança. O `timestamp` vem do `Clock` da aplicação: continua havendo um relógio só no sistema. Também carimba as respostas que o Spring monta sozinho. |
+| `JwtAuthenticationEntryPoint` | O 401 é decidido na cadeia de filtros, antes do Spring MVC — fora do alcance do handler. Sem ele, seria a única resposta de erro sem corpo. O detalhe é o mesmo para token ausente, expirado ou adulterado. |
+| Mapa `errors` | Campo → lista ordenada de mensagens. Um campo pode violar duas restrições ao mesmo tempo (senha vazia é "em branco" **e** "curta"), e a ordem das violações não é garantida: com mapa campo → texto único, a segunda colidiria com a primeira. |
+| `spring.web.locale: pt_BR` fixo | As mensagens do Bean Validation seguem o idioma da requisição. Sem fixá-lo, a API responderia em português nesta máquina e em inglês dentro do container. |
+| `DataIntegrityViolationException` → 409 | Linha acrescentada à especificação. O caso de uso confere e-mail e login únicos antes de gravar, mas duas requisições simultâneas passam juntas pela conferência, e quem desempata é a restrição única do banco. É o mesmo conflito e recebe o mesmo 409 — sem o nome da restrição, que descreveria o schema. |
+
+**Testes unitários — 26 casos em 4 classes**, sem contexto Spring: cada exceção entra no
+handler e o que se verifica é o status, a categoria e, principalmente, **o que vai e o que não
+vai para o detalhe** — mensagem de biblioteca, nome de restrição, texto do parser, valor do
+parâmetro inválido e nome da classe da exceção inesperada nunca aparecem.
+
+**Testes de integração — `ErrorHandlingIT`, 14 casos**, percorrendo a tabela por HTTP real:
+cada linha é provocada pelo caminho de verdade — Bean Validation, objeto de valor, caso de
+uso, `@PreAuthorize`, restrição do banco, roteamento do Spring — e a resposta é conferida no
+formato completo: `Content-Type: application/problem+json`, `type`, `title`, `status`,
+`detail`, `instance` e `timestamp` em ISO-8601. Os pontos que as etapas anteriores deixaram
+anotados como "vira isto na Etapa 8" foram apertados para o status exato: login com senha
+antiga → 401; token reutilizado → 400 `token-invalido`; consulta a cadastro excluído → 404.
+
+**Verificação.** `mvn verify`: **389 testes unitários** e **64 de integração** — **BUILD
+SUCCESS**. Cobertura pelos testes unitários: **930/930 linhas, 204/204 ramos, 404/404
+métodos** — 100%.
 
 ---
 

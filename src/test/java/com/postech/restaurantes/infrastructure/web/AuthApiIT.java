@@ -124,9 +124,9 @@ class AuthApiIT extends WebIntegrationTestSupport {
         assertEquals(HttpStatus.NO_CONTENT, redefinicao.getStatusCode());
         assertEquals(HttpStatus.OK, rest.postForEntity(LOGIN,
                 corpo(Map.of("login", login, "password", "senhaNova456")), JsonNode.class).getStatusCode());
-        // Credencial recusada ainda não vira 401: a tradução de exceção de domínio para HTTP é da Etapa 8.
-        assertTrue(rest.postForEntity(LOGIN, corpo(Map.of("login", login, "password", "senhaSegura123")),
-                JsonNode.class).getStatusCode().isError(), "a senha antiga deixa de valer");
+        assertEquals(HttpStatus.UNAUTHORIZED, rest.postForEntity(LOGIN,
+                corpo(Map.of("login", login, "password", "senhaSegura123")), JsonNode.class).getStatusCode(),
+                "a senha antiga deixa de valer");
     }
 
     @Test
@@ -142,7 +142,8 @@ class AuthApiIT extends WebIntegrationTestSupport {
 
         ResponseEntity<JsonNode> segunda = rest.postForEntity(RESET, corpo(redefinicao), JsonNode.class);
 
-        assertTrue(segunda.getStatusCode().isError());
+        assertEquals(HttpStatus.BAD_REQUEST, segunda.getStatusCode());
+        assertEquals("urn:restaurantes:problema:token-invalido", segunda.getBody().get("type").asText());
     }
 
     @Test

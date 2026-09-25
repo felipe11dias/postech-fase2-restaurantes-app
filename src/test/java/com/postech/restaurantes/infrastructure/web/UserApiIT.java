@@ -180,9 +180,9 @@ class UserApiIT extends WebIntegrationTestSupport {
                 autenticado(eu.token()), Void.class);
 
         assertEquals(HttpStatus.NO_CONTENT, exclusao.getStatusCode());
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, rest.exchange(USERS + "/" + eu.id(), HttpMethod.GET,
+        assertEquals(HttpStatus.NOT_FOUND, rest.exchange(USERS + "/" + eu.id(), HttpMethod.GET,
                 autenticado(eu.token()), JsonNode.class).getStatusCode(),
-                "usuário excluído: o tratamento de erro vira 404 na Etapa 8");
+                "o token ainda é válido, mas o cadastro não existe mais");
     }
 
     @Test

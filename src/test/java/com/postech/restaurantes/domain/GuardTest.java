@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.postech.restaurantes.domain.entity.user.RoleName;
+import com.postech.restaurantes.domain.exception.InvariantViolationException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -80,5 +82,27 @@ class GuardTest {
     @DisplayName("Normaliza opcional: texto é aparado")
     void deveApararTextoOpcional() {
         assertEquals("abc", Guard.trimToNull(" abc "));
+    }
+
+    /**
+     * O tipo importa fora do domínio: a mensagem de uma {@link InvariantViolationException} vai
+     * para a resposta HTTP, e a de uma {@code IllegalArgumentException} qualquer, não.
+     */
+    @Test
+    @DisplayName("Toda violação sai como InvariantViolationException, com a mensagem escrita para o usuário")
+    void deveLancarViolacaoDeInvariante() {
+        InvariantViolationException nulo = assertThrows(InvariantViolationException.class,
+                () -> Guard.requireNonNull(null, "Id inválido"));
+        InvariantViolationException branco = assertThrows(InvariantViolationException.class,
+                () -> Guard.requireNonBlank("  ", "Nome inválido"));
+        InvariantViolationException condicao = assertThrows(InvariantViolationException.class,
+                () -> Guard.require(false, "CEP inválido"));
+        InvariantViolationException papel = assertThrows(InvariantViolationException.class,
+                () -> RoleName.from("ROLE_INEXISTENTE"));
+
+        assertEquals("Id inválido", nulo.getMessage());
+        assertEquals("Nome inválido", branco.getMessage());
+        assertEquals("CEP inválido", condicao.getMessage());
+        assertEquals("Papel inválido: ROLE_INEXISTENTE", papel.getMessage());
     }
 }

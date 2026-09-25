@@ -1,6 +1,7 @@
 package com.postech.restaurantes.domain.entity.user;
 
 import com.postech.restaurantes.domain.Guard;
+import com.postech.restaurantes.domain.exception.InvariantViolationException;
 
 /** Papéis de autorização reconhecidos pelo sistema. */
 public enum RoleName {
@@ -16,7 +17,7 @@ public enum RoleName {
                 return candidate;
             }
         }
-        throw new IllegalArgumentException("Papel inválido: " + name);
+        throw new InvariantViolationException("Papel inválido: " + name);
     }
 
     /** Papel que nunca pode ser obtido por autocadastro público. */

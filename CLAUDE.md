@@ -162,6 +162,22 @@ Pontos que só ficam claros lendo várias camadas:
   `SmtpMailGateway` registra em ERROR, sem o destinatário no log. Se a falha subisse, o
   "esqueci minha senha" revelaria quais e-mails têm conta.
 - `JwtTokenIssuer.read` exige `sub` e `login`; qualquer recusa devolve vazio, nunca exceção.
+
+### Tratamento de erros (Etapa 8, já implementada)
+
+- `infrastructure/web/error/GlobalExceptionHandler` é o **único** lugar que traduz exceção em
+  status. Controllers não capturam nada; o núcleo não sabe que HTTP existe. Toda resposta de
+  erro é `ProblemDetail` montado pela `ProblemDetailFactory` (com `timestamp` do `Clock` da
+  aplicação); o 401 da cadeia de segurança sai pelo `JwtAuthenticationEntryPoint`, no mesmo formato.
+- **Exceção de domínio nova exige handler novo** e categoria em `ProblemType` — sem isso ela
+  cai no genérico e vira 500. Uma entrada por exceção, não um mapa genérico.
+- **O que vai para o `detail`:** só mensagem escrita para o usuário — a das exceções de domínio
+  e a da `InvariantViolationException`. `IllegalArgumentException` de biblioteca, mensagem de
+  parser, nome de restrição do banco e exceção inesperada saem com detalhe fixo e vão inteiras
+  para o log. Invariante nova no domínio: lançar via `Guard` (ou `InvariantViolationException`),
+  nunca `new IllegalArgumentException`.
+- `type` é URN (`urn:restaurantes:problema:<categoria>`), único por categoria — é o identificador
+  em que o cliente se apoia.
 - Nos testes de integração por HTTP, estender `WebIntegrationTestSupport` (`RANDOM_PORT`).
   Ao substituir o `JavaMailSender` por dublê, desligar `management.health.mail.enabled` —
   o indicador de saúde se monta a partir dos beans concretos e derruba o contexto.
@@ -171,8 +187,10 @@ Pontos que só ficam claros lendo várias camadas:
 - Sem Lombok nem geração de código no núcleo; construtores, fábricas e acessores à mão.
 - Entidades: construtor privado + `create(...)` (novo, sem id) e `restore(...)` (com id e
   auditoria), ambos passando pelo mesmo `fill`; setters revalidam. Violação de invariante é
-  `IllegalArgumentException` via `domain/Guard` (`requireNonNull`, `requireNonBlank`,
-  `require`, `trimToNull`). Violação de estado (ex.: token já usado) é `IllegalStateException`.
+  `InvariantViolationException` (subclasse de `IllegalArgumentException`) via `domain/Guard`
+  (`requireNonNull`, `requireNonBlank`, `require`, `trimToNull`) — a mensagem dela chega ao
+  cliente, então é escrita para ele. Violação de estado (ex.: token já usado) é
+  `IllegalStateException`.
 - VOs (`Email`, `ZipCode`) são `record`s com construtor compacto que valida e normaliza.
 - `Role` tem igualdade pelo `RoleName` (ignora id) para funcionar em `Set`.
 - O domínio recebe o **hash** da senha, nunca a senha; entidades não chamam
