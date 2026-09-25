@@ -910,7 +910,7 @@ resposta com links HATEOAS. Versionamento por path (`/api/v1/...`).
 | `POST`   | `/api/v1/auth/reset-password`     | `ResetPasswordUseCase`   | `204 No Content`           | Pública                    |
 | `POST`   | `/api/v1/users`                   | `RegisterUserUseCase`    | `201 Created` + `Location` | Pública (sem `ROLE_ADMIN`) |
 | `GET`    | `/api/v1/users/{id}`              | `FindUserByIdUseCase`    | `200 OK`                   | Dono ou `ROLE_ADMIN`       |
-| `GET`    | `/api/v1/users?name=&page=&size=&sort=` | `SearchUsersUseCase` | `200 OK` (`PagedModel`)    | Autenticado                |
+| `GET`    | `/api/v1/users?name=&page=&size=&sort=` | `SearchUsersUseCase` | `200 OK` (`PagedModel`)    | `ROLE_ADMIN`               |
 | `PUT`    | `/api/v1/users/{id}`              | `UpdateUserUseCase`      | `200 OK`                   | Dono ou `ROLE_ADMIN`       |
 | `PATCH`  | `/api/v1/users/{id}/password`     | `ChangePasswordUseCase`  | `204 No Content`           | Dono ou `ROLE_ADMIN`       |
 | `DELETE` | `/api/v1/users/{id}`              | `DeleteUserUseCase`      | `204 No Content`           | Dono ou `ROLE_ADMIN`       |
@@ -1037,8 +1037,28 @@ atualização, troca de senha e exclusão. `AuthApiIT` cobre o ciclo completo de
 pedir, capturar o token no e-mail (único bean mockado), redefinir, entrar com a senha nova e
 ver o mesmo token ser recusado na segunda vez.
 
-**Verificação.** `mvn verify`: **347 testes unitários** e **46 de integração** — **BUILD
-SUCCESS**. Cobertura pelos testes unitários: **833/833 linhas, 184/184 ramos, 368/368
+**Revisão de código da etapa.** Antes de fechar, o diff passou por uma revisão focada em
+falhas reais, que apontou seis problemas — dois de segurança. Conferidas as etapas seguintes,
+nenhuma resolveria cinco deles: a Etapa 8 traduz exceções para `ProblemDetail`, o que melhora
+o corpo da resposta sem corrigir causa nenhuma. Todos foram corrigidos aqui, com teste
+correspondente:
+
+| Achado | Correção |
+| ------ | -------- |
+| **`GET /api/v1/users` aberto a qualquer autenticado.** Devolvia e-mail, login e endereço residencial de todos os cadastros — entregando de uma vez o que a regra de posse recusava um a um nas operações por id. | `@PreAuthorize("hasRole('ADMIN')")`. Listar o conjunto de cadastros é operação administrativa; um usuário comum enxerga o próprio cadastro e nada mais — a mesma regra, aplicada com consistência. Teste de integração: `403` para usuário comum, `200` para administrador. |
+| **Segredo do JWT padrão, versionado e aceito na subida.** A validação conferia só o tamanho, e o valor de exemplo tinha 60 bytes. Quem subisse sem `JWT_SECRET` ficava com um segredo público, e quem conhece o segredo assina um token com `ROLE_ADMIN`. | `application.yml` sem valor padrão; `JwtProperties` recusa também os valores de exemplo publicados, com mensagem que diz como gerar um segredo. Verificado com a aplicação empacotada: sem `JWT_SECRET` e com o valor de exemplo, **a subida falha**; com um segredo próprio, sobe. Os testes de integração fornecem o próprio segredo (`IntegrationTestProperties`). |
+| **`@Size(max = 72)` conta caracteres; o BCrypt limita 72 bytes.** Senha de 40 caracteres acentuados (80 bytes) passava na borda e fazia o codificador lançar `IllegalArgumentException` — o usuário não conseguia se cadastrar. | `@ValidPassword`: mínimo de 8 caracteres e máximo de **72 bytes em UTF-8**, com mensagem que explica o limite. O limite é detalhe do BCrypt e fica onde o BCrypt vive, na infraestrutura; aplicado aos três campos de senha nova. Testado com o motor de Bean Validation real e por HTTP (`400`, não `500`). |
+| **`PUT` respondia com o `lastUpdatedAt` anterior à edição.** O listener carimba o instante só no flush, e o registro era traduzido de volta antes disso. A asserção que pegaria o defeito tinha sido removida ao corrigir a precisão de nanossegundos. | `saveAndFlush` na origem de dados, para que a auditoria esteja aplicada quando o registro volta. O teste novo expôs ainda um desvio de 1 µs: o PostgreSQL guarda microssegundos e arredonda, e a resposta levava os nanossegundos do Java — por isso o `ClockDateTimeProvider` passou a carimbar já em microssegundos. Teste de integração: o instante devolvido é posterior ao anterior e **exatamente** igual ao gravado. |
+| **Falha de SMTP transformava o "esqueci minha senha" em oráculo de contas.** Só há envio quando o e-mail existe; com o SMTP fora do ar, e-mail cadastrado dava `500` e desconhecido dava `202`. | O contrato foi declarado na porta `IMailGateway` — falha de transporte não se propaga — e honrado por `SmtpMailGateway`, que registra em ERROR sem o destinatário no log. Resposta vaga para o cliente, registro detalhado para quem opera. Verificado com a aplicação real e SMTP inexistente: `202` nos dois casos. |
+| **`JwtTokenIssuer.read` lançava `NullPointerException` em token assinado sem `sub`.** O `catch` cobria `JwtException` e `IllegalArgumentException`, e `UUID.fromString(null)` escapava — `500` onde deveria ser `401`. | `sub` e `login` passam a ser obrigatórios: ausência de qualquer um devolve vazio, como toda outra recusa. Testes com token assinado sem cada um deles. |
+
+Um resíduo ficou registrado como decisão consciente: o e-mail é enviado **dentro** da unidade
+de trabalho, então uma falha de commit depois do envio deixa o usuário com um token que não
+valida. É incômodo — basta pedir outro —, não é brecha, e o custo de um gancho pós-commit não
+se justifica nesta fase.
+
+**Verificação.** `mvn verify`: **363 testes unitários** e **50 de integração** — **BUILD
+SUCCESS**. Cobertura pelos testes unitários: **848/848 linhas, 196/196 ramos, 372/372
 métodos** — 100%.
 
 > Exceção de domínio ainda responde `500`: a tradução para `ProblemDetail` é a Etapa 8. Os
@@ -1095,7 +1115,7 @@ OpenAPI gerada pelo springdoc a partir dos `@RestController` e dos DTOs HTTP. A
 | `DB_PASSWORD`    | `postgres`                          | Senha do banco                |
 | `DB_HOST`        | `localhost` (local) / `db` (compose)| Host do banco                 |
 | `DB_PORT`        | `5432`                              | Porta do banco                |
-| `JWT_SECRET`     | *(valor de exemplo)*                | Segredo de assinatura do JWT  |
+| `JWT_SECRET`     | **obrigatória, sem padrão**         | Segredo de assinatura do JWT (≥ 256 bits; valores de exemplo são recusados) |
 | `JWT_EXPIRATION` | `3600000`                           | Expiração do token em ms      |
 | `MAIL_HOST`      | `localhost` / `host.docker.internal`| SMTP para recuperação de senha |
 | `MAIL_PORT`      | `1025`                              | Porta do SMTP                 |

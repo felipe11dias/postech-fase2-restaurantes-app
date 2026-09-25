@@ -15,7 +15,9 @@ import org.testcontainers.containers.PostgreSQLContainer;
  * {@code @PreAuthorize} está mesmo ligado — um teste de unidade do controller passaria
  * exatamente igual com a anotação apagada.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = IntegrationTestProperties.JWT_SECRET)
 public abstract class WebIntegrationTestSupport {
 
     @ServiceConnection

@@ -12,7 +12,9 @@ import org.testcontainers.containers.PostgreSQLContainer;
  * impede o contexto de subir e <em>todos</em> os testes desta hierarquia falham — é esse o
  * ponto.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.NONE,
+        properties = IntegrationTestProperties.JWT_SECRET)
 public abstract class IntegrationTestSupport {
 
     @ServiceConnection

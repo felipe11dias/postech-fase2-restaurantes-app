@@ -43,6 +43,9 @@ public class UserRestController {
     private static final String DONO_OU_ADMIN =
             "hasRole('ADMIN') or @userSecurity.isSelf(#id, authentication)";
 
+    /** Operação sobre o conjunto de cadastros, e não sobre um só: não há dono a verificar. */
+    private static final String SO_ADMIN = "hasRole('ADMIN')";
+
     private final UserController controller;
     private final UserModelAssembler assembler;
 
@@ -69,8 +72,13 @@ public class UserRestController {
      * Busca paginada. O parâmetro {@code sort} vem no formato {@code propriedade,direcao}; a
      * lista de propriedades aceitas é do caso de uso, e a tradução para coluna é da origem de
      * dados — a borda apenas repassa o que foi pedido.
+     *
+     * <p><strong>Só administrador.</strong> A listagem devolve e-mail, login e endereço de cada
+     * cadastro; aberta a qualquer autenticado, ela entregaria de uma vez tudo o que a regra de
+     * posse recusa um a um nas operações por id.
      */
     @GetMapping
+    @PreAuthorize(SO_ADMIN)
     public PagedModel<EntityModel<UserResponse>> search(
             @RequestParam(required = false) String name,
             @RequestParam(defaultValue = "0") int page,

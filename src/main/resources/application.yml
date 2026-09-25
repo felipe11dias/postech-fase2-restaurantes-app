@@ -34,7 +34,8 @@ spring:
 
 security:
   jwt:
-    secret: ${JWT_SECRET:troque-este-segredo-por-um-valor-grande-de-no-minimo-256-bits}
+    # Sem valor padrão de propósito: segredo versionado é segredo público. A subida falha sem ele.
+    secret: ${JWT_SECRET}
     expiration: ${JWT_EXPIRATION:3600000}
 
 mail:

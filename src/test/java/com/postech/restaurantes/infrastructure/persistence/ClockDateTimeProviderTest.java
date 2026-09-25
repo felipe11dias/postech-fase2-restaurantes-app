@@ -19,4 +19,14 @@ class ClockDateTimeProviderTest {
 
         assertEquals(instante, provider.getNow().orElseThrow());
     }
+
+    @Test
+    @DisplayName("O instante sai na precisão da coluna: nanossegundos são descartados, microssegundos mantidos")
+    void deveCarimbarEmMicrossegundos() {
+        LocalDateTime comNanos = LocalDateTime.of(2026, 3, 10, 12, 0, 0, 788_653_512);
+        ClockDateTimeProvider provider =
+                new ClockDateTimeProvider(Clock.fixed(comNanos.toInstant(ZoneOffset.UTC), ZoneOffset.UTC));
+
+        assertEquals(LocalDateTime.of(2026, 3, 10, 12, 0, 0, 788_653_000), provider.getNow().orElseThrow());
+    }
 }

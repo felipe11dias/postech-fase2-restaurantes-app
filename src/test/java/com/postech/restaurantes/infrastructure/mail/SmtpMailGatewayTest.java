@@ -1,9 +1,12 @@
 package com.postech.restaurantes.infrastructure.mail;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -12,6 +15,7 @@ import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.MailSender;
 import org.springframework.mail.SimpleMailMessage;
 
@@ -34,6 +38,15 @@ class SmtpMailGatewayTest {
         assertEquals(SmtpMailGateway.SUBJECT, mensagem.getSubject());
         assertTrue(mensagem.getText().contains("token-em-claro"));
         assertTrue(mensagem.getText().contains("30 minutos"));
+    }
+
+    @Test
+    @DisplayName("Falha de SMTP não sobe: o chamador não pode distinguir e-mail enviado de não enviado")
+    void naoDevePropagarFalhaDeTransporte() {
+        doThrow(new MailSendException("SMTP fora do ar")).when(mailSender).send(any(SimpleMailMessage.class));
+
+        assertDoesNotThrow(() -> gateway.sendPasswordReset(Email.of("joao.silva@email.com"), "token"));
+        verify(mailSender).send(any(SimpleMailMessage.class));
     }
 
     @Test

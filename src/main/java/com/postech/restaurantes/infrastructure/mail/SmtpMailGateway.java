@@ -2,8 +2,11 @@ package com.postech.restaurantes.infrastructure.mail;
 
 import com.postech.restaurantes.application.gateway.IMailGateway;
 import com.postech.restaurantes.domain.vo.Email;
-import org.springframework.mail.SimpleMailMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.mail.MailException;
 import org.springframework.mail.MailSender;
+import org.springframework.mail.SimpleMailMessage;
 import org.springframework.stereotype.Component;
 
 /**
@@ -12,6 +15,8 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class SmtpMailGateway implements IMailGateway {
+
+    private static final Logger LOG = LoggerFactory.getLogger(SmtpMailGateway.class);
 
     static final String SUBJECT = "Redefinição de senha";
 
@@ -23,6 +28,11 @@ public class SmtpMailGateway implements IMailGateway {
         this.properties = properties;
     }
 
+    /**
+     * Honra o contrato da porta: falha de SMTP é registrada em ERROR e não sobe. Resposta vaga
+     * para o cliente, registro detalhado para quem opera. O destinatário não vai para o log —
+     * um log com a lista de quem pediu redefinição seria o mesmo vazamento por outra porta.
+     */
     @Override
     public void sendPasswordReset(Email to, String rawToken) {
         SimpleMailMessage message = new SimpleMailMessage();
@@ -30,7 +40,11 @@ public class SmtpMailGateway implements IMailGateway {
         message.setTo(to.value());
         message.setSubject(SUBJECT);
         message.setText(corpo(rawToken));
-        mailSender.send(message);
+        try {
+            mailSender.send(message);
+        } catch (MailException e) {
+            LOG.error("Falha ao enviar e-mail de redefinição de senha", e);
+        }
     }
 
     private String corpo(String rawToken) {

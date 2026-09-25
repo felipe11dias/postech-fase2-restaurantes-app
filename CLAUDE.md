@@ -120,6 +120,10 @@ Pontos que só ficam claros lendo várias camadas:
   dados **não** copia essas colunas do record — `User.create` não recebe instante, e copiar
   gravaria nulo. Instante como parâmetro do domínio vale onde o tempo é regra
   (`PasswordResetToken`), não para metadado de gravação.
+- Origem de dados usa **`saveAndFlush`** quando devolve o registro gravado: o listener só
+  carimba `last_updated_at` no flush, e com `save` o registro voltaria com o instante antigo.
+  O `ClockDateTimeProvider` carimba em **microssegundos** (precisão do `timestamp` do
+  PostgreSQL), para que o valor devolvido seja exatamente o gravado.
 - Busca paginada em **duas consultas** (ids paginados no banco, depois carga com
   `@EntityGraph`): `join fetch` junto com paginação faz o Hibernate recortar a página em memória.
 - Ordenação é **traduzida** por mapa `propriedade do núcleo → atributo JPA` na origem de dados;
@@ -144,6 +148,20 @@ Pontos que só ficam claros lendo várias camadas:
   `@PreAuthorize("hasRole('ADMIN') or @userSecurity.isSelf(#id, authentication)")`.
 - `CompositionConfig` é a raiz de composição: os controllers de adaptação são objetos comuns
   criados pelas fábricas estáticas, nunca `@Component`.
+- **Operação sobre o conjunto de cadastros é administrativa** (`GET /api/v1/users` →
+  `hasRole('ADMIN')`). Endpoint que devolve dados de vários usuários não pode ficar só em
+  `authenticated()`, senão anula a regra de posse das operações por id. Vale para restaurante
+  e cardápio quando houver dado pessoal.
+- **Senha nova valida-se por bytes, não caracteres**: `@ValidPassword` (mínimo 8 caracteres,
+  máximo 72 bytes UTF-8 — limite do BCrypt). Nunca `@Size(max = 72)` em senha.
+- **`JWT_SECRET` é obrigatório, sem padrão** em `application.yml` e `docker-compose.yml`;
+  `JwtProperties` recusa o valor de exemplo do `.env.example`. Os testes de integração
+  fornecem o próprio segredo por `IntegrationTestProperties.JWT_SECRET` no `@SpringBootTest`
+  — não criar `src/test/resources/application.yml`, que substituiria o principal inteiro.
+- **`IMailGateway` não propaga falha de transporte** (contrato declarado na porta):
+  `SmtpMailGateway` registra em ERROR, sem o destinatário no log. Se a falha subisse, o
+  "esqueci minha senha" revelaria quais e-mails têm conta.
+- `JwtTokenIssuer.read` exige `sub` e `login`; qualquer recusa devolve vazio, nunca exceção.
 - Nos testes de integração por HTTP, estender `WebIntegrationTestSupport` (`RANDOM_PORT`).
   Ao substituir o `JavaMailSender` por dublê, desligar `management.health.mail.enabled` —
   o indicador de saúde se monta a partir dos beans concretos e derruba o contexto.

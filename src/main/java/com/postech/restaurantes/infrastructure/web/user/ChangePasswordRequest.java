@@ -1,8 +1,8 @@
 package com.postech.restaurantes.infrastructure.web.user;
 
 import com.postech.restaurantes.application.dto.user.ChangePasswordDTO;
+import com.postech.restaurantes.infrastructure.web.validation.ValidPassword;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 
 /**
  * Corpo da troca de senha. A confirmação é comparada pelo caso de uso, não aqui: "as duas
@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Size;
  */
 public record ChangePasswordRequest(
         @NotBlank String currentPassword,
-        @NotBlank @Size(min = 8, max = 72) String newPassword,
+        @NotBlank @ValidPassword String newPassword,
         @NotBlank String confirmPassword) {
 
     public ChangePasswordDTO toDTO() {

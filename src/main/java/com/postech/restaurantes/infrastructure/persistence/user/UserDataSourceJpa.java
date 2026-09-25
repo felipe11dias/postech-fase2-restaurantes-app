@@ -89,21 +89,28 @@ public class UserDataSourceJpa implements IUserDataSource {
         return new PageResult<>(content, request.page(), request.size(), ids.getTotalElements());
     }
 
+    /**
+     * Grava e devolve o registro <em>com a auditoria já carimbada</em>. Por isso
+     * {@code saveAndFlush}, e não {@code save}: o listener só escreve {@code last_updated_at}
+     * quando a alteração é descarregada, e sem o flush o registro devolvido carregaria o
+     * instante anterior à edição.
+     */
     @Override
     @Transactional
     public UserData insert(UserData user) {
         UserJpaEntity entity = new UserJpaEntity();
         apply(entity, user);
-        return toData(users.save(entity));
+        return toData(users.saveAndFlush(entity));
     }
 
+    /** Ver {@link #insert}: o {@code saveAndFlush} garante o {@code last_updated_at} novo na volta. */
     @Override
     @Transactional
     public UserData update(UserData user) {
         UserJpaEntity entity = users.findById(user.id())
                 .orElseThrow(() -> new IllegalStateException("Usuário inexistente para atualização: " + user.id()));
         apply(entity, user);
-        return toData(users.save(entity));
+        return toData(users.saveAndFlush(entity));
     }
 
     @Override

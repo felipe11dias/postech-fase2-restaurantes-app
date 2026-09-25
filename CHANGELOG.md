@@ -120,3 +120,23 @@
 - 57 testes unitários novos (347 no total) e 18 de integração por HTTP real (46 no total),
   incluindo `401`/`403` de posse e o ciclo completo de recuperação de senha; cobertura
   unitária permanece 100% (833 linhas, 184 ramos).
+- Correções da revisão de código da etapa (seis achados, dois de segurança):
+  - `GET /api/v1/users` restrito a `ROLE_ADMIN`: aberto a qualquer autenticado, devolvia
+    e-mail, login e endereço de todos os cadastros, anulando a regra de posse.
+  - `JWT_SECRET` obrigatório: sem valor padrão no `application.yml` e no `docker-compose.yml`;
+    `JwtProperties` recusa também o valor de exemplo publicado. A aplicação não sobe sem um
+    segredo próprio. Testes de integração usam `IntegrationTestProperties`.
+  - `@ValidPassword` (mínimo 8 caracteres, máximo 72 **bytes** UTF-8) substitui
+    `@Size(max = 72)`, que contava caracteres: senha acentuada de 80 bytes passava na borda e
+    fazia o BCrypt lançar exceção.
+  - `UserDataSourceJpa` usa `saveAndFlush`: o `PUT` respondia com o `lastUpdatedAt` anterior
+    à edição, porque o listener só carimba no flush. `ClockDateTimeProvider` passa a carimbar
+    em microssegundos, a precisão do `timestamp` do PostgreSQL, para a resposta coincidir com
+    o valor gravado.
+  - `IMailGateway` declara que falha de transporte não se propaga, e `SmtpMailGateway`
+    registra e segue: com SMTP fora do ar, o "esqueci minha senha" respondia `500` só para
+    e-mail cadastrado, revelando quem tem conta.
+  - `JwtTokenIssuer.read` recusa token sem `sub` ou `login` em vez de lançar
+    `NullPointerException`.
+  - `mvn verify`: 363 testes unitários e 50 de integração; cobertura unitária 100% (848
+    linhas, 196 ramos).
