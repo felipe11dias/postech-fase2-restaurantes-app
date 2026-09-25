@@ -1138,6 +1138,15 @@ docker compose down
 
 Aplicação em `http://localhost:8080`; Swagger em `http://localhost:8080/swagger-ui.html`.
 
+### Nome do projeto Compose
+
+O `docker-compose.yml` declara `name: restaurantes-fase2` no topo. Sem isso o Compose deriva
+o nome do projeto da pasta (`restaurantes`) — o mesmo da Fase 1 —, e as duas fases passam a
+compartilhar o volume `restaurantes_postgres_data`. O efeito foi observado na Etapa 7: o banco
+da Fase 2 subiu sobre o histórico do Flyway da Fase 1 e a aplicação recusou iniciar por
+divergência de checksum. Com nome próprio, cada fase tem os próprios containers e volumes, e
+nenhuma apaga ou corrompe os dados da outra.
+
 > O Docker também é pré-requisito para `mvn verify`: os testes de integração da Etapa 11
 > sobem um PostgreSQL 16 via Testcontainers, com a mesma imagem `postgres:16-alpine` do
 > `docker-compose.yml`.
