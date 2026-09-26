@@ -2,6 +2,7 @@ package com.postech.restaurantes.infrastructure.web.user;
 
 import com.postech.restaurantes.application.dto.user.ChangePasswordDTO;
 import com.postech.restaurantes.infrastructure.web.validation.ValidPassword;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
 /**
@@ -9,8 +10,11 @@ import jakarta.validation.constraints.NotBlank;
  * senhas conferem" é regra, e regra não mora na borda HTTP.
  */
 public record ChangePasswordRequest(
-        @NotBlank String currentPassword,
+        @Schema(example = "cliente12345") @NotBlank String currentPassword,
+        @Schema(description = "De 8 caracteres a 72 bytes em UTF-8 (letras acentuadas ocupam 2 bytes)",
+                example = "novaSenha456")
         @NotBlank @ValidPassword String newPassword,
+        @Schema(description = "Repetição da senha nova", example = "novaSenha456")
         @NotBlank String confirmPassword) {
 
     public ChangePasswordDTO toDTO() {

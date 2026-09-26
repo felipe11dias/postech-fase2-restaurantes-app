@@ -182,6 +182,23 @@ Pontos que só ficam claros lendo várias camadas:
   Ao substituir o `JavaMailSender` por dublê, desligar `management.health.mail.enabled` —
   o indicador de saúde se monta a partir dos beans concretos e derruba o contexto.
 
+### Documentação OpenAPI (Etapa 9, já implementada)
+
+- **Erro se documenta pela categoria:** `@ErrorResponse(type = ProblemType.X, description = "…")`,
+  nunca `@ApiResponse(responseCode = "4xx")`. O código sai de `ProblemType.status()`, o mesmo
+  catálogo do handler — documentação e resposta não podem divergir. Sucesso continua em
+  `@ApiResponse(responseCode = "2xx")`.
+- Endpoint protegido leva `@SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)`, e o
+  público não leva. O `OpenApiDocumentationIT` chama cada operação sem token e falha se o
+  cadeado da documentação não bater com a `SecurityConfig` — endpoint novo entra no teste sozinho.
+- Status que não vem de `@ResponseStatus` (ex.: `ResponseEntity.created`) precisa de
+  `@ResponseStatus` também, só para o springdoc; senão ele documenta 200.
+- Todo `*Request` tem `@Schema(example = …)` válido em cada campo: o IT monta o corpo só com os
+  exemplos do documento e exige que a API o aceite.
+- Constantes compartilhadas entre `config` e controllers ficam em `web/doc/ApiDocumentation`,
+  não na `OpenApiConfig` — a `SecurityConfig` já depende dos controllers, e o contrário criaria
+  ciclo entre pacotes.
+
 ## Convenções do domínio (Etapa 2, já implementadas)
 
 - Sem Lombok nem geração de código no núcleo; construtores, fábricas e acessores à mão.
