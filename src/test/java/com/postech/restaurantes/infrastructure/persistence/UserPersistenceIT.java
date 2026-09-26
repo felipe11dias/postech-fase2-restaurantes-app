@@ -142,6 +142,28 @@ class UserPersistenceIT extends IntegrationTestSupport {
         assertEquals(persistido.createdAt(), atualizado.createdAt());
     }
 
+    /**
+     * O registro devolvido pela atualização precisa trazer o {@code last_updated_at} novo. O
+     * listener só o carimba quando a alteração é descarregada; sem o flush na origem de dados,
+     * a resposta de um {@code PUT} carregaria o instante <em>anterior</em> à edição.
+     */
+    @Test
+    @DisplayName("A atualização devolve o instante novo de alteração, o mesmo que o banco passa a ter")
+    void deveDevolverOInstanteNovoNaAtualizacao() {
+        UserData gravado = inserir("Heitor Integração", List.of());
+        UserData antes = userDataSource.findById(gravado.id()).orElseThrow();
+
+        UserData atualizado = userDataSource.update(new UserData(antes.id(), "Heitor Renomeado",
+                antes.email(), antes.login(), antes.passwordHash(), antes.roles(), List.of(),
+                antes.createdAt(), antes.lastUpdatedAt()));
+        UserData relido = userDataSource.findById(gravado.id()).orElseThrow();
+
+        assertTrue(atualizado.lastUpdatedAt().isAfter(antes.lastUpdatedAt()),
+                "a resposta não pode trazer o instante anterior à edição");
+        assertEquals(relido.lastUpdatedAt(), atualizado.lastUpdatedAt(),
+                "o que a resposta diz é exatamente o que o banco gravou, até o microssegundo");
+    }
+
     @Test
     @DisplayName("A auditoria é carimbada na gravação, mesmo quando o registro chega sem instante")
     void deveCarimbarAAuditoriaNaGravacao() {

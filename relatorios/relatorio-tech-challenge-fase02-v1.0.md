@@ -33,13 +33,13 @@
 | 5   | Persistência com JPA (infraestrutura)              | ✅     |
 | 6   | Migrations e Seeds (Flyway)                        | ✅     |
 | 7   | API REST, Segurança e JWT (infraestrutura)         | ✅     |
-| 8   | Tratamento de Erros (ProblemDetail)                | ⏳     |
+| 8   | Tratamento de Erros (ProblemDetail)                | ✅     |
 | 9   | Documentação Swagger                               | ⏳     |
 | 10  | Execução com Docker Compose                        | ⏳     |
 | 11  | Testes — unitários (100% cobertura) e de integração | ⏳    |
 | 12  | Entregáveis (Postman, README)                      | ⏳     |
 
-**Progresso:** 7 de 12 etapas concluídas.
+**Progresso:** 8 de 12 etapas concluídas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -233,13 +233,15 @@ src/main/java/com/postech/restaurantes/
 │       └── view/                  # UserView, RoleView, AddressView, AuthView (records de saída)
 │
 └── infrastructure/                # FRAMEWORKS & DRIVERS — único lugar com Spring/JPA
-    ├── web/                       # handler de erros (Etapa 8)
+    ├── web/
+    │   ├── error/                 # GlobalExceptionHandler, ProblemDetailFactory, ProblemType
+    │   ├── validation/            # @ValidPassword
     │   ├── user/                  # UserRestController, Request/Response, UserModelAssembler
     │   └── auth/                  # AuthRestController, Request/Response
     ├── persistence/               # AuditableJpaEntity, TransactionalUnitOfWork, AuthenticatedAuditorAware
     │   ├── user/                  # UserJpaEntity, RoleJpaEntity, PasswordResetTokenJpaEntity, SpringData*Repository, *DataSourceJpa
     │   └── address/               # AddressJpaEntity
-    ├── security/                  # JwtTokenIssuer, JwtAuthenticationFilter, BCryptPasswordAdapter, UserSecurity
+    ├── security/                  # JwtTokenIssuer, JwtAuthenticationFilter, BCryptPasswordAdapter, UserSecurity, JwtAuthenticationEntryPoint
     ├── mail/                      # SmtpMailGateway, MailProperties
     └── config/                    # SecurityConfig, PersistenceConfig, CompositionConfig (raiz de composição)
 ```
@@ -282,8 +284,9 @@ negócio. A primeira execução da regra revelou um detalhe útil: o ArchUnit en
 Cada entidade é responsável pela própria consistência. Não existe, em nenhum ponto do
 sistema, uma instância de `User` com e-mail inválido ou sem papel — porque a única forma de
 obter uma é pela fábrica `create(...)`, e ela recusa dados inválidos lançando
-`IllegalArgumentException`. Os setters aplicam a mesma validação, de modo que a entidade não
-pode ser corrompida depois de criada.
+`InvariantViolationException` — uma `IllegalArgumentException` cuja mensagem é escrita para o
+usuário e, por isso, pode chegar à resposta HTTP (Etapa 8). Os setters aplicam a mesma
+validação, de modo que a entidade não pode ser corrompida depois de criada.
 
 ### Entidades
 
@@ -910,7 +913,7 @@ resposta com links HATEOAS. Versionamento por path (`/api/v1/...`).
 | `POST`   | `/api/v1/auth/reset-password`     | `ResetPasswordUseCase`   | `204 No Content`           | Pública                    |
 | `POST`   | `/api/v1/users`                   | `RegisterUserUseCase`    | `201 Created` + `Location` | Pública (sem `ROLE_ADMIN`) |
 | `GET`    | `/api/v1/users/{id}`              | `FindUserByIdUseCase`    | `200 OK`                   | Dono ou `ROLE_ADMIN`       |
-| `GET`    | `/api/v1/users?name=&page=&size=&sort=` | `SearchUsersUseCase` | `200 OK` (`PagedModel`)    | Autenticado                |
+| `GET`    | `/api/v1/users?name=&page=&size=&sort=` | `SearchUsersUseCase` | `200 OK` (`PagedModel`)    | `ROLE_ADMIN`               |
 | `PUT`    | `/api/v1/users/{id}`              | `UpdateUserUseCase`      | `200 OK`                   | Dono ou `ROLE_ADMIN`       |
 | `PATCH`  | `/api/v1/users/{id}/password`     | `ChangePasswordUseCase`  | `204 No Content`           | Dono ou `ROLE_ADMIN`       |
 | `DELETE` | `/api/v1/users/{id}`              | `DeleteUserUseCase`      | `204 No Content`           | Dono ou `ROLE_ADMIN`       |
@@ -1037,8 +1040,28 @@ atualização, troca de senha e exclusão. `AuthApiIT` cobre o ciclo completo de
 pedir, capturar o token no e-mail (único bean mockado), redefinir, entrar com a senha nova e
 ver o mesmo token ser recusado na segunda vez.
 
-**Verificação.** `mvn verify`: **347 testes unitários** e **46 de integração** — **BUILD
-SUCCESS**. Cobertura pelos testes unitários: **833/833 linhas, 184/184 ramos, 368/368
+**Revisão de código da etapa.** Antes de fechar, o diff passou por uma revisão focada em
+falhas reais, que apontou seis problemas — dois de segurança. Conferidas as etapas seguintes,
+nenhuma resolveria cinco deles: a Etapa 8 traduz exceções para `ProblemDetail`, o que melhora
+o corpo da resposta sem corrigir causa nenhuma. Todos foram corrigidos aqui, com teste
+correspondente:
+
+| Achado | Correção |
+| ------ | -------- |
+| **`GET /api/v1/users` aberto a qualquer autenticado.** Devolvia e-mail, login e endereço residencial de todos os cadastros — entregando de uma vez o que a regra de posse recusava um a um nas operações por id. | `@PreAuthorize("hasRole('ADMIN')")`. Listar o conjunto de cadastros é operação administrativa; um usuário comum enxerga o próprio cadastro e nada mais — a mesma regra, aplicada com consistência. Teste de integração: `403` para usuário comum, `200` para administrador. |
+| **Segredo do JWT padrão, versionado e aceito na subida.** A validação conferia só o tamanho, e o valor de exemplo tinha 60 bytes. Quem subisse sem `JWT_SECRET` ficava com um segredo público, e quem conhece o segredo assina um token com `ROLE_ADMIN`. | `application.yml` sem valor padrão; `JwtProperties` recusa também os valores de exemplo publicados, com mensagem que diz como gerar um segredo. Verificado com a aplicação empacotada: sem `JWT_SECRET` e com o valor de exemplo, **a subida falha**; com um segredo próprio, sobe. Os testes de integração fornecem o próprio segredo (`IntegrationTestProperties`). |
+| **`@Size(max = 72)` conta caracteres; o BCrypt limita 72 bytes.** Senha de 40 caracteres acentuados (80 bytes) passava na borda e fazia o codificador lançar `IllegalArgumentException` — o usuário não conseguia se cadastrar. | `@ValidPassword`: mínimo de 8 caracteres e máximo de **72 bytes em UTF-8**, com mensagem que explica o limite. O limite é detalhe do BCrypt e fica onde o BCrypt vive, na infraestrutura; aplicado aos três campos de senha nova. Testado com o motor de Bean Validation real e por HTTP (`400`, não `500`). |
+| **`PUT` respondia com o `lastUpdatedAt` anterior à edição.** O listener carimba o instante só no flush, e o registro era traduzido de volta antes disso. A asserção que pegaria o defeito tinha sido removida ao corrigir a precisão de nanossegundos. | `saveAndFlush` na origem de dados, para que a auditoria esteja aplicada quando o registro volta. O teste novo expôs ainda um desvio de 1 µs: o PostgreSQL guarda microssegundos e arredonda, e a resposta levava os nanossegundos do Java — por isso o `ClockDateTimeProvider` passou a carimbar já em microssegundos. Teste de integração: o instante devolvido é posterior ao anterior e **exatamente** igual ao gravado. |
+| **Falha de SMTP transformava o "esqueci minha senha" em oráculo de contas.** Só há envio quando o e-mail existe; com o SMTP fora do ar, e-mail cadastrado dava `500` e desconhecido dava `202`. | O contrato foi declarado na porta `IMailGateway` — falha de transporte não se propaga — e honrado por `SmtpMailGateway`, que registra em ERROR sem o destinatário no log. Resposta vaga para o cliente, registro detalhado para quem opera. Verificado com a aplicação real e SMTP inexistente: `202` nos dois casos. |
+| **`JwtTokenIssuer.read` lançava `NullPointerException` em token assinado sem `sub`.** O `catch` cobria `JwtException` e `IllegalArgumentException`, e `UUID.fromString(null)` escapava — `500` onde deveria ser `401`. | `sub` e `login` passam a ser obrigatórios: ausência de qualquer um devolve vazio, como toda outra recusa. Testes com token assinado sem cada um deles. |
+
+Um resíduo ficou registrado como decisão consciente: o e-mail é enviado **dentro** da unidade
+de trabalho, então uma falha de commit depois do envio deixa o usuário com um token que não
+valida. É incômodo — basta pedir outro —, não é brecha, e o custo de um gancho pós-commit não
+se justifica nesta fase.
+
+**Verificação.** `mvn verify`: **363 testes unitários** e **50 de integração** — **BUILD
+SUCCESS**. Cobertura pelos testes unitários: **848/848 linhas, 196/196 ramos, 372/372
 métodos** — 100%.
 
 > Exceção de domínio ainda responde `500`: a tradução para `ProblemDetail` é a Etapa 8. Os
@@ -1048,29 +1071,75 @@ métodos** — 100%.
 
 ## Etapa 8 — Tratamento de Erros (ProblemDetail)
 
-O `GlobalExceptionHandler` (`@RestControllerAdvice`, em `infrastructure/web`) traduz as
-exceções de domínio e as do próprio Spring para **ProblemDetail (RFC 7807)**, com `timestamp`
-e um `type` próprio por categoria. Um `JwtAuthenticationEntryPoint` estende o padrão ao 401 de
-acesso sem token.
+O `GlobalExceptionHandler` (`@RestControllerAdvice`, em `infrastructure/web/error`) traduz as
+exceções de domínio e as do próprio Spring para **ProblemDetail (RFC 9457, sucessora da
+7807)**, com `timestamp` e um `type` próprio por categoria. Um `JwtAuthenticationEntryPoint`
+estende o padrão ao 401 de acesso sem token.
 
-| Exceção / situação                                       | HTTP | Título                                            |
-| -------------------------------------------------------- | ---- | ------------------------------------------------- |
-| `MethodArgumentNotValidException` (Bean Validation)      | 400  | Requisição inválida (com mapa `errors` por campo) |
-| `MethodArgumentTypeMismatchException` (`{id}` não é UUID) | 400 | Requisição inválida                               |
-| `HttpMessageNotReadableException` (corpo malformado)     | 400  | Requisição inválida                               |
-| `IllegalArgumentException` (invariante de entidade/VO)   | 400  | Requisição inválida                               |
-| `InvalidPasswordException`                               | 400  | Senha inválida                                    |
-| `InvalidOrExpiredTokenException`                         | 400  | Token inválido ou expirado                        |
-| `InvalidCredentialsException`                            | 401  | Falha na autenticação                             |
-| acesso sem token (entry point)                           | 401  | Não autenticado                                   |
-| `ForbiddenOperationException`                            | 403  | Operação não permitida                            |
-| `AccessDeniedException` (recurso de outro usuário)       | 403  | Acesso negado                                     |
-| `ResourceNotFoundException`                              | 404  | Recurso não encontrado                            |
-| `DuplicateResourceException`                             | 409  | Conflito de dados                                 |
-| `Exception` (não prevista)                               | 500  | Erro inesperado — resposta genérica, exceção completa no log em nível ERROR |
+| Exceção / situação                                       | HTTP | `type` (`urn:restaurantes:problema:…`) | Detalhe na resposta |
+| -------------------------------------------------------- | ---- | -------------------------------------- | ------------------- |
+| `MethodArgumentNotValidException` (Bean Validation)      | 400  | `requisicao-invalida`   | fixo, mais o mapa `errors` por campo |
+| `MethodArgumentTypeMismatchException` (`{id}` não é UUID) | 400 | `requisicao-invalida`   | cita o parâmetro, nunca o valor |
+| `HttpMessageNotReadableException` (corpo malformado)     | 400  | `requisicao-invalida`   | fixo — a mensagem do parser não sai |
+| `InvariantViolationException` (invariante de entidade/VO) | 400 | `requisicao-invalida`   | a mensagem do domínio |
+| outra `IllegalArgumentException` (biblioteca)            | 400  | `requisicao-invalida`   | fixo; exceção no log em WARN |
+| `InvalidPasswordException`                               | 400  | `senha-invalida`        | a mensagem do domínio |
+| `InvalidOrExpiredTokenException`                         | 400  | `token-invalido`        | a mensagem do domínio |
+| `InvalidCredentialsException`                            | 401  | `falha-na-autenticacao` | a mensagem do domínio (a mesma para login e senha) |
+| acesso sem token (entry point)                           | 401  | `nao-autenticado`       | fixo, igual para token ausente, expirado ou adulterado |
+| `ForbiddenOperationException`                            | 403  | `operacao-nao-permitida`| a mensagem do domínio |
+| `AccessDeniedException` (recurso de outro usuário)       | 403  | `acesso-negado`         | fixo |
+| `ResourceNotFoundException`                              | 404  | `recurso-nao-encontrado`| a mensagem do domínio |
+| `DuplicateResourceException`                             | 409  | `conflito-de-dados`     | a mensagem do domínio |
+| `DataIntegrityViolationException` (restrição única no banco) | 409 | `conflito-de-dados`  | fixo, sem o nome da restrição; exceção no log em WARN |
+| `Exception` (não prevista)                               | 500  | `erro-inesperado`       | fixo; exceção completa no log em ERROR |
+| demais exceções do Spring MVC (405, 415, rota inexistente) | conforme o caso | `about:blank` | o padrão do Spring, acrescido do `timestamp` |
 
 Princípio: resposta vaga para o cliente, registro detalhado para quem opera. Mensagens de
 parser ou de exceções internas nunca são repassadas na resposta.
+
+**Exemplo** — cadastro com CEP de três dígitos (`POST /api/v1/users`):
+
+```json
+{
+  "type": "urn:restaurantes:problema:requisicao-invalida",
+  "title": "Requisição inválida",
+  "status": 400,
+  "detail": "CEP deve ter 8 dígitos",
+  "instance": "/api/v1/users",
+  "timestamp": "2026-09-25T17:10:42.118"
+}
+```
+
+### O que foi entregue nesta etapa
+
+| Componente | Decisão e conceito que a sustenta |
+| ---------- | --------------------------------- |
+| `GlobalExceptionHandler` | O **único** lugar que transforma "o que deu errado" em "que status e que corpo". O núcleo lança exceções de domínio sem saber que HTTP existe; os controllers não capturam nada. Estende `ResponseEntityExceptionHandler` para que as exceções do próprio Spring MVC (405, 415, rota inexistente) também saiam como `ProblemDetail` em vez de caírem no tratamento genérico como 500. Uma entrada por linha da tabela acima, cada uma legível e verificável isoladamente. |
+| `InvariantViolationException` (domínio) | A especificação pedia duas coisas incompatíveis: `IllegalArgumentException` → 400 **e** nunca repassar mensagem interna. O `Guard` lança esse tipo com mensagens escritas para o usuário, mas bibliotecas também — o BCrypt diz "password cannot be more than 72 bytes", o `Assert` do Spring diz "'beans' must not be empty". A subclasse própria resolve sem heurística: a mensagem dela vai para a resposta, a das outras não. Estende `IllegalArgumentException`, então todo teste e todo código que já a tratavam como tal continuam certos; e fica em `domain/exception`, só com JDK. |
+| `ProblemType` | Catálogo das categorias: `type`, título e status em um lugar só. O `type` é **URN**, e não URL: a RFC aceita identificadores não resolvíveis, e uma URL que não leva a lugar nenhum prometeria uma documentação que não existe. É nele — e não no título, que pode ser reescrito — que o cliente deve se apoiar. |
+| `ProblemDetailFactory` | Um formato só para todas as respostas de erro, venham do handler ou da cadeia de segurança. O `timestamp` vem do `Clock` da aplicação: continua havendo um relógio só no sistema. Também carimba as respostas que o Spring monta sozinho. |
+| `JwtAuthenticationEntryPoint` | O 401 é decidido na cadeia de filtros, antes do Spring MVC — fora do alcance do handler. Sem ele, seria a única resposta de erro sem corpo. O detalhe é o mesmo para token ausente, expirado ou adulterado. |
+| Mapa `errors` | Campo → lista ordenada de mensagens. Um campo pode violar duas restrições ao mesmo tempo (senha vazia é "em branco" **e** "curta"), e a ordem das violações não é garantida: com mapa campo → texto único, a segunda colidiria com a primeira. |
+| `spring.web.locale: pt_BR` fixo | As mensagens do Bean Validation seguem o idioma da requisição. Sem fixá-lo, a API responderia em português nesta máquina e em inglês dentro do container. |
+| `DataIntegrityViolationException` → 409 | Linha acrescentada à especificação. O caso de uso confere e-mail e login únicos antes de gravar, mas duas requisições simultâneas passam juntas pela conferência, e quem desempata é a restrição única do banco. É o mesmo conflito e recebe o mesmo 409 — sem o nome da restrição, que descreveria o schema. |
+
+**Testes unitários — 26 casos em 4 classes**, sem contexto Spring: cada exceção entra no
+handler e o que se verifica é o status, a categoria e, principalmente, **o que vai e o que não
+vai para o detalhe** — mensagem de biblioteca, nome de restrição, texto do parser, valor do
+parâmetro inválido e nome da classe da exceção inesperada nunca aparecem.
+
+**Testes de integração — `ErrorHandlingIT`, 14 casos**, percorrendo a tabela por HTTP real:
+cada linha é provocada pelo caminho de verdade — Bean Validation, objeto de valor, caso de
+uso, `@PreAuthorize`, restrição do banco, roteamento do Spring — e a resposta é conferida no
+formato completo: `Content-Type: application/problem+json`, `type`, `title`, `status`,
+`detail`, `instance` e `timestamp` em ISO-8601. Os pontos que as etapas anteriores deixaram
+anotados como "vira isto na Etapa 8" foram apertados para o status exato: login com senha
+antiga → 401; token reutilizado → 400 `token-invalido`; consulta a cadastro excluído → 404.
+
+**Verificação.** `mvn verify`: **389 testes unitários** e **64 de integração** — **BUILD
+SUCCESS**. Cobertura pelos testes unitários: **930/930 linhas, 204/204 ramos, 404/404
+métodos** — 100%.
 
 ---
 
@@ -1095,7 +1164,7 @@ OpenAPI gerada pelo springdoc a partir dos `@RestController` e dos DTOs HTTP. A
 | `DB_PASSWORD`    | `postgres`                          | Senha do banco                |
 | `DB_HOST`        | `localhost` (local) / `db` (compose)| Host do banco                 |
 | `DB_PORT`        | `5432`                              | Porta do banco                |
-| `JWT_SECRET`     | *(valor de exemplo)*                | Segredo de assinatura do JWT  |
+| `JWT_SECRET`     | **obrigatória, sem padrão**         | Segredo de assinatura do JWT (≥ 256 bits; valores de exemplo são recusados) |
 | `JWT_EXPIRATION` | `3600000`                           | Expiração do token em ms      |
 | `MAIL_HOST`      | `localhost` / `host.docker.internal`| SMTP para recuperação de senha |
 | `MAIL_PORT`      | `1025`                              | Porta do SMTP                 |
@@ -1117,6 +1186,15 @@ docker compose down
 ```
 
 Aplicação em `http://localhost:8080`; Swagger em `http://localhost:8080/swagger-ui.html`.
+
+### Nome do projeto Compose
+
+O `docker-compose.yml` declara `name: restaurantes-fase2` no topo. Sem isso o Compose deriva
+o nome do projeto da pasta (`restaurantes`) — o mesmo da Fase 1 —, e as duas fases passam a
+compartilhar o volume `restaurantes_postgres_data`. O efeito foi observado na Etapa 7: o banco
+da Fase 2 subiu sobre o histórico do Flyway da Fase 1 e a aplicação recusou iniciar por
+divergência de checksum. Com nome próprio, cada fase tem os próprios containers e volumes, e
+nenhuma apaga ou corrompe os dados da outra.
 
 > O Docker também é pré-requisito para `mvn verify`: os testes de integração da Etapa 11
 > sobem um PostgreSQL 16 via Testcontainers, com a mesma imagem `postgres:16-alpine` do

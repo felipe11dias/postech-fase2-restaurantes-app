@@ -189,7 +189,7 @@ class UserDataSourceJpaTest {
     @DisplayName("Inserção monta a entidade nova, vincula os papéis do catálogo e grava")
     void deveInserir() {
         when(roles.findAllById(List.of(ROLE_ID))).thenReturn(List.of(roleEntity()));
-        when(users.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         UserData salvo = dataSource.insert(new UserData(null, "João Silva", "joao.silva@email.com", "joao.silva",
                 HASH, USER_DATA.roles(), USER_DATA.addresses(), NOW, NOW));
@@ -206,7 +206,7 @@ class UserDataSourceJpaTest {
     @DisplayName("A origem de dados não carimba a auditoria: quem escreve os instantes é o listener")
     void naoDeveEscreverAAuditoria() {
         when(roles.findAllById(any())).thenReturn(List.of(roleEntity()));
-        when(users.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         dataSource.insert(new UserData(null, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
                 USER_DATA.roles(), List.of(), NOW, NOW));
@@ -220,7 +220,7 @@ class UserDataSourceJpaTest {
     @DisplayName("Endereço gravado nasce sem id e com o dono religado")
     void deveMontarOsEnderecosDaInsercao() {
         when(roles.findAllById(any())).thenReturn(List.of(roleEntity()));
-        when(users.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         dataSource.insert(new UserData(null, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
                 USER_DATA.roles(), List.of(new AddressData(ADDRESS_ID, "Rua A", "1", null, "Centro", "São Paulo",
@@ -240,7 +240,7 @@ class UserDataSourceJpaTest {
         UserJpaEntity existente = userEntity();
         when(users.findById(USER_ID)).thenReturn(Optional.of(existente));
         when(roles.findAllById(any())).thenReturn(List.of(roleEntity()));
-        when(users.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         UserData atualizado = dataSource.update(new UserData(USER_ID, "Novo Nome", "novo@email.com", "novo", HASH,
                 USER_DATA.roles(), List.of(), NOW.minusDays(1), NOW.plusHours(1)));
@@ -278,7 +278,7 @@ class UserDataSourceJpaTest {
 
     private UserJpaEntity capturarGravado() {
         ArgumentCaptor<UserJpaEntity> captor = ArgumentCaptor.forClass(UserJpaEntity.class);
-        verify(users).save(captor.capture());
+        verify(users).saveAndFlush(captor.capture());
         return captor.getValue();
     }
 }

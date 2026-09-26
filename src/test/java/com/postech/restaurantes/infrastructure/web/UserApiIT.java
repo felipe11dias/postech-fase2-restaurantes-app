@@ -101,19 +101,47 @@ class UserApiIT extends WebIntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Listagem exige autenticação e devolve página com metadados e links")
-    void deveListarPaginado() {
-        Usuario eu = cadastrarEAutenticar();
+    @DisplayName("Listagem é do administrador e devolve página com metadados e links")
+    void deveListarPaginadoParaOAdministrador() {
+        String admin = autenticar("admin.demo", "admin12345");
 
-        assertEquals(HttpStatus.UNAUTHORIZED, rest.getForEntity(USERS + "?page=0&size=5", JsonNode.class)
-                .getStatusCode());
         ResponseEntity<JsonNode> resposta = rest.exchange(USERS + "?page=0&size=5&sort=name,asc", HttpMethod.GET,
-                autenticado(eu.token()), JsonNode.class);
+                autenticado(admin), JsonNode.class);
 
         assertEquals(HttpStatus.OK, resposta.getStatusCode());
         assertEquals(5, resposta.getBody().get("page").get("size").asInt());
         assertTrue(resposta.getBody().get("page").get("totalElements").asInt() >= 1);
         assertTrue(resposta.getBody().has("_links"));
+    }
+
+    /**
+     * A listagem devolve e-mail, login e endereço de cada cadastro. Aberta a qualquer
+     * autenticado, ela entregaria de uma vez o que a regra de posse recusa um a um.
+     */
+    @Test
+    @DisplayName("Usuário comum não lista os cadastros alheios: 403; sem token, 401")
+    void deveRecusarListagemAoUsuarioComum() {
+        Usuario eu = cadastrarEAutenticar();
+
+        ResponseEntity<JsonNode> resposta = rest.exchange(USERS + "?page=0&size=100", HttpMethod.GET,
+                autenticado(eu.token()), JsonNode.class);
+
+        assertEquals(HttpStatus.FORBIDDEN, resposta.getStatusCode());
+        assertFalse(String.valueOf(resposta.getBody()).contains("@email.com"), "nenhum e-mail vaza no 403");
+        assertEquals(HttpStatus.UNAUTHORIZED, rest.getForEntity(USERS + "?page=0&size=5", JsonNode.class)
+                .getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Senha de 40 caracteres acentuados (80 bytes) é recusada na borda com 400, e não estoura no BCrypt")
+    void deveRecusarSenhaAcimaDe72Bytes() {
+        String login = "bytes" + UUID.randomUUID().toString().substring(0, 8);
+        Map<String, Object> corpo = new java.util.HashMap<>(novoUsuario(login));
+        corpo.put("password", "ç".repeat(40));
+
+        ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(corpo), JsonNode.class);
+
+        assertEquals(HttpStatus.BAD_REQUEST, resposta.getStatusCode());
     }
 
     @Test
@@ -152,9 +180,9 @@ class UserApiIT extends WebIntegrationTestSupport {
                 autenticado(eu.token()), Void.class);
 
         assertEquals(HttpStatus.NO_CONTENT, exclusao.getStatusCode());
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, rest.exchange(USERS + "/" + eu.id(), HttpMethod.GET,
+        assertEquals(HttpStatus.NOT_FOUND, rest.exchange(USERS + "/" + eu.id(), HttpMethod.GET,
                 autenticado(eu.token()), JsonNode.class).getStatusCode(),
-                "usuário excluído: o tratamento de erro vira 404 na Etapa 8");
+                "o token ainda é válido, mas o cadastro não existe mais");
     }
 
     @Test

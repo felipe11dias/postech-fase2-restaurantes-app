@@ -2,6 +2,7 @@ package com.postech.restaurantes.infrastructure.web.user;
 
 import com.postech.restaurantes.application.dto.user.NewUserDTO;
 import com.postech.restaurantes.domain.entity.user.RoleName;
+import com.postech.restaurantes.infrastructure.web.validation.ValidPassword;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -16,7 +17,7 @@ public record NewUserRequest(
         @NotBlank @Size(max = 150) String name,
         @NotBlank @Email @Size(max = 150) String email,
         @NotBlank @Size(max = 50) String login,
-        @NotBlank @Size(min = 8, max = 72) String password,
+        @NotBlank @ValidPassword String password,
         @NotEmpty Set<String> roles,
         @Valid List<AddressRequest> addresses) {
 

@@ -28,7 +28,8 @@ services:
       DB_NAME: ${DB_NAME:-restaurantes-app}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      JWT_SECRET: ${JWT_SECRET:-troque-este-segredo-por-um-valor-grande-de-no-minimo-256-bits}
+      # Sem padrão: a aplicação recusa subir sem um segredo próprio (ver .env.example).
+      JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-3600000}
       MAIL_HOST: ${MAIL_HOST:-host.docker.internal}
       MAIL_PORT: ${MAIL_PORT:-1025}

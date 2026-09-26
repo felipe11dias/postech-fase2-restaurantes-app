@@ -3,6 +3,8 @@ package com.postech.restaurantes.infrastructure.web;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -18,8 +20,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
@@ -88,6 +91,25 @@ class AuthApiIT extends WebIntegrationTestSupport {
         verifyNoInteractions(mailSender);
     }
 
+    /**
+     * Com o SMTP fora do ar, um e-mail cadastrado — o único caso que dispara envio — precisa
+     * responder o mesmo 202 de um e-mail desconhecido. Se a falha subisse, duas requisições
+     * bastariam para descobrir quem tem conta.
+     */
+    @Test
+    @DisplayName("SMTP fora do ar não muda a resposta: e-mail cadastrado e desconhecido recebem o mesmo 202")
+    void naoDeveRevelarContasQuandoOSmtpFalha() {
+        doThrow(new MailSendException("SMTP fora do ar")).when(mailSender).send(any(SimpleMailMessage.class));
+
+        ResponseEntity<Void> cadastrado = rest.postForEntity(FORGOT,
+                corpo(Map.of("email", "cliente.demo@email.com")), Void.class);
+        ResponseEntity<Void> desconhecido = rest.postForEntity(FORGOT,
+                corpo(Map.of("email", "ninguem." + UUID.randomUUID() + "@email.com")), Void.class);
+
+        assertEquals(HttpStatus.ACCEPTED, cadastrado.getStatusCode());
+        assertEquals(desconhecido.getStatusCode(), cadastrado.getStatusCode());
+    }
+
     @Test
     @DisplayName("Ciclo completo: pedir, redefinir com o token do e-mail e entrar com a senha nova")
     void deveRedefinirASenhaComOTokenRecebido() {
@@ -102,9 +124,9 @@ class AuthApiIT extends WebIntegrationTestSupport {
         assertEquals(HttpStatus.NO_CONTENT, redefinicao.getStatusCode());
         assertEquals(HttpStatus.OK, rest.postForEntity(LOGIN,
                 corpo(Map.of("login", login, "password", "senhaNova456")), JsonNode.class).getStatusCode());
-        // Credencial recusada ainda não vira 401: a tradução de exceção de domínio para HTTP é da Etapa 8.
-        assertTrue(rest.postForEntity(LOGIN, corpo(Map.of("login", login, "password", "senhaSegura123")),
-                JsonNode.class).getStatusCode().isError(), "a senha antiga deixa de valer");
+        assertEquals(HttpStatus.UNAUTHORIZED, rest.postForEntity(LOGIN,
+                corpo(Map.of("login", login, "password", "senhaSegura123")), JsonNode.class).getStatusCode(),
+                "a senha antiga deixa de valer");
     }
 
     @Test
@@ -120,7 +142,8 @@ class AuthApiIT extends WebIntegrationTestSupport {
 
         ResponseEntity<JsonNode> segunda = rest.postForEntity(RESET, corpo(redefinicao), JsonNode.class);
 
-        assertTrue(segunda.getStatusCode().isError());
+        assertEquals(HttpStatus.BAD_REQUEST, segunda.getStatusCode());
+        assertEquals("urn:restaurantes:problema:token-invalido", segunda.getBody().get("type").asText());
     }
 
     @Test

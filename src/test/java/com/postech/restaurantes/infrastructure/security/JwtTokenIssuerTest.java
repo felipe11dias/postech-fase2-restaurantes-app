@@ -114,6 +114,37 @@ class JwtTokenIssuerTest {
     }
 
     @Test
+    @DisplayName("Token com assinatura válida mas sem dono (sub) é recusado, e não quebra")
+    void deveRecusarTokenSemDono() {
+        String token = tokenAssinado(null, "joao.silva");
+
+        assertTrue(issuer.read(token).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Token com assinatura válida mas sem login é recusado: a auditoria ficaria sem autor")
+    void deveRecusarTokenSemLogin() {
+        String token = tokenAssinado(USER_ID.toString(), null);
+
+        assertTrue(issuer.read(token).isEmpty());
+    }
+
+    private static String tokenAssinado(String subject, String login) {
+        Instant agora = RELOGIO.instant();
+        var builder = Jwts.builder()
+                .issuedAt(Date.from(agora))
+                .expiration(Date.from(agora.plus(VALIDITY)))
+                .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)));
+        if (subject != null) {
+            builder.subject(subject);
+        }
+        if (login != null) {
+            builder.claim("login", login);
+        }
+        return builder.compact();
+    }
+
+    @Test
     @DisplayName("O relógio do emissor define o fuso da expiração devolvida")
     void deveUsarOFusoDoRelogio() {
         ZoneId saoPaulo = ZoneId.of("America/Sao_Paulo");
@@ -128,6 +159,17 @@ class JwtTokenIssuerTest {
     @DisplayName("Segredo curto demais para HMAC-SHA256 é recusado na configuração")
     void deveRecusarSegredoCurto() {
         assertThrows(IllegalArgumentException.class, () -> new JwtProperties("curto", VALIDITY));
+    }
+
+    @Test
+    @DisplayName("O segredo de exemplo publicado no repositório é recusado, mesmo tendo tamanho suficiente")
+    void deveRecusarSegredoDeExemplo() {
+        String exemplo = "troque-este-segredo-por-um-valor-grande-de-no-minimo-256-bits";
+
+        assertTrue(exemplo.getBytes(StandardCharsets.UTF_8).length >= JwtProperties.MINIMUM_SECRET_BYTES,
+                "o exemplo passaria na checagem de tamanho — é por isso que precisa de checagem própria");
+        assertThrows(IllegalArgumentException.class, () -> new JwtProperties(exemplo, VALIDITY));
+        assertThrows(IllegalArgumentException.class, () -> new JwtProperties("  " + exemplo + "\n", VALIDITY));
     }
 
     @Test

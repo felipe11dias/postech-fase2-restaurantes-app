@@ -73,8 +73,14 @@ public class JwtTokenIssuer implements ITokenIssuer {
         try {
             Claims claims = Jwts.parser().verifyWith(key).clock(() -> Date.from(clock.instant())).build()
                     .parseSignedClaims(token).getPayload();
-            return Optional.of(new AuthenticatedUser(UUID.fromString(claims.getSubject()),
-                    claims.get(BEARER_LOGIN, String.class), papeis(claims)));
+            // Assinatura válida não garante reivindicações presentes: sem "sub" não há dono para
+            // a regra de posse, e sem "login" a auditoria não tem autor. Os dois são obrigatórios.
+            String subject = claims.getSubject();
+            String login = claims.get(BEARER_LOGIN, String.class);
+            if (subject == null || login == null) {
+                return Optional.empty();
+            }
+            return Optional.of(new AuthenticatedUser(UUID.fromString(subject), login, papeis(claims)));
         } catch (JwtException | IllegalArgumentException e) {
             return Optional.empty();
         }

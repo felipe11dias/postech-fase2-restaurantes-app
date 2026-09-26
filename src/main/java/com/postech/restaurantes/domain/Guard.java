@@ -1,8 +1,11 @@
 package com.postech.restaurantes.domain;
 
+import com.postech.restaurantes.domain.exception.InvariantViolationException;
+
 /**
  * Verificações de invariantes compartilhadas pelas entidades e VOs. Toda violação é uma
- * {@link IllegalArgumentException}: o dado nunca chegou a existir no domínio.
+ * {@link InvariantViolationException} (uma {@code IllegalArgumentException}): o dado nunca
+ * chegou a existir no domínio, e a mensagem é escrita para quem enviou o dado.
  */
 public final class Guard {
 
@@ -11,21 +14,21 @@ public final class Guard {
 
     public static <T> T requireNonNull(T value, String message) {
         if (value == null) {
-            throw new IllegalArgumentException(message);
+            throw new InvariantViolationException(message);
         }
         return value;
     }
 
     public static String requireNonBlank(String value, String message) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(message);
+            throw new InvariantViolationException(message);
         }
         return value.trim();
     }
 
     public static void require(boolean condition, String message) {
         if (!condition) {
-            throw new IllegalArgumentException(message);
+            throw new InvariantViolationException(message);
         }
     }
 
