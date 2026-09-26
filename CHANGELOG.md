@@ -235,3 +235,13 @@
   duas sementes.
 - `mvn clean verify`: 422 testes unitários e 89 de integração; cobertura unitária 100%
   (1016 linhas, 226 ramos, 427 métodos).
+
+## Etapa 12 — Entregáveis (Postman, README) — em andamento
+- `postman/Restaurantes.postman_collection.json` (v2.1): 50 requests em 9 pastas, um por caso de
+  cada endpoint (sucesso e cada erro previsto), com testes de status e `type` do ProblemDetail;
+  guarda `adminToken`, `token`, `userId` e lê o token de redefinição no Mailpit. Validada com
+  Newman contra a pilha do Compose (106/106 asserções, duas execuções seguidas) e contra a
+  aplicação fora do Docker (`mvn spring-boot:run`).
+- `postman/prints/`: 50 prints gerados de uma execução do Newman por `postman/gerar-prints.js`.
+- `README.md` reescrito: estado da entrega (restaurante e cardápio pendentes), execução com
+  geração do segredo JWT, variáveis, usuários da seed, autenticação, endpoints, erros, coleção e testes.

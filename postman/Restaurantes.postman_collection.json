@@ -1,0 +1,1976 @@
+{
+  "info": {
+    "name": "Restaurantes — Tech Challenge Fase 2",
+    "description": "Um request por caso de cada endpoint — sucesso e cada erro previsto —, na ordem em que rodam de cima a baixo.\n\nPré-requisito: a pilha do Docker Compose no ar (`docker compose up --build`), com a API em {{baseUrl}} e o Mailpit em {{mailpitUrl}}.\nOs scripts de teste guardam {{adminToken}}, {{token}}, {{userId}} e o token de redefinição lido no Mailpit; cada execução cria um usuário novo, então a coleção pode rodar várias vezes.\n\nLinha de comando: `npx newman run postman/Restaurantes.postman_collection.json`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 Autenticação",
+      "description": "Login com os usuários da seed. Salva {{adminToken}}.",
+      "item": [
+        {
+          "name": "01 Login do administrador da seed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test(\"Token Bearer com expiração\", () => {",
+                  "    pm.expect(corpo.type).to.eql(\"Bearer\");",
+                  "    pm.expect(corpo.token.split(\".\")).to.have.lengthOf(3);",
+                  "    pm.expect(corpo).to.have.property(\"expiresAt\");",
+                  "});",
+                  "pm.collectionVariables.set(\"adminToken\", corpo.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"admin.demo\",\n  \"password\": \"admin12345\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "02 Login sem login e senha",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mapa errors aponta os campos\", () => {",
+                  "    const errors = pm.response.json().errors;",
+                  "    pm.expect(errors).to.have.property(\"login\");",
+                  "    pm.expect(errors).to.have.property(\"password\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "03 Login com senha incorreta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail falha-na-autenticacao\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:falha-na-autenticacao\");",
+                  "    pm.expect(p.status).to.eql(401);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"admin.demo\",\n  \"password\": \"senhaErrada\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Cadastro (POST /api/v1/users)",
+      "description": "Autocadastro público. Gera login e e-mail únicos por execução e salva {{userId}} e {{token}}.",
+      "item": [
+        {
+          "name": "04 Autocadastro de cliente",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Login e e-mail únicos por execução: a coleção pode rodar várias vezes contra o mesmo banco.",
+                  "const sufixo = Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);",
+                  "pm.collectionVariables.set(\"userLogin\", \"postman.\" + sufixo);",
+                  "pm.collectionVariables.set(\"userEmail\", \"postman.\" + sufixo + \"@email.com\");",
+                  "pm.collectionVariables.set(\"userPassword\", \"senhaSegura123\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "const corpo = pm.response.json();",
+                  "pm.test(\"Location aponta para o cadastro criado\", () =>",
+                  "    pm.expect(pm.response.headers.get(\"Location\")).to.match(new RegExp(\"/api/v1/users/\" + corpo.id + \"$\")));",
+                  "pm.test(\"Papel de cliente e CEP normalizado\", () => {",
+                  "    pm.expect(corpo.roles[0].name).to.eql(\"ROLE_CUSTOMER\");",
+                  "    pm.expect(corpo.addresses[0].zipCode).to.eql(\"01001000\");",
+                  "    pm.expect(corpo._links).to.have.property(\"self\");",
+                  "});",
+                  "pm.test(\"A resposta não expõe senha nem hash\", () => {",
+                  "    pm.expect(pm.response.json()).to.not.have.property(\"password\");",
+                  "    pm.expect(pm.response.text()).to.not.include(\"$2a$\");",
+                  "});",
+                  "pm.collectionVariables.set(\"userId\", corpo.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"roles\": [\n    \"ROLE_CUSTOMER\"\n  ],\n  \"addresses\": [\n    {\n      \"street\": \"Rua das Flores\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "05 Login do novo usuário",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test(\"Token Bearer com expiração\", () => {",
+                  "    pm.expect(corpo.type).to.eql(\"Bearer\");",
+                  "    pm.expect(corpo.token.split(\".\")).to.have.lengthOf(3);",
+                  "    pm.expect(corpo).to.have.property(\"expiresAt\");",
+                  "});",
+                  "pm.collectionVariables.set(\"token\", corpo.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{userLogin}}\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "06 Autocadastro com campos inválidos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mapa errors aponta os campos\", () => {",
+                  "    const errors = pm.response.json().errors;",
+                  "    pm.expect(errors).to.have.property(\"name\");",
+                  "    pm.expect(errors).to.have.property(\"email\");",
+                  "    pm.expect(errors).to.have.property(\"login\");",
+                  "    pm.expect(errors).to.have.property(\"password\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"email\": \"nao-e-email\",\n  \"login\": \"\",\n  \"password\": \"123\",\n  \"roles\": [\n    \"ROLE_CUSTOMER\"\n  ],\n  \"addresses\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "07 Autocadastro com papel inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"papel.{{userEmail}}\",\n  \"login\": \"papel.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"roles\": [\n    \"ROLE_GERENTE\"\n  ],\n  \"addresses\": [\n    {\n      \"street\": \"Rua das Flores\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "08 Autocadastro pedindo ROLE_ADMIN",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail operacao-nao-permitida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:operacao-nao-permitida\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"admin.{{userEmail}}\",\n  \"login\": \"admin.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"roles\": [\n    \"ROLE_ADMIN\"\n  ],\n  \"addresses\": [\n    {\n      \"street\": \"Rua das Flores\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "09 Autocadastro com e-mail já cadastrado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"ProblemDetail conflito-de-dados\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:conflito-de-dados\");",
+                  "    pm.expect(p.status).to.eql(409);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"outro.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"roles\": [\n    \"ROLE_CUSTOMER\"\n  ],\n  \"addresses\": [\n    {\n      \"street\": \"Rua das Flores\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Consulta (GET /api/v1/users/{id})",
+      "description": "Só o próprio usuário ou um administrador.",
+      "item": [
+        {
+          "name": "10 Consulta do próprio cadastro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"É o cadastro pedido\", () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"userId\")));",
+                  "pm.test(\"A resposta não expõe senha nem hash\", () => {",
+                  "    pm.expect(pm.response.json()).to.not.have.property(\"password\");",
+                  "    pm.expect(pm.response.text()).to.not.include(\"$2a$\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}"
+          }
+        },
+        {
+          "name": "11 Consulta sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:nao-autenticado\");",
+                  "    pm.expect(p.status).to.eql(401);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}"
+          }
+        },
+        {
+          "name": "12 Consulta com id que não é UUID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/123"
+          }
+        },
+        {
+          "name": "13 Consulta do cadastro de outro usuário",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:acesso-negado\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/a0000000-0000-4000-8000-000000000002"
+          }
+        },
+        {
+          "name": "14 Administrador consulta usuário inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\");",
+                  "    pm.expect(p.status).to.eql(404);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/00000000-0000-4000-8000-000000000000"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Listagem (GET /api/v1/users)",
+      "description": "Paginada, com busca parcial por nome. Só administrador.",
+      "item": [
+        {
+          "name": "15 Administrador lista com busca e paginação",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test(\"Metadados da página\", () => {",
+                  "    pm.expect(corpo.page.size).to.eql(1);",
+                  "    pm.expect(corpo.page.totalElements).to.be.at.least(2);",
+                  "});",
+                  "pm.test(\"Links de navegação repetem a busca\", () => {",
+                  "    [\"self\", \"first\", \"next\", \"last\"].forEach((rel) => pm.expect(corpo._links).to.have.property(rel));",
+                  "    pm.expect(corpo._links.next.href).to.include(\"name=demonstra\").and.include(\"page=1\");",
+                  "    pm.expect(corpo._links).to.not.have.property(\"prev\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users?name=demonstra&page=0&size=1&sort=name,asc"
+          }
+        },
+        {
+          "name": "16 Listagem com tamanho de página acima do limite",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users?size=101"
+          }
+        },
+        {
+          "name": "17 Listagem sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:nao-autenticado\");",
+                  "    pm.expect(p.status).to.eql(401);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/users"
+          }
+        },
+        {
+          "name": "18 Usuário comum tenta listar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:acesso-negado\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Atualização (PUT /api/v1/users/{id})",
+      "description": "Substitui nome, e-mail, login e endereços. Não altera senha nem papéis.",
+      "item": [
+        {
+          "name": "19 Atualização do próprio cadastro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test(\"Nome e endereço novos\", () => {",
+                  "    pm.expect(corpo.name).to.eql(\"Cliente Postman Atualizado\");",
+                  "    pm.expect(corpo.addresses).to.have.lengthOf(1);",
+                  "    pm.expect(corpo.addresses[0].street).to.eql(\"Avenida Paulista\");",
+                  "});",
+                  "pm.test(\"A resposta não expõe senha nem hash\", () => {",
+                  "    pm.expect(pm.response.json()).to.not.have.property(\"password\");",
+                  "    pm.expect(pm.response.text()).to.not.include(\"$2a$\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"street\": \"Avenida Paulista\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "20 Atualização com campos inválidos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mapa errors aponta os campos\", () => {",
+                  "    const errors = pm.response.json().errors;",
+                  "    pm.expect(errors).to.have.property(\"name\");",
+                  "    pm.expect(errors).to.have.property(\"email\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"email\": \"nao-e-email\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "21 Atualização sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:nao-autenticado\");",
+                  "    pm.expect(p.status).to.eql(401);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"street\": \"Avenida Paulista\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "22 Atualização do cadastro de outro usuário",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:acesso-negado\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/a0000000-0000-4000-8000-000000000002",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"street\": \"Avenida Paulista\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "23 Administrador atualiza usuário inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\");",
+                  "    pm.expect(p.status).to.eql(404);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/00000000-0000-4000-8000-000000000000",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"ninguem.{{userEmail}}\",\n  \"login\": \"ninguem.{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"street\": \"Avenida Paulista\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "24 Atualização com e-mail de outro cadastro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"ProblemDetail conflito-de-dados\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:conflito-de-dados\");",
+                  "    pm.expect(p.status).to.eql(409);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"cliente.demo@email.com\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"street\": \"Avenida Paulista\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Troca de senha (PATCH /api/v1/users/{id}/password)",
+      "description": "Exige a senha atual. Atualiza {{userPassword}} e {{token}}.",
+      "item": [
+        {
+          "name": "25 Troca com senha atual incorreta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail senha-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:senha-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"senhaErrada\",\n  \"newPassword\": \"senhaNova456\",\n  \"confirmPassword\": \"senhaNova456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "26 Troca com campos ausentes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mapa errors aponta os campos\", () => {",
+                  "    const errors = pm.response.json().errors;",
+                  "    pm.expect(errors).to.have.property(\"currentPassword\");",
+                  "    pm.expect(errors).to.have.property(\"newPassword\");",
+                  "    pm.expect(errors).to.have.property(\"confirmPassword\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "27 Troca sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:nao-autenticado\");",
+                  "    pm.expect(p.status).to.eql(401);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{userPassword}}\",\n  \"newPassword\": \"senhaNova456\",\n  \"confirmPassword\": \"senhaNova456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "28 Troca da senha de outro usuário",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:acesso-negado\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/a0000000-0000-4000-8000-000000000002/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"cliente12345\",\n  \"newPassword\": \"senhaNova456\",\n  \"confirmPassword\": \"senhaNova456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "29 Administrador troca a senha de usuário inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\");",
+                  "    pm.expect(p.status).to.eql(404);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/00000000-0000-4000-8000-000000000000/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"qualquer123\",\n  \"newPassword\": \"senhaNova456\",\n  \"confirmPassword\": \"senhaNova456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "30 Troca de senha",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.set(\"userPassword\", \"senhaNova456\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{userPassword}}\",\n  \"newPassword\": \"senhaNova456\",\n  \"confirmPassword\": \"senhaNova456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "31 Login com a senha nova",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test(\"Token Bearer com expiração\", () => {",
+                  "    pm.expect(corpo.type).to.eql(\"Bearer\");",
+                  "    pm.expect(corpo.token.split(\".\")).to.have.lengthOf(3);",
+                  "    pm.expect(corpo).to.have.property(\"expiresAt\");",
+                  "});",
+                  "pm.collectionVariables.set(\"token\", corpo.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{userLogin}}\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Recuperação de senha",
+      "description": "O token só existe no corpo do e-mail. As requisições ao Mailpit ({{mailpitUrl}}) fazem o que o usuário faria: abrir a caixa de entrada e copiar o token.",
+      "item": [
+        {
+          "name": "32 Esqueci minha senha",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 202\", () => pm.response.to.have.status(202));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/forgot-password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "33 Esqueci minha senha com e-mail desconhecido (mesma resposta)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 202\", () => pm.response.to.have.status(202));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/forgot-password",
+            "description": "Mesma resposta de um e-mail cadastrado: a API não revela quais e-mails têm conta.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ninguem.{{userEmail}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "34 Esqueci minha senha com e-mail malformado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mapa errors aponta os campos\", () => {",
+                  "    const errors = pm.response.json().errors;",
+                  "    pm.expect(errors).to.have.property(\"email\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/forgot-password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nao-e-email\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "35 Mailpit: localiza o e-mail de redefinição",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const mensagens = pm.response.json().messages;",
+                  "pm.test(\"Chegou exatamente um e-mail de redefinição\", () => {",
+                  "    pm.expect(mensagens).to.have.lengthOf(1);",
+                  "    pm.expect(mensagens[0].Subject).to.eql(\"Redefinição de senha\");",
+                  "});",
+                  "pm.collectionVariables.set(\"mailpitMessageId\", mensagens[0].ID);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{mailpitUrl}}/api/v1/search?query=to:{{userEmail}}"
+          }
+        },
+        {
+          "name": "36 Mailpit: lê o token no corpo do e-mail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const token = pm.response.json().Text.split(/\\s+/).find((palavra) => /^[A-Za-z0-9_-]{43}$/.test(palavra));",
+                  "pm.test(\"O corpo traz um token de 43 caracteres\", () => pm.expect(token).to.be.a(\"string\"));",
+                  "pm.collectionVariables.set(\"resetToken\", token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{mailpitUrl}}/api/v1/message/{{mailpitMessageId}}"
+          }
+        },
+        {
+          "name": "37 Redefinição com confirmação divergente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail senha-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:senha-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/reset-password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"senhaRedefinida789\",\n  \"confirmPassword\": \"outraSenha789\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "38 Redefinição com campos ausentes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mapa errors aponta os campos\", () => {",
+                  "    const errors = pm.response.json().errors;",
+                  "    pm.expect(errors).to.have.property(\"token\");",
+                  "    pm.expect(errors).to.have.property(\"newPassword\");",
+                  "    pm.expect(errors).to.have.property(\"confirmPassword\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/reset-password",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "39 Redefinição com token desconhecido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail token-invalido\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:token-invalido\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/reset-password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"token-que-nunca-foi-emitido-por-esta-aplicacao\",\n  \"newPassword\": \"senhaRedefinida789\",\n  \"confirmPassword\": \"senhaRedefinida789\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "40 Redefinição de senha",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.set(\"userPassword\", \"senhaRedefinida789\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/reset-password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"senhaRedefinida789\",\n  \"confirmPassword\": \"senhaRedefinida789\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "41 Reuso do mesmo token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail token-invalido\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:token-invalido\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/reset-password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"outraSenha789\",\n  \"confirmPassword\": \"outraSenha789\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "42 Login com a senha redefinida",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test(\"Token Bearer com expiração\", () => {",
+                  "    pm.expect(corpo.type).to.eql(\"Bearer\");",
+                  "    pm.expect(corpo.token.split(\".\")).to.have.lengthOf(3);",
+                  "    pm.expect(corpo).to.have.property(\"expiresAt\");",
+                  "});",
+                  "pm.collectionVariables.set(\"token\", corpo.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{userLogin}}\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Exclusão (DELETE /api/v1/users/{id})",
+      "description": "Remove também endereços e tokens de redefinição.",
+      "item": [
+        {
+          "name": "43 Exclusão sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:nao-autenticado\");",
+                  "    pm.expect(p.status).to.eql(401);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}"
+          }
+        },
+        {
+          "name": "44 Exclusão do cadastro de outro usuário",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:acesso-negado\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/a0000000-0000-4000-8000-000000000002"
+          }
+        },
+        {
+          "name": "45 Administrador exclui usuário inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\");",
+                  "    pm.expect(p.status).to.eql(404);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/00000000-0000-4000-8000-000000000000"
+          }
+        },
+        {
+          "name": "46 Exclusão do próprio cadastro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}"
+          }
+        },
+        {
+          "name": "47 Consulta após a exclusão",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\");",
+                  "    pm.expect(p.status).to.eql(404);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Erros transversais",
+      "description": "Tratados pelo mesmo GlobalExceptionHandler, em qualquer endpoint.",
+      "item": [
+        {
+          "name": "48 Corpo JSON malformado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"login\": \"admin.demo\", \"password\": ",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "49 Método não suportado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 405\", () => pm.response.to.have.status(405));",
+                  "pm.test(\"ProblemDetail com timestamp\", () => pm.expect(pm.response.json()).to.have.property(\"timestamp\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users",
+            "description": "Autenticado, porque a segurança decide antes do roteamento: sem token, qualquer método numa rota protegida responde 401, e um anônimo não descobre quais métodos existem."
+          }
+        },
+        {
+          "name": "50 Token malformado",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.upsert({ key: \"Authorization\", value: \"Bearer token.que.nao.vale\" });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:nao-autenticado\");",
+                  "    pm.expect(p.status).to.eql(401);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/users"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "mailpitUrl",
+      "value": "http://localhost:8025"
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "userLogin",
+      "value": ""
+    },
+    {
+      "key": "userEmail",
+      "value": ""
+    },
+    {
+      "key": "userPassword",
+      "value": ""
+    },
+    {
+      "key": "mailpitMessageId",
+      "value": ""
+    },
+    {
+      "key": "resetToken",
+      "value": ""
+    }
+  ]
+}
