@@ -1214,11 +1214,15 @@ métodos** — 100%.
 
 ### Serviços
 
-| Serviço   | Imagem                    | Porta no host | Papel |
-| --------- | ------------------------- | ------------- | ----- |
-| `app`     | construída pelo `Dockerfile` | `8080`     | A API. Sobe depois que o banco está saudável. |
-| `db`      | `postgres:16-alpine`      | `5432`        | Banco, com volume próprio `restaurantes-fase2_postgres_data`. |
-| `mailpit` | `axllent/mailpit:v1.31.2` | `8025` (web), `1025` (SMTP) | SMTP de testes: recebe os e-mails de redefinição de senha e os mostra em `http://localhost:8025`, sem entregar nada a ninguém. |
+| Serviço   | Imagem                    | Porta no host (padrão) | Papel |
+| --------- | ------------------------- | ---------------------- | ----- |
+| `app`     | construída pelo `Dockerfile` (`maven:3.9.16-eclipse-temurin-21-noble` → `eclipse-temurin:21.0.11_10-jre-alpine-3.23`) | `APP_PORT` (`8080`) | A API. Sobe depois que o banco está saudável. |
+| `db`      | `postgres:16.15-alpine3.24` | `DB_PORT` (`5432`) | Banco, com volume próprio `restaurantes-fase2_postgres_data`. |
+| `mailpit` | `axllent/mailpit:v1.31.2` | `MAILPIT_UI_PORT` (`8025`, web), `MAIL_PORT` (`1025`, SMTP) | SMTP de testes: recebe os e-mails de redefinição de senha e os mostra em `http://localhost:8025`, sem entregar nada a ninguém. |
+
+Todas as portas são publicadas **só em `127.0.0.1`**: o banco usa senha de exemplo e a caixa
+do Mailpit mostra tokens de redefinição de senha — nenhum dos dois pode ficar alcançável pela
+rede local. Todas as imagens têm versão exata, sem tag móvel.
 
 ### Variáveis de ambiente
 
@@ -1230,14 +1234,22 @@ métodos** — 100%.
 | `DB_USER`        | `postgres`                          | Usuário do banco              |
 | `DB_PASSWORD`    | `postgres`                          | Senha do banco                |
 | `DB_HOST`        | `localhost` — no Compose, fixo em `db` | Host do banco                 |
-| `DB_PORT`        | `5432`                              | Porta do banco                |
+| `DB_PORT`        | `5432`                              | Porta do banco no host        |
 | `MAIL_HOST`      | `localhost` — no Compose, fixo em `mailpit` | SMTP para recuperação de senha |
-| `MAIL_PORT`      | `1025`                              | Porta do SMTP                 |
+| `MAIL_PORT`      | `1025`                              | Porta do SMTP no host         |
 | `MAIL_FROM`      | `no-reply@restaurantes.postech`     | Remetente                     |
 | `MAIL_RESET_TOKEN_EXPIRATION_MINUTES` | `30`           | Validade do token de redefinição |
+| `APP_PORT`       | `8080`                              | Porta da API no host          |
+| `MAILPIT_UI_PORT` | `8025`                             | Porta da interface do Mailpit no host |
 
 `DB_HOST` e `MAIL_HOST` só valem para rodar a aplicação **fora** do Docker; dentro do Compose,
-ela fala com os serviços pelo nome.
+ela fala com os serviços pelo nome, nas portas internas (`db:5432`, `mailpit:1025`). As
+portas do `.env` são as do **host**: a aplicação na IDE as usa para chegar aos serviços, e o
+Compose as usa para publicá-los — a mesma variável com o mesmo significado nos dois lados.
+Se a Fase 1 estiver rodando (ela ocupa `5432` e `8080`), basta `DB_PORT=5433` e
+`APP_PORT=8081` no `.env`. As credenciais de um SMTP real (`MAIL_USERNAME`, `MAIL_PASSWORD`,
+`MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS`) valem só fora do Docker: no Compose, o e-mail vai
+sempre para o Mailpit.
 
 ### Passo a passo
 
@@ -1272,8 +1284,8 @@ divergência de checksum. Com nome próprio, cada fase tem os próprios containe
 nenhuma apaga ou corrompe os dados da outra.
 
 > O Docker também é pré-requisito para `mvn verify`: os testes de integração da Etapa 11
-> sobem um PostgreSQL 16 via Testcontainers, com a mesma imagem `postgres:16-alpine` do
-> `docker-compose.yml`.
+> sobem um PostgreSQL 16 via Testcontainers, com a mesma imagem, na mesma versão exata
+> (`postgres:16.15-alpine3.24`), do `docker-compose.yml`.
 
 ### O que foi entregue nesta etapa
 
@@ -1286,9 +1298,28 @@ próprio passo a passo:
 | `name: restaurantes-fase2`, sem `container_name` | Isola a Fase 2 da Fase 1 (ver acima). O `container_name` fixo também saiu: nome de container é **global** no Docker, e `restaurantes-db` colidiria com o container da Fase 1 mesmo com o projeto renomeado. O Compose gera nomes já prefixados (`restaurantes-fase2-db-1`). |
 | Serviço `mailpit` | A recuperação de senha entrega o token **só** por e-mail — é o que a torna segura. Sem um SMTP, o recurso existia no código e era impossível de usar: o padrão anterior, `host.docker.internal:1025`, não tinha nada escutando. O Mailpit recebe os e-mails e os mostra numa interface, sem entregar nada a ninguém; é também o que a coleção Postman da Etapa 12 vai usar. Versão fixada (`v1.31.2`): `latest` faria o mesmo `docker compose up` produzir ambientes diferentes em dias diferentes. |
 | `MAIL_HOST`/`MAIL_PORT` fixos no Compose | O defeito que o passo a passo revelou: o `.env.example` traz `MAIL_HOST=localhost` (para quem roda fora do Docker), e o Compose usava o `.env` para interpolar o host do SMTP. Dentro do container da aplicação, `localhost` é ela mesma — e como falha de SMTP não derruba a requisição (Etapa 7), **todo e-mail se perderia em silêncio**. Agora o SMTP do Compose é fixo, como o `DB_HOST` já era: dentro do Compose, os serviços se encontram pelo nome. |
-| `Dockerfile` | Execução como usuário **sem privilégio** — se a aplicação for comprometida, o invasor não é root no container. Estágio de execução só com o JRE. Dependências numa camada separada do código, para o rebuild não baixá-las de novo. `HEALTHCHECK` no `/actuator/health`, com `start-period` cobrindo a subida do Spring e as migrations. Heap limitado a 75% da memória do container. |
-| `management.health.mail.enabled: false` | Com o indicador de e-mail ligado, o SMTP fora do ar marcaria a API como `DOWN`, e o healthcheck daria o container como doente — um orquestrador o reiniciaria por causa de um serviço **opcional**. Isso contradiria a decisão da Etapa 7, de que falha de SMTP é registrada e não derruba nada. A saúde passa a refletir o que de fato impede a API de funcionar: o banco. Com isso, o ajuste equivalente que o `AuthApiIT` fazia ficou redundante e saiu. |
+| `Dockerfile` | Execução como usuário **sem privilégio** — se a aplicação for comprometida, o invasor não é root no container. Estágio de execução só com o JRE. Repositório Maven num cache do BuildKit, para o rebuild não baixar as dependências de novo; testes nem compilados na imagem. `HEALTHCHECK` no `/actuator/health`, decidido pelo código HTTP, com `start-period` cobrindo a subida do Spring e as migrations. Heap limitado a 75% da memória do container. Imagens base com versão exata. |
+| `management.health.mail.enabled: false` | Com o indicador de e-mail ligado, o SMTP fora do ar faria o `/actuator/health` responder `503`, e o healthcheck daria o container como `unhealthy` por causa de um serviço **opcional**. Isso contradiria a decisão da Etapa 7, de que falha de SMTP é registrada e não derruba nada. A saúde fica com o que de fato impede a API de funcionar: banco (`db`) e disco (`diskSpace`). O `HealthIT` prova isso com um SMTP real e inalcançável. Com isso, o ajuste equivalente que o `AuthApiIT` fazia ficou redundante e saiu. |
 | `.dockerignore` e `.env.example` | O contexto de build deixa de enviar o relatório e o PDF, e o `.env` nunca entra numa camada da imagem. O `.env.example` passa a dizer quais variáveis valem dentro e fora do Docker. |
+
+**Revisão de código da etapa.** Antes de fechar, o diff passou por uma revisão focada em
+falhas reais, que apontou nove pontos — um de segurança. Nenhuma etapa seguinte trata do
+ambiente de execução, então todos foram corrigidos aqui:
+
+| Achado | Correção e conceito |
+| ------ | ------------------- |
+| **Portas publicadas em todas as interfaces.** O Mailpit (`8025`, `1025`) e o PostgreSQL (`5432`, senha de exemplo) ficavam alcançáveis pela rede local. Numa rede compartilhada, qualquer um pedia a redefinição de senha de outra pessoa e lia o token na interface do Mailpit. | Todas as portas presas a `127.0.0.1`. É a mesma regra da Etapa 7 — o token de redefinição só pode chegar ao dono do e-mail —, aplicada ao ambiente e não só ao código. Verificado com `docker compose port`. |
+| **Portas do host fixas, colidindo com a Fase 1.** O nome do projeto separava volume e containers, mas `5432` e `8080` são recursos da máquina; com a Fase 1 rodando, o `up` falhava com *"port is already allocated"*, e trocar o `DB_PORT` no `.env` não mudava nada. | A porta do host vem do `.env` (`DB_PORT`, `APP_PORT`, `MAIL_PORT`, `MAILPIT_UI_PORT`). `DB_PORT` e `MAIL_PORT` passam a ter um significado só — a porta em que o serviço aparece no host —, o mesmo que a aplicação fora do Docker já usava. Verificado subindo a pilha em portas alternativas. |
+| **O `.env.example` listava credenciais de SMTP que o Compose não repassa.** Quem as preenchesse para o Compose continuaria mandando e-mail para o Mailpit sem saber. | As credenciais foram para a seção "só fora do Docker", com a regra escrita no `.env.example`, no `docker-compose.yml` e na tabela de variáveis: o Compose é o ambiente de demonstração, e provedor real é configuração de quem roda fora. |
+| **A saúde sem o e-mail não tinha teste.** A regra era garantida só indiretamente, pelo contexto do `AuthApiIT`. | `HealthIT`, com SMTP **real** apontado para uma porta onde nada escuta: a saúde é `UP` e `200`; é pública sem expor componentes; e, autenticado, mostra `db` e `diskSpace`, sem `mail`. Conferido ao contrário: religando o indicador, os três testes falham (`503`). |
+| **A documentação dizia que a saúde dependia só do banco** e que um orquestrador reiniciaria o container. O Actuator também conta o disco, e o Compose não reinicia container `unhealthy`. | Texto corrigido no `application.yml`, no `CLAUDE.md` e nesta seção: banco e disco, e o efeito real é o container marcado `unhealthy`. |
+| **`-DskipTests` ainda compilava todos os testes na imagem.** Custo a cada build, e um teste que não compilasse quebraria o `docker compose up`. | `-Dmaven.test.skip=true`: os testes nem compilam na imagem; quem os roda é o `mvn verify`. |
+| **A camada de `dependency:go-offline` não cobria tudo o que o `package` usa**, e parte das dependências era baixada de novo a cada build. | O repositório Maven fica num cache do BuildKit (`RUN --mount=type=cache`), que sobrevive entre builds independentemente de qual camada mudou. |
+| **O healthcheck dependia do formato do JSON** (`grep '"status":"UP"'`), embora o Actuator já responda `503` quando algo está `DOWN`. | `wget` sem `grep`: o código de saída já é o veredito. Um ajuste de formatação do JSON não pode derrubar um container saudável. |
+| **Só o Mailpit tinha versão fixada.** A justificativa escrita para ele — o mesmo `up` produzir o mesmo ambiente — valia igual para `postgres:16-alpine` e para as imagens base do `Dockerfile`, que eram tags móveis. | Versão exata em todas: `postgres:16.15-alpine3.24`, `maven:3.9.16-eclipse-temurin-21-noble`, `eclipse-temurin:21.0.11_10-jre-alpine-3.23` (as mesmas que as tags móveis resolviam na verificação, conferidas pelo digest). O Testcontainers usa a mesma versão do Postgres do Compose: o banco dos testes é o banco em que a aplicação roda. Regra aplicada com consistência, não só onde foi escrita. |
+
+De passagem, o `autenticar` que `UserApiIT` e `ErrorHandlingIT` repetiam foi para a
+`WebIntegrationTestSupport`, em vez de ganhar uma terceira cópia no `HealthIT`.
 
 **Verificação — o passo a passo executado literalmente**, contra os containers:
 
@@ -1301,9 +1332,21 @@ próprio passo a passo:
 | `docker compose down` e `up` | o usuário cadastrado continua lá; o Flyway reporta *"Schema is up to date. No migration necessary"* |
 | `docker compose down -v` | remove `restaurantes-fase2_postgres_data`; o volume e o container da Fase 1 continuam intactos |
 
-`mvn verify` segue verde — **411 testes unitários** e **73 de integração**, cobertura 100%
-(998/998 linhas, 222/222 ramos). Nenhuma classe Java nova nesta etapa: a entrega é o ambiente
-de execução e a sua verificação.
+**Verificação das correções da revisão**, de novo contra os containers:
+
+| Passo | Resultado |
+| ----- | --------- |
+| Build da imagem com o cache do BuildKit vazio / depois de alterar uma classe | 2min47s / **20s** — a alteração de código não baixa dependência nenhuma |
+| `.env` com `APP_PORT=18080`, `DB_PORT=15432`, `MAIL_PORT=11025`, `MAILPIT_UI_PORT=18025` e `docker compose up` | os três serviços `healthy`, publicados em `127.0.0.1:18080`, `127.0.0.1:15432`, `127.0.0.1:11025` e `127.0.0.1:18025` |
+| As mesmas portas pelo IP de rede da máquina / por `127.0.0.1` | recusadas / alcançáveis |
+| Recuperação de senha completa nas portas alternativas, com o token lido no Mailpit | `201` → `202` → token de 43 caracteres → `204` → senha nova `200` / antiga `401` |
+| Mailpit parado por 45 s | `app` continua `healthy`, `/actuator/health` `200` |
+| Banco parado / de volta | `app` fica `unhealthy` (`503`) / volta a `healthy` sozinha |
+| `docker compose config` com o `.env.example` | portas padrão `8080`, `5432`, `8025`, `1025`, todas em `127.0.0.1` |
+
+`mvn verify` segue verde — **411 testes unitários** e **76 de integração** (os 3 novos do
+`HealthIT`), cobertura 100% (998/998 linhas, 222/222 ramos). Nenhuma classe Java de produção
+nova nesta etapa: a entrega é o ambiente de execução e a sua verificação.
 
 ---
 

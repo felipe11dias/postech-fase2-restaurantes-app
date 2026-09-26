@@ -214,13 +214,6 @@ class UserApiIT extends WebIntegrationTestSupport {
                 autenticar(login, "senhaSegura123"));
     }
 
-    private String autenticar(String login, String senha) {
-        ResponseEntity<JsonNode> resposta = rest.postForEntity("/api/v1/auth/login",
-                corpo(Map.of("login", login, "password", senha)), JsonNode.class);
-        assertEquals(HttpStatus.OK, resposta.getStatusCode(), "login de " + login);
-        return resposta.getBody().get("token").asText();
-    }
-
     private record Usuario(UUID id, String login, String token) {
     }
 }
