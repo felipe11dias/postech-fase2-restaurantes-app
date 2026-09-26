@@ -167,7 +167,7 @@ class UserWebMappingTest {
         @DisplayName("A página preserva os metadados do núcleo e dá link a cada item")
         void deveMontarAPagina() {
             PagedModel<EntityModel<UserResponse>> pagina =
-                    assembler.toPagedModel(new PageResult<>(List.of(USER_VIEW), 2, 5, 11));
+                    assembler.toPagedModel(new PageResult<>(List.of(USER_VIEW), 2, 5, 11), null, null);
 
             assertEquals(1, pagina.getContent().size());
             assertEquals(5, pagina.getMetadata().getSize());
@@ -175,6 +175,55 @@ class UserWebMappingTest {
             assertEquals(11, pagina.getMetadata().getTotalElements());
             assertEquals(3, pagina.getMetadata().getTotalPages());
             assertTrue(pagina.getContent().iterator().next().getLink(IanaLinkRelations.SELF).isPresent());
+        }
+
+        @Test
+        @DisplayName("Página do meio tem os cinco links, e cada um repete a busca e a ordenação pedidas")
+        void deveMontarOsLinksDePaginacaoQuandoHaPaginasAntesEDepois() {
+            PagedModel<EntityModel<UserResponse>> pagina = assembler.toPagedModel(
+                    new PageResult<>(List.of(USER_VIEW), 1, 5, 11), "Ana", "name,desc");
+
+            assertTrue(href(pagina, IanaLinkRelations.SELF).endsWith("/users?name=Ana&page=1&size=5&sort=name,desc"));
+            assertTrue(href(pagina, IanaLinkRelations.FIRST).contains("page=0&"));
+            assertTrue(href(pagina, IanaLinkRelations.PREV).contains("page=0&"));
+            assertTrue(href(pagina, IanaLinkRelations.NEXT).contains("page=2&"));
+            assertTrue(href(pagina, IanaLinkRelations.LAST).contains("page=2&"));
+            assertTrue(pagina.getLink(UserModelAssembler.USERS_REL).isPresent());
+        }
+
+        @Test
+        @DisplayName("Página única não tem anterior nem próxima; primeira e última são ela mesma")
+        void naoDeveOferecerAnteriorNemProximaQuandoHaUmaSoPagina() {
+            PagedModel<EntityModel<UserResponse>> pagina = assembler.toPagedModel(
+                    new PageResult<>(List.of(USER_VIEW), 0, 5, 3), null, null);
+
+            assertFalse(pagina.getLink(IanaLinkRelations.PREV).isPresent());
+            assertFalse(pagina.getLink(IanaLinkRelations.NEXT).isPresent());
+            assertTrue(href(pagina, IanaLinkRelations.FIRST).endsWith("/users?page=0&size=5"),
+                    "sem busca nem ordenação, os links não inventam parâmetros");
+            assertEquals(href(pagina, IanaLinkRelations.FIRST), href(pagina, IanaLinkRelations.LAST));
+        }
+
+        @Test
+        @DisplayName("Resultado vazio aponta a última página para a primeira, não para a página -1")
+        void deveApontarAUltimaParaAPrimeiraQuandoNaoHaResultados() {
+            PagedModel<EntityModel<UserResponse>> pagina = assembler.toPagedModel(
+                    new PageResult<>(List.of(), 0, 5, 0), null, null);
+
+            assertTrue(href(pagina, IanaLinkRelations.LAST).contains("page=0&"));
+        }
+
+        @Test
+        @DisplayName("Busca com espaço, acento e & é codificada uma única vez e não quebra a query")
+        void deveCodificarABuscaUmaUnicaVez() {
+            PagedModel<EntityModel<UserResponse>> pagina = assembler.toPagedModel(
+                    new PageResult<>(List.of(USER_VIEW), 0, 5, 1), "João & Maria", null);
+
+            assertTrue(href(pagina, IanaLinkRelations.SELF).contains("name=Jo%C3%A3o%20%26%20Maria&page=0"));
+        }
+
+        private static String href(PagedModel<?> pagina, org.springframework.hateoas.LinkRelation rel) {
+            return pagina.getLink(rel).orElseThrow(() -> new AssertionError("sem link " + rel)).getHref();
         }
     }
 }

@@ -131,7 +131,7 @@ public class UserRestController {
             @Parameter(description = "propriedade,direcao — id, name, email, login, createdAt ou lastUpdatedAt; "
                     + "asc ou desc. Propriedade fora da lista cai em name.", example = "name,asc")
             @RequestParam(required = false) String sort) {
-        return assembler.toPagedModel(controller.search(name, paginacao(page, size, sort)));
+        return assembler.toPagedModel(controller.search(name, paginacao(page, size, sort)), name, sort);
     }
 
     @PutMapping("/{id}")

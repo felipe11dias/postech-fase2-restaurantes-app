@@ -13,9 +13,11 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * A API de usuários por HTTP de verdade, com a cadeia de segurança inteira no caminho.
@@ -24,6 +26,9 @@ class UserApiIT extends WebIntegrationTestSupport {
 
     private static final AtomicInteger SEQUENCIA = new AtomicInteger();
     private static final String USERS = "/api/v1/users";
+
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @Test
     @DisplayName("Cadastro é público, responde 201 com Location e links, e nunca devolve a senha")
@@ -52,8 +57,8 @@ class UserApiIT extends WebIntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Token inválido ou expirado é tratado como ausente")
-    void deveRecusarTokenInvalido() {
+    @DisplayName("Token malformado é tratado como ausente (expirado e forjado: JwtAuthenticationIT)")
+    void deveRecusarTokenMalformado() {
         ResponseEntity<JsonNode> resposta = rest.exchange(USERS + "/" + UUID.randomUUID(), HttpMethod.GET,
                 autenticado("token.que.nao.vale"), JsonNode.class);
 
@@ -159,6 +164,33 @@ class UserApiIT extends WebIntegrationTestSupport {
     }
 
     @Test
+    @DisplayName("Atualização não toca na senha nem nos papéis: o login seguinte usa a mesma senha")
+    void devePreservarSenhaEPapeisQuandoAtualiza() {
+        Usuario eu = cadastrarEAutenticar();
+
+        JsonNode atualizado = atualizar(eu, "Nome Atualizado", eu.token()).getBody();
+
+        assertEquals("ROLE_CUSTOMER", atualizado.get("roles").get(0).get("name").asText());
+        assertEquals(HttpStatus.OK, rest.postForEntity("/api/v1/auth/login",
+                corpo(Map.of("login", eu.login(), "password", "senhaSegura123")), JsonNode.class).getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Auditoria grava o autor de cada gravação: system no autocadastro, depois quem alterou")
+    void deveGravarOAutorDeCadaAlteracao() {
+        Usuario eu = cadastrarEAutenticar();
+        assertEquals(List.of("system", "system"), autoria(eu.id()), "autocadastro não tem autenticado");
+        // Cada alteração muda o nome de propósito: um PUT idêntico ao estado gravado não gera
+        // UPDATE nenhum, e então o autor anterior continua — "última alteração" é de dado, não de pedido.
+
+        atualizar(eu, "Alterado Pelo Proprio", eu.token());
+        assertEquals(List.of("system", eu.login()), autoria(eu.id()), "o próprio usuário alterou");
+
+        atualizar(eu, "Alterado Pelo Administrador", autenticar("admin.demo", "admin12345"));
+        assertEquals(List.of("system", "admin.demo"), autoria(eu.id()), "o administrador alterou; o criador não muda");
+    }
+
+    @Test
     @DisplayName("Troca de senha responde 204 e passa a valer no login seguinte")
     void deveTrocarASenha() {
         Usuario eu = cadastrarEAutenticar();
@@ -172,7 +204,7 @@ class UserApiIT extends WebIntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Exclusão do próprio cadastro responde 204 e o token deixa de dar acesso")
+    @DisplayName("Exclusão do próprio cadastro responde 204, e o cadastro some mesmo para o token ainda válido")
     void deveExcluirOProprioCadastro() {
         Usuario eu = cadastrarEAutenticar();
 
@@ -212,6 +244,20 @@ class UserApiIT extends WebIntegrationTestSupport {
         JsonNode criado = rest.postForEntity(USERS, corpo(novoUsuario(login)), JsonNode.class).getBody();
         return new Usuario(UUID.fromString(criado.get("id").asText()), login,
                 autenticar(login, "senhaSegura123"));
+    }
+
+    private ResponseEntity<JsonNode> atualizar(Usuario usuario, String nome, String token) {
+        ResponseEntity<JsonNode> resposta = rest.exchange(USERS + "/" + usuario.id(), HttpMethod.PUT,
+                corpoAutenticado(Map.of("name", nome, "email", usuario.login() + "@email.com",
+                        "login", usuario.login(), "addresses", List.of()), token), JsonNode.class);
+        assertEquals(HttpStatus.OK, resposta.getStatusCode());
+        return resposta;
+    }
+
+    /** Autor da criação e da última alteração, lidos direto da tabela: a API não os expõe. */
+    private List<String> autoria(UUID id) {
+        return jdbc.queryForObject("SELECT created_by, last_updated_by FROM users WHERE id = ?",
+                (linha, numero) -> List.of(linha.getString(1), linha.getString(2)), id);
     }
 
     private record Usuario(UUID id, String login, String token) {

@@ -212,3 +212,26 @@
   - `autenticar` dos ITs por HTTP centralizado na `WebIntegrationTestSupport`.
   - `mvn verify`: 411 testes unitários e 76 de integração; cobertura unitária 100% (998 linhas,
     222 ramos). Pilha verificada de novo contra os containers, em portas alternativas.
+
+## Etapa 11 — Testes: unitários (100% de cobertura) e de integração
+- Auditoria da suíte contra a especificação da etapa; tabelas do relatório reescritas com as
+  classes e suítes reais.
+- Gate de cobertura passa a medir **só os testes unitários**: agentes do JaCoCo separados para
+  Surefire (`jacoco.exec`, gate) e Failsafe (`jacoco-it.exec`, relatório informativo em
+  `target/site/jacoco-it`), ambos com `append=false`. Antes, a integração somava ao mesmo
+  arquivo e o arquivo acumulava execuções anteriores.
+- `UserModelAssembler`: links de navegação `self`/`first`/`prev`/`next`/`last` na listagem,
+  repetindo busca e ordenação, com codificação única dos parâmetros.
+- `JwtAuthenticationIT` (4): token expirado, assinado com outra chave e sem assinatura recusados;
+  controle com a chave certa aceito.
+- `UserSearchIT` (5): busca parcial sem diferenciar maiúsculas, navegação seguindo os links,
+  ordenação decrescente, `sort=password` ignorado, tamanho de página fora do limite.
+- `UserLifecycleIT` (1): cenário principal encadeado, do cadastro à exclusão, sem órfãos no banco.
+- `AuthApiIT`: token de redefinição vencido. `UserApiIT`: senha e papéis preservados no `PUT` e
+  autor da auditoria em cada alteração; dois testes renomeados para o que de fato verificam.
+- `TestConventionsTest` (7 regras ArchUnit sobre as classes de teste) e regra de caso de uso
+  reforçada: `run` como único método público de instância.
+- `autenticar` da base de ITs por HTTP reaproveitado; suíte verificada em ordem aleatória com
+  duas sementes.
+- `mvn clean verify`: 422 testes unitários e 89 de integração; cobertura unitária 100%
+  (1016 linhas, 226 ramos, 427 métodos).

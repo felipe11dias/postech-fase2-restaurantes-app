@@ -36,10 +36,10 @@
 | 8   | Tratamento de Erros (ProblemDetail)                | ✅     |
 | 9   | Documentação Swagger                               | ✅     |
 | 10  | Execução com Docker Compose                        | ✅     |
-| 11  | Testes — unitários (100% cobertura) e de integração | ⏳    |
+| 11  | Testes — unitários (100% cobertura) e de integração | ✅    |
 | 12  | Entregáveis (Postman, README)                      | ⏳     |
 
-**Progresso:** 10 de 12 etapas concluídas.
+**Progresso:** 11 de 12 etapas concluídas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -1014,7 +1014,7 @@ casos — um `HttpStatusEntryPoint` corrige isso.
 | `infrastructure/web/user` e `.../auth` | Dois `@RestController` finos: validam a sintaxe do corpo, convertem para o DTO do caso de uso, delegam ao controller de adaptação e devolvem a representação. Nenhuma regra de negócio — trocar REST por outro canal não reescreve nada de dentro. Subpacotes por feature, como nas demais camadas. |
 | `*Request` / `*Response` separados dos DTOs do núcleo | A segunda fronteira de mapeamento prometida no desenho. Bean Validation (`@NotBlank`, `@Email`, `@Size`) vive **só** aqui: é validação **sintática**, e a consistência continua sendo do domínio — "as duas senhas conferem" é regra e ficou no caso de uso, não em uma anotação. Papel desconhecido é convertido por `RoleName.from`, para que o erro seja a mensagem do domínio e não um erro de formato do Jackson. |
 | `UserResponse.from(UserView)` | A resposta nasce da view, que não tem campo de senha: não existe caminho de código capaz de serializar o hash. |
-| `UserModelAssembler` | HATEOAS é característica do canal REST, não do caso de uso — por isso nenhum rastro dele chega à `UserView`. `PagedModel` preserva os metadados do `PageResult` do núcleo. |
+| `UserModelAssembler` | HATEOAS é característica do canal REST, não do caso de uso — por isso nenhum rastro dele chega à `UserView`. `PagedModel` preserva os metadados do `PageResult` do núcleo e dá os links `self`/`first`/`last` e, quando existem, `prev`/`next`, repetindo a busca e a ordenação pedidas: o cliente percorre a listagem seguindo links, sem montar URL. (Os links de navegação faltavam na entrega original e foram acrescentados na Etapa 11, quando a suíte passou a verificá-los.) |
 | `BCryptPasswordAdapter` | Implementa `IPasswordEncoder`; é o único lugar que conhece BCrypt. `simulateMatch` gasta o tempo de uma comparação real contra um hash descartável, de modo que "login inexistente" não responda mais rápido que "senha errada". |
 | `JwtTokenIssuer` | Implementa `ITokenIssuer` e também **lê** o token: emitir e validar o mesmo formato é uma responsabilidade só. Para o núcleo o token é texto opaco com uma expiração. O instante vem do `Clock` injetado, o que torna a expiração verificável em teste. Recusa devolve vazio sem dizer o motivo — a explicação só ajudaria quem está sondando. |
 | `JwtAuthenticationFilter` | Apenas **traduz** o `Bearer` em contexto de segurança; nunca decide se a requisição passa. Token inválido segue anônimo, e quem recusa é a configuração — assim a regra de "o que exige autenticação" fica em um lugar só. |
@@ -1372,60 +1372,91 @@ subir.
 
 ### Testes unitários (cobertura 100%)
 
-| Nível                     | Alvo                                                       | Ferramentas         | Característica                                                                                                   |
+| Nível                     | Classes de teste                                           | Ferramentas         | Característica                                                                                                   |
 | ------------------------- | ---------------------------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Entidades**             | `User`, `Role`, `Address`, `PasswordResetToken`, `Email`, `ZipCode` | JUnit 5     | Sem mocks. Cada invariante tem um teste que prova que a entidade o recusa (`assertThrows`) e um que prova que aceita o valor válido. |
-| **Casos de uso**          | cada `*UseCase`                                            | JUnit 5 + Mockito   | Mocks das interfaces `I*Gateway`; sem contexto Spring. Um comportamento por teste; todo `if` tem os dois caminhos cobertos. |
-| **Adaptadores**           | controllers, gateways, presenters                          | JUnit 5 + Mockito   | Mocks de `I*DataSource`; verifica tradução entidade ↔ DTO e a orquestração do controller (gateway → caso de uso → presenter). |
-| **Infraestrutura com lógica** | `*DataSourceJpa` (mapeamento), `GlobalExceptionHandler`, `JwtService`, `JwtAuthenticationFilter`, `AuditorProvider`, `UserSecurity`, assemblers HATEOAS | JUnit 5 + Mockito | Classes instanciadas diretamente, com `JpaRepository` e `SecurityContext` mockados. Configurações puramente declarativas (`@Configuration` sem lógica) são excluídas do cálculo. |
-| **Arquitetura**           | regra de dependência                                       | ArchUnit            | Roda no build; falha se alguém importar Spring fora de `infrastructure`.                                         |
+| **Entidades e VOs**       | `UserTest`, `RoleTest`, `RoleNameTest`, `AddressTest`, `PasswordResetTokenTest`, `EmailTest`, `ZipCodeTest`, `GuardTest`, `DomainExceptionsTest` | JUnit 5 | Sem mocks. Cada invariante tem um teste que prova que a entidade o recusa (`assertThrows`) e um que prova que aceita o valor válido. |
+| **DTOs do núcleo**        | `PageRequestTest`, `PageResultTest`, `DtoTest`             | JUnit 5             | Limites de paginação, cálculo de páginas, `hasNext`/`hasPrevious`, validação do `IssuedToken`.                    |
+| **Casos de uso**          | um `*UseCaseTest` por intenção do ator (`UserQueryUseCasesTest` reúne busca por id, listagem e exclusão) | JUnit 5 + Mockito | Mocks das interfaces `I*Gateway`; sem contexto Spring. Um comportamento por teste; todo `if` tem os dois caminhos cobertos. |
+| **Adaptadores**           | `UserControllerTest`, `AuthControllerTest`, `UserGatewayTest`, `RoleAndTokenGatewaysTest`, `PresentersTest` | JUnit 5 + Mockito | Mocks de `I*DataSource`; verifica tradução entidade ↔ record e a orquestração do controller (unidade de trabalho → caso de uso → presenter). |
+| **Infraestrutura com lógica** | persistência (`UserDataSourceJpaTest`, `RoleAndTokenDataSourcesJpaTest`, `JpaEntitiesTest`, `TransactionalUnitOfWorkTest`, `AuthenticatedAuditorAwareTest`, `ClockDateTimeProviderTest`); segurança (`JwtTokenIssuerTest`, `JwtAuthenticationFilterTest`, `JwtAuthenticationEntryPointTest`, `SecurityComponentsTest`); e-mail (`SmtpMailGatewayTest`); web (`UserRestControllerTest`, `AuthRestControllerTest`, `UserWebMappingTest`, `ValidPasswordTest`, `GlobalExceptionHandlerTest`, `ProblemDetailFactoryTest`); OpenAPI (`ErrorResponseOperationCustomizerTest`, `ProblemDetailOpenApiCustomizerTest`) | JUnit 5 + Mockito | Classes instanciadas diretamente, com `JpaRepository`, `SecurityContext` e `MailSender` mockados. Configurações puramente declarativas (`infrastructure/config/*Config`) são excluídas do cálculo. |
+| **Arquitetura**           | `ArchitectureTest` (14 regras)                             | ArchUnit            | Regra de dependência e nomenclatura do código de produção.                                                        |
+| **Convenções da suíte**   | `TestConventionsTest` (7 regras)                           | ArchUnit            | As convenções abaixo, verificadas sobre as próprias classes de teste.                                            |
 
-**Como o 100% é imposto.** O plugin `jacoco-maven-plugin` roda na fase `verify` com uma
-regra `check` de `LINE` e `BRANCH` em `1.00` (100%). O relatório fica em
-`target/site/jacoco/index.html`. A única exclusão prevista é `RestaurantesApplication` e as
-classes `@Configuration` que apenas declaram beans — tudo o que contém um `if`, um `map` ou
+**Como o 100% é imposto.** O `jacoco-maven-plugin` roda a regra `check` de `LINE` e `BRANCH`
+em `1.00` na fase `verify`. O gate é **dos testes unitários**: o Surefire e o Failsafe recebem
+agentes distintos, que gravam arquivos distintos (`jacoco.exec` e `jacoco-it.exec`), e o
+`check` lê só o primeiro. A cobertura da integração sai em relatório separado, informativo
+(`target/site/jacoco-it`). Os dois agentes usam `append=false`, para que nenhum arquivo acumule
+execuções anteriores. As únicas exclusões são `RestaurantesApplication` e as classes
+`infrastructure/config/*Config`, que só declaram beans — tudo o que contém um `if`, um `map` ou
 uma exceção entra na conta.
 
 ```xml
-<execution>
-  <id>check-coverage</id>
-  <goals><goal>check</goal></goals>
-  <configuration>
-    <rules>
-      <rule>
-        <element>BUNDLE</element>
-        <limits>
-          <limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>1.00</minimum></limit>
-          <limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>1.00</minimum></limit>
-        </limits>
-      </rule>
-    </rules>
-    <excludes>
-      <exclude>**/RestaurantesApplication.class</exclude>
-      <exclude>**/infrastructure/config/*Config.class</exclude>
-    </excludes>
-  </configuration>
-</execution>
+<configuration>
+  <excludes>
+    <exclude>**/RestaurantesApplication.class</exclude>
+    <exclude>**/infrastructure/config/*Config.class</exclude>
+  </excludes>
+</configuration>
+<executions>
+  <execution>                      <!-- testes unitários: alimentam o gate -->
+    <id>prepare-agent</id>
+    <goals><goal>prepare-agent</goal></goals>
+    <configuration><append>false</append></configuration>
+  </execution>
+  <execution>                      <!-- testes de integração: outro arquivo, fora do gate -->
+    <id>prepare-agent-integration</id>
+    <goals><goal>prepare-agent-integration</goal></goals>
+    <configuration><append>false</append></configuration>
+  </execution>
+  <execution>
+    <id>check-coverage</id>
+    <phase>verify</phase>
+    <goals><goal>check</goal></goals>
+    <configuration>
+      <rules>
+        <rule>
+          <element>BUNDLE</element>
+          <limits>
+            <limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>1.00</minimum></limit>
+            <limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>1.00</minimum></limit>
+          </limits>
+        </rule>
+      </rules>
+    </configuration>
+  </execution>
+</executions>
 ```
 
 ### Testes de integração (componentes funcionando juntos)
 
-Executados com `@SpringBootTest(webEnvironment = RANDOM_PORT)` e um único contêiner
-PostgreSQL 16 compartilhado pela suíte (Testcontainers, `@ServiceConnection`). O Flyway
-aplica as migrations reais no contêiner; a segurança JWT fica ativa; as chamadas são feitas
-com `TestRestTemplate` contra a porta real. Nenhum bean é mockado, exceto o SMTP, substituído
-por um `IMailGateway` em memória que captura o e-mail enviado.
+Todos estendem uma de duas bases, que apontam para um único contêiner PostgreSQL
+`16.15-alpine3.24` compartilhado pela suíte (Testcontainers, `@ServiceConnection`, iniciado em
+bloco `static` — ver `SharedPostgres`) e fornecem o segredo do JWT de teste:
+`IntegrationTestSupport` (`@SpringBootTest` sem servidor, para a persistência) e
+`WebIntegrationTestSupport` (`RANDOM_PORT` + `TestRestTemplate`, para as chamadas HTTP). O
+Flyway aplica as migrations reais; a segurança JWT fica ativa. Nenhum bean da aplicação é
+substituído, exceto o `JavaMailSender`: o `SmtpMailGateway` **real** roda e monta o e-mail, e o
+dublê só captura o que seria enviado — o teste lê o token do corpo do e-mail, como o usuário faria.
 
 | Suíte                          | O que garante                                                                                                                                                                  |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ApplicationContextIT`         | O contexto sobe com todos os beans; migrations V1–V2 aplicadas; `ddl-auto: validate` aceita o mapeamento JPA contra o schema real; `/actuator/health` responde `UP`.             |
-| `UserDataSourceJpaIT`          | Persistência contra o banco real: inserção com UUID gerado pelo banco, cascade de endereços, `orphanRemoval`, N:M de papéis, projeção sem `password`, ordenação permitida e rejeitada, auditoria preenchida (`created_by`, `last_updated_at`). |
-| `AuthFlowIT`                   | Login com seed (200), credenciais inválidas (401), acesso sem token (401), token expirado/forjado (401), token válido em endpoint protegido (200).                             |
-| `UserLifecycleIT`              | Fluxo completo de um usuário: cadastro (201 + `Location`), login, consulta própria (200), consulta de outro (403), consulta via admin (200), atualização (200) com senha preservada e reautenticação, troca de senha (204) e login com a nova, exclusão (204) e 404 em seguida — verificando no banco que não restaram órfãos. |
-| `UserSearchIT`                 | Listagem e busca paginada: `page`/`size`/`sort`, links HATEOAS `first`/`next`/`last`, bloco `page`, busca parcial sem diferenciar maiúsculas, `sort=password` ignorado.       |
-| `PasswordResetFlowIT`          | "Esqueci minha senha" com e-mail existente e inexistente (mesma resposta 202), token capturado do `IMailGateway` de teste, redefinição (204), login com a nova senha, reuso do token (400), token expirado (400). |
-| `ErrorContractIT`              | Cada erro previsto na Etapa 8 devolve `ProblemDetail` com `type`, `title`, `status`, `timestamp` e, no 400 de validação, o mapa `errors`; id malformado e corpo malformado devolvem 400; erro interno devolve 500 genérico sem vazar a mensagem. |
-| `SwaggerIT`                    | `/v3/api-docs` público (200) e contendo todos os endpoints; `/swagger-ui.html` acessível.                                                                                       |
+| `SchemaMigrationIT`            | Migrations V1–V2 aplicadas e registradas; exatamente as cinco tabelas; catálogo com os três papéis; usuários de demonstração com papel, senha em hash e `created_by = system`; `ON DELETE CASCADE` agindo no banco por SQL direto. O contexto só sobe se o `ddl-auto: validate` aceitar o mapeamento JPA contra esse schema. |
+| `UserPersistenceIT`            | Persistência do agregado contra o banco real: leitura inteira com papéis e endereços, reconstrução de entidade válida, busca por login e e-mail, substituição de endereços sem órfãos, N:M de papéis sem tocar no catálogo, identidade preservada na atualização, instante de alteração devolvido igual ao gravado, busca paginada sem diferenciar maiúsculas, ordenação traduzida, propriedade não permitida caindo no nome, exclusão em cascata. |
+| `PasswordResetTokenPersistenceIT` | Token recuperado pelo hash, consumo gravado, hash único, cascata na exclusão do dono.                                                                                        |
+| `TransactionalUnitOfWorkIT`    | O bloco concluído confirma todas as escritas; exceção no meio desfaz também o que já havia sido gravado.                                                                        |
+| `HealthIT`                     | `/actuator/health` público, sem expor componentes a anônimo; `UP` com o SMTP real inalcançável; componentes `db` e `diskSpace`, sem `mail`.                                     |
+| `JwtAuthenticationIT`          | Token do administrador expirado, assinado com outra chave ou sem assinatura (`alg: none`) → `401`; o mesmo formato com a chave certa e dentro da validade → `200` (controle).    |
+| `AuthApiIT`                    | Login da seed (`200`, JWT com expiração); senha errada e login inexistente com a mesma resposta; "esqueci minha senha" com `202` para e-mail existente, inexistente e com SMTP fora do ar; redefinição com o token lido do e-mail (`204`), senha antiga deixando de valer; token reusado e token vencido (`400 token-invalido`). |
+| `UserApiIT`                    | Cadastro público (`201` + `Location`, sem senha no corpo); `401` sem token ou com token malformado; posse (`403` no cadastro alheio, `200` para o dono e o administrador); listagem só do administrador; senha de 80 bytes recusada na borda; atualização preservando senha e papéis; **autor da auditoria** em cada gravação (`system` no autocadastro, depois quem alterou); troca de senha; exclusão. |
+| `UserSearchIT`                 | Busca por trecho do nome sem diferenciar maiúsculas; o cliente percorre todas as páginas **seguindo os links** `next`, e `first`/`prev`/`last` apontam para onde devem; ordenação decrescente chega ao banco; `sort=password` ignorado (`200`, ordenação padrão); tamanho de página fora do limite → `400`. |
+| `UserLifecycleIT`              | O cenário principal de sucesso encadeado: cadastro → login → consulta pelo `Location` → atualização (endereço substituído, senha preservada) → troca de senha → pedido de redefinição pendente → exclusão → `404` e login recusado — e, no banco, **nenhuma linha restante** em `users`, `addresses`, `user_roles` e `password_reset_tokens`. |
+| `ErrorHandlingIT`              | Cada categoria da Etapa 8 como `ProblemDetail` com `type`, `title`, `status`, `detail`, `instance` e `timestamp`: validação (`400` com o mapa `errors`), corpo malformado, id que não é UUID, invariante do domínio, papel inexistente, senha atual incorreta, token desconhecido, credenciais erradas, sem token, `ROLE_ADMIN` no autocadastro, cadastro alheio, inexistente, e-mail repetido, método não suportado. |
+| `OpenApiDocumentationIT`       | O documento declara os nove endpoints e o esquema Bearer; o cadeado de cada operação bate com o `401` real; exemplos de erro coerentes com o código; os exemplos de corpo são aceitos pela API; Swagger UI público. |
+
+O `500` genérico (exceção inesperada, sem vazar a mensagem) é provado no teste unitário do
+`GlobalExceptionHandler`, não por HTTP: provocá-lo de fora exigiria substituir um bean da
+aplicação, justamente o que a convenção proíbe.
 
 Os testes de integração têm sufixo `IT` e rodam na fase `integration-test` via
 `maven-failsafe-plugin`, separados dos unitários (`maven-surefire-plugin`, fase `test`). Assim
@@ -1439,31 +1470,76 @@ mvn verify    # + integração com Testcontainers + verificação de 100% de cob
 
 ### Convenções
 
+As marcadas com ✔ são verificadas no build pelo `TestConventionsTest`; as demais, na revisão.
+
 - Estrutura **arrange / act / assert** em todo teste, com os três blocos visíveis.
-- `@DisplayName` descreve a regra em linguagem de negócio
-  (`"Recusa autocadastro com ROLE_ADMIN"`, não `testRegister3`).
-- Nomes de método no formato `deve<Comportamento>Quando<Condição>`.
-- Testes independentes entre si, sem estado compartilhado. Unitários rápidos o bastante para
-  rodar a cada commit; de integração isolados por transação ou limpeza de tabelas entre
-  classes, para que a ordem de execução nunca importe.
-- Um teste unitário **nunca** sobe contexto Spring nem toca em banco; um teste de integração
-  **nunca** mocka um bean da aplicação (só o SMTP).
+- ✔ `@DisplayName` em todo `@Test` e `@ParameterizedTest`, descrevendo a regra em linguagem de
+  negócio (`"Recusa autocadastro com ROLE_ADMIN"`, não `testRegister3`).
+- ✔ Nomes de método `deve<Comportamento>[Quando<Condição>]`, ou `naoDeve…` para a negação.
+- ✔ Um teste unitário (`*Test`) **nunca** sobe contexto Spring nem toca em banco: não depende de
+  Testcontainers, `spring-boot-test`, contexto de teste do Spring nem JDBC.
+- ✔ Todo teste de integração (`*IT`) estende uma das duas bases, e **nunca** substitui um bean da
+  aplicação: `@MockitoBean` só em `JavaMailSender`, `@MockitoSpyBean` em nada.
+- ✔ Nenhuma classe usa `@Testcontainers`: o contêiner é único e compartilhado.
+- Testes independentes entre si. O banco é compartilhado e **não é limpo** entre classes: cada
+  teste cria os próprios dados com uma marca única e consulta só por ela. Isolar por transação
+  não serviria aos testes HTTP — a requisição roda em outra thread, com transação própria, e o
+  rollback do teste não a alcançaria. A independência é conferida rodando a suíte inteira em
+  ordem aleatória de classes e de métodos:
+
+```bash
+mvn verify -Djunit.jupiter.testclass.order.default='org.junit.jupiter.api.ClassOrderer$Random' \
+           -Djunit.jupiter.testmethod.order.default='org.junit.jupiter.api.MethodOrderer$Random' \
+           -Djunit.jupiter.execution.order.random.seed=2026
+```
 
 ### Regras de arquitetura (ArchUnit)
 
-| Regra                                                                                | Protege                                      |
+| Regra (`ArchitectureTest`)                                                            | Protege                                      |
 | ------------------------------------------------------------------------------------ | -------------------------------------------- |
+| camadas concêntricas só apontam para dentro (DSL de *onion architecture*)            | a regra de dependência como um todo          |
 | `domain` não depende de nenhum outro pacote do projeto                               | pureza das entidades                         |
 | `application` depende apenas de `domain`                                             | casos de uso sem infraestrutura              |
 | `adapter` não depende de `infrastructure`                                            | adaptadores agnósticos de framework          |
-| nenhum tipo fora de `infrastructure` importa `org.springframework..`, `jakarta.persistence..`, `org.hibernate..` | a regra de dependência inteira |
-| classes em `..usecase..` têm sufixo `UseCase` e método público `run`                 | convenção dos casos de uso                   |
-| interfaces em `..gateway..` do `application` têm prefixo `I`                         | convenção dos gateways                       |
-| interfaces em `adapter.datasource` têm prefixo `I`; os records de `..data` têm sufixo `Data` | contrato da origem de dados          |
-| records de `adapter.presenter.view` têm sufixo `View`                                | saída do núcleo passa pelo presenter         |
+| Spring, JPA, Hibernate, springdoc, jjwt, Bean Validation, Jakarta Mail e Flyway só em `infrastructure` | os frameworks como detalhe      |
+| classes em `..usecase..` têm sufixo `UseCase` e `run` como **único** método público de instância | um caso de uso, uma intenção do ator |
+| tipos em `application.gateway` são interfaces com prefixo `I`                        | convenção das portas do núcleo               |
+| tipos em `adapter.datasource` são interfaces com prefixo `I`                         | contrato da origem de dados                  |
+| tipos em `adapter.datasource.data` são records com sufixo `Data`                     | registro da origem de dados é só dado        |
+| tipos em `adapter.presenter.view` são records com sufixo `View`                      | saída do núcleo passa pelo presenter         |
+| classe anotada com `@Entity` reside em `infrastructure.persistence`                  | ORM nunca anota entidade de domínio          |
+| o sufixo `JpaEntity` é exclusivo desse pacote                                        | entidade JPA não se confunde com a de domínio |
+| toda implementação de `I*DataSource` termina em `DataSourceJpa`                      | persistência é detalhe substituível          |
 | toda classe em `adapter.gateway` implementa uma interface de `application.gateway`   | gateway sempre tem porta no núcleo           |
-| classe anotada com `@Entity` reside em `infrastructure.persistence` e termina em `JpaEntity`; o sufixo é exclusivo desse pacote | ORM nunca anota entidade de domínio |
-| toda implementação de uma interface de `adapter.datasource` reside em `infrastructure.persistence` e termina em `DataSourceJpa` | persistência é detalhe substituível |
+
+### O que foi entregue nesta etapa
+
+As etapas anteriores entregaram os testes junto com o código, como exige o gate de 100%. Esta
+etapa foi uma **auditoria da suíte contra a especificação acima**, escrita antes do código:
+cada garantia prometida foi procurada num teste que de fato a verificasse. A especificação
+previa oito suítes com outros nomes (`ApplicationContextIT`, `AuthFlowIT`, `ErrorContractIT`…);
+a suíte real se organizou pelo pacote que exercita, e as tabelas acima passaram a descrever o
+que existe. O que a auditoria encontrou:
+
+| Achado | O que foi feito e conceito que o sustenta |
+| ------ | ----------------------------------------- |
+| **O gate de 100% não media só os testes unitários.** O Surefire e o Failsafe recebiam o mesmo agente do JaCoCo, gravando no mesmo arquivo: uma linha coberta só por teste de integração passava no `check`. Provado rodando um único `*IT`, sem nenhum unitário — o `check` leu 28% de cobertura vinda dele. E o arquivo **acumulava** execuções anteriores: um teste apagado continuaria "cobrindo" pelos dados velhos. | Agentes e arquivos separados (`jacoco.exec` para o gate, `jacoco-it.exec` informativo) e `append=false`. É o compromisso 1 como a especificação o escreve: 100% **pelos testes unitários**, rápidos e isolados (F.I.R.S.T., *Clean Code* cap. 9). Com a medição corrigida, o resultado se manteve em 100% — a cobertura nunca dependeu da integração, e agora o build prova isso. |
+| **A listagem não tinha links de navegação.** A página devolvia só `users`; a especificação (e a tabela de tecnologias: "links de navegação nas respostas REST") prometia `first`/`next`/`last`. Sem eles, o cliente precisa montar URL para paginar. | `UserModelAssembler` passa a dar `self`, `first`, `last` e, quando existem, `prev`/`next`, repetindo a busca e a ordenação pedidas. Os parâmetros chegam decodificados e são codificados uma só vez — reaproveitar a query string crua codificaria de novo o que já veio codificado (testado com `João & Maria`). A regra de "tem próxima/anterior" já era do núcleo (`PageResult.hasNext`/`hasPrevious`); o canal só a traduz em link. |
+| **"Token inválido ou expirado" só testava lixo.** O teste mandava `token.que.nao.vale`; nenhum teste provava que um token **expirado** ou **forjado** com outra chave é recusado — os dois ataques que importam. | `JwtAuthenticationIT`: expirado, outra chave e `alg: none`, todos se passando pelo administrador, contra a listagem administrativa; e um **controle** com o mesmo formato e a chave certa, que responde `200`. Sem o controle, os três passariam também se o token do teste estivesse apenas malformado. O teste antigo foi renomeado para o que de fato verifica. |
+| **Busca por HTTP sem teste de ponta a ponta.** Busca parcial, maiúsculas, ordenação proibida e navegação só eram provadas na persistência, não do parâmetro da URL até o `ORDER BY`. | `UserSearchIT`, incluindo o cliente que percorre as páginas **só seguindo links**. Revelou uma expectativa errada minha, não um defeito: `sort=password,desc` volta em ordem **crescente** — o caso de uso descarta o pedido inteiro, direção inclusive, como a Etapa 3 especifica. |
+| **Token de redefinição vencido, senha preservada na atualização e autor da auditoria não tinham teste por HTTP.** | `AuthApiIT` ganhou o token vencido (o vencimento é empurrado para trás no banco; quem decide que venceu continua sendo a aplicação). `UserApiIT` ganhou a senha e os papéis preservados no `PUT` e o **autor** gravado em cada alteração. Este último mostrou um comportamento que vale registrar: um `PUT` idêntico ao estado gravado não gera `UPDATE`, e o autor anterior continua — "última alteração" é de dado, não de pedido. |
+| **Nenhum teste encadeava o ciclo de vida.** Cada passo era provado isolado; nada provava que o estado deixado por um é o que o seguinte precisa, nem que a exclusão não deixa órfãos. | `UserLifecycleIT`: o cenário principal de sucesso de Cockburn, do cadastro à exclusão, conferindo no banco que nada restou nas quatro tabelas. |
+| **Convenções só no papel.** `@DisplayName`, nome `deve…`, unitário sem contexto, integração sem dublê de bean — tudo escrito no `CLAUDE.md`, nada verificado. A auditoria achou os 393 testes em conformidade (12 usam `naoDeve…`, negação natural da convenção, agora aceita por escrito). | `TestConventionsTest`, 7 regras ArchUnit sobre as classes de **teste**, no mesmo espírito da regra de dependência: convenção que o build não verifica vale até o primeiro esquecimento. Conferido ao contrário, com arquivos que violavam de propósito cinco delas: as cinco falharam. |
+| **A regra de caso de uso não conferia o `run`.** A especificação diz "sufixo `UseCase` e método público `run`"; a regra só olhava o sufixo. | A regra passou a exigir `run` como **único** método público de instância: um caso de uso é uma intenção do ator, e um segundo método público seria outro caso de uso escondido. Os nove já cumpriam. |
+| **Independência declarada, não verificada.** | A suíte inteira rodou em ordem aleatória de classes e de métodos com duas sementes (`11` e `2026`), confirmado pela ordem das classes no log: verde nas duas. |
+| **Texto da especificação desatualizado.** Citava `JwtService` e `AuditorProvider` (hoje `JwtTokenIssuer` e `AuthenticatedAuditorAware`), "projeção sem `password`" (a leitura traz o agregado inteiro e quem esconde a senha é o presenter — Etapa 5), "`IMailGateway` em memória" (o dublê é o `JavaMailSender`, e o gateway real roda) e "isolados por transação" (impossível nos testes HTTP). | Texto alinhado ao código, com a razão de cada diferença. |
+
+**Verificação.** `mvn clean verify`: **422 testes unitários** (411 + 4 do assembler + 7 regras
+de convenção) e **89 de integração** (76 + 13 novos) — **BUILD SUCCESS**. Cobertura **só dos
+testes unitários**, agora medida em separado: **1016/1016 linhas, 226/226 ramos, 427/427
+métodos** — 100%. A integração, sozinha, cobre 956/1016 linhas (94%) e 151/226 ramos (67%); os
+ramos que ela não alcança são, em sua maioria, recusas defensivas que só um teste unitário
+provoca (argumento nulo, falha de biblioteca), e é por isso que os dois compromissos existem.
 
 ---
 
