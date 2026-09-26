@@ -259,11 +259,6 @@ class ErrorHandlingIT extends WebIntegrationTestSupport {
         return new Usuario(UUID.fromString(criado.get("id").asText()), login, autenticar(login, "senhaSegura123"));
     }
 
-    private String autenticar(String login, String senha) {
-        return rest.postForEntity("/api/v1/auth/login", corpo(Map.of("login", login, "password", senha)),
-                JsonNode.class).getBody().get("token").asText();
-    }
-
     private record Usuario(UUID id, String login, String token) {
     }
 }

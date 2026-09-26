@@ -1,13 +1,30 @@
+# Nome próprio do projeto. Sem ele o Compose usa o nome da pasta (`restaurantes`) — o mesmo da
+# Fase 1 —, e as duas fases passam a compartilhar volume: o banco da Fase 2 subiria sobre o
+# histórico do Flyway da Fase 1 e a aplicação recusaria iniciar. Com nome próprio, containers,
+# rede e volume ficam separados.
+#
+# Pelo mesmo motivo não há `container_name`: nome de container é global no Docker e colidiria
+# com o `restaurantes-db` da Fase 1. O Compose gera nomes já prefixados pelo projeto
+# (restaurantes-fase2-db-1, ...).
+#
+# Portas: o nome separa volume e containers, mas porta do host é recurso da máquina — com a
+# Fase 1 rodando, 5432 e 8080 já estão ocupadas. Por isso a porta do HOST vem do .env
+# (DB_PORT, APP_PORT, MAIL_PORT, MAILPIT_UI_PORT), com o padrão ao lado; a porta dentro da
+# rede do Compose não muda. Todas ficam presas a 127.0.0.1: banco com senha de exemplo e caixa
+# de e-mail com tokens de redefinição de senha não podem ficar abertos para a rede local.
+#
+# Imagens com versão exata, nunca tag móvel: o mesmo `up` tem de produzir o mesmo ambiente.
+name: restaurantes-fase2
+
 services:
   db:
-    image: postgres:16-alpine
-    container_name: restaurantes-db
+    image: postgres:16.15-alpine3.24
     environment:
       POSTGRES_DB: ${DB_NAME:-restaurantes-app}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -16,13 +33,24 @@ services:
       timeout: 5s
       retries: 5
 
+  # Servidor SMTP de testes: recebe os e-mails da aplicação e os mostra numa interface web em
+  # http://localhost:8025, sem entregar nada a ninguém. É o que torna a recuperação de senha
+  # verificável — o token só existe no corpo do e-mail.
+  mailpit:
+    image: axllent/mailpit:v1.31.2
+    ports:
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"   # interface web
+      - "127.0.0.1:${MAIL_PORT:-1025}:1025"         # SMTP, para a aplicação rodando fora do Docker
+
   app:
     build: .
-    container_name: restaurantes-app
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     environment:
+      # Endereço do banco dentro da rede do Compose. O DB_PORT do .env é a porta do host.
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-restaurantes-app}
@@ -31,18 +59,17 @@ services:
       # Sem padrão: a aplicação recusa subir sem um segredo próprio (ver .env.example).
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-3600000}
-      MAIL_HOST: ${MAIL_HOST:-host.docker.internal}
-      MAIL_PORT: ${MAIL_PORT:-1025}
-      MAIL_USERNAME: ${MAIL_USERNAME:-}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
-      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
-      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-false}
+      # Fixos, como o DB_HOST: dentro do Compose o SMTP é sempre o Mailpit. Se viessem do .env,
+      # o MAIL_HOST=localhost do exemplo apontaria para o próprio container da aplicação, e todo
+      # e-mail se perderia em silêncio (falha de SMTP não derruba a requisição, de propósito).
+      # Pelo mesmo motivo as credenciais de SMTP real (MAIL_USERNAME...) não são repassadas: o
+      # Compose é o ambiente de demonstração, e provedor real é configuração de quem roda fora.
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
       MAIL_FROM: ${MAIL_FROM:-no-reply@restaurantes.postech}
       MAIL_RESET_TOKEN_EXPIRATION_MINUTES: ${MAIL_RESET_TOKEN_EXPIRATION_MINUTES:-30}
     ports:
-      - "8080:8080"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
 
 volumes:
   postgres_data:

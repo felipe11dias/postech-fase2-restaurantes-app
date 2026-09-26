@@ -28,12 +28,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 /**
  * Autenticação e recuperação de senha por HTTP. O SMTP é a única coisa mockada — mandar
  * e-mail de verdade em teste não prova nada e depende de um servidor externo.
- *
- * <p>O indicador de saúde do e-mail é desligado aqui porque ele se monta a partir dos beans
- * concretos {@code JavaMailSenderImpl}, e o substituto é um dublê: sem isso o contexto nem
- * sobe. É configuração de teste, não mudança de comportamento da aplicação.
  */
-@org.springframework.test.context.TestPropertySource(properties = "management.health.mail.enabled=false")
 class AuthApiIT extends WebIntegrationTestSupport {
 
     private static final String LOGIN = "/api/v1/auth/login";

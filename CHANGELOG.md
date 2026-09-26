@@ -178,3 +178,37 @@
   seu código.
 - 22 testes unitários novos (411 no total) e 9 de integração (73 no total); cobertura unitária
   100% (998 linhas, 222 ramos).
+
+## Etapa 10 — Execução com Docker Compose
+- `docker-compose.yml`: `name: restaurantes-fase2` e sem `container_name`, para não
+  compartilhar volume nem colidir nome de container com a Fase 1.
+- Serviço `mailpit` (`axllent/mailpit:v1.31.2`): SMTP de testes com interface em
+  `http://localhost:8025`, que torna a recuperação de senha utilizável localmente.
+- `MAIL_HOST`/`MAIL_PORT` fixos no Compose: vindos do `.env`, o `localhost` do exemplo apontava
+  para o próprio container da aplicação e os e-mails se perdiam em silêncio.
+- `Dockerfile`: execução como usuário sem privilégio, `HEALTHCHECK` no `/actuator/health`,
+  heap limitado a 75% da memória do container.
+- `management.health.mail.enabled: false`: SMTP é opcional e não pode marcar a API como
+  doente; o ajuste equivalente no `AuthApiIT` saiu.
+- `.dockerignore` sem relatório/PDF; `.env.example` explica o que vale dentro e fora do Docker.
+- Passo a passo executado literalmente: recusa sem segredo próprio, subida saudável, fluxo
+  completo de recuperação de senha com o token lido no Mailpit, dados preservados no
+  `down`/`up` e removidos só deste projeto no `down -v`.
+- Correções da revisão de código da etapa (nove achados, um de segurança):
+  - Portas publicadas só em `127.0.0.1`: o Mailpit (com tokens de redefinição de senha) e o
+    PostgreSQL (senha de exemplo) ficavam alcançáveis pela rede local.
+  - Porta do host configurável no `.env` (`DB_PORT`, `APP_PORT`, `MAIL_PORT`,
+    `MAILPIT_UI_PORT`): as portas fixas colidiam com a Fase 1 rodando.
+  - Credenciais de SMTP real movidas para a seção "só fora do Docker" do `.env.example`; o
+    Compose não as repassa.
+  - `HealthIT` (3 testes): com SMTP real inalcançável, a saúde é `UP`; pública sem detalhes;
+    componentes `db` e `diskSpace`, sem `mail`. Religar o indicador faz os três falharem.
+  - Documentação da saúde corrigida: conta banco e disco; o efeito do indicador de e-mail
+    seria o container `unhealthy`, não reiniciado.
+  - `Dockerfile`: cache do BuildKit para o `~/.m2` no lugar da camada de `go-offline`,
+    `-Dmaven.test.skip=true` e healthcheck pelo código HTTP, sem `grep` no JSON.
+  - Imagens com versão exata: `postgres:16.15-alpine3.24` (Compose e Testcontainers),
+    `maven:3.9.16-eclipse-temurin-21-noble`, `eclipse-temurin:21.0.11_10-jre-alpine-3.23`.
+  - `autenticar` dos ITs por HTTP centralizado na `WebIntegrationTestSupport`.
+  - `mvn verify`: 411 testes unitários e 76 de integração; cobertura unitária 100% (998 linhas,
+    222 ramos). Pilha verificada de novo contra os containers, em portas alternativas.

@@ -43,8 +43,8 @@ mvn verify                                 # + testes *IT (Testcontainers, exige
 mvn test -Dtest=UserTest                   # uma classe
 mvn test -Dtest='UserTest#deveCriarQuandoValido'   # um método
 mvn verify -Dit.test=UserLifecycleIT       # um teste de integração
-docker compose up -d db                    # só o PostgreSQL (porta 5432)
-docker compose up --build                  # app + banco
+docker compose up -d db mailpit            # só o PostgreSQL (5432) e o Mailpit (SMTP 1025, web 8025)
+docker compose up --build                  # app + banco + Mailpit (exige JWT_SECRET no .env)
 ```
 
 Cobertura: `target/site/jacoco/index.html` (XML em `jacoco.xml`). **O `verify` falha abaixo de
@@ -52,7 +52,7 @@ Cobertura: `target/site/jacoco/index.html` (XML em `jacoco.xml`). **O `verify` f
 quebra. Únicas exclusões: `RestaurantesApplication` e `infrastructure/config/*Config`.
 
 Surefire roda `**/*Test`; Failsafe roda `**/*IT` (só no `verify`). Testes de integração
-estendem `IntegrationTestSupport` (`@SpringBootTest` + Testcontainers `postgres:16-alpine`) e
+estendem `IntegrationTestSupport` (`@SpringBootTest` + Testcontainers `postgres:16.15-alpine3.24`) e
 nunca mockam beans da aplicação (exceto SMTP). O container é **único e compartilhado**,
 iniciado em bloco `static` na classe base — **não** usar `@Testcontainers`/`@Container`: o
 JUnit encerraria o container ao fim da primeira classe e as seguintes reaproveitariam o
@@ -179,8 +179,9 @@ Pontos que só ficam claros lendo várias camadas:
 - `type` é URN (`urn:restaurantes:problema:<categoria>`), único por categoria — é o identificador
   em que o cliente se apoia.
 - Nos testes de integração por HTTP, estender `WebIntegrationTestSupport` (`RANDOM_PORT`).
-  Ao substituir o `JavaMailSender` por dublê, desligar `management.health.mail.enabled` —
-  o indicador de saúde se monta a partir dos beans concretos e derruba o contexto.
+  O indicador de saúde do e-mail é desligado na própria aplicação (`management.health.mail.enabled:
+  false`, Etapa 10): SMTP é opcional e não pode marcar a API como doente. Por isso substituir o
+  `JavaMailSender` por dublê nos testes não exige configuração extra.
 
 ### Documentação OpenAPI (Etapa 9, já implementada)
 
@@ -198,6 +199,30 @@ Pontos que só ficam claros lendo várias camadas:
 - Constantes compartilhadas entre `config` e controllers ficam em `web/doc/ApiDocumentation`,
   não na `OpenApiConfig` — a `SecurityConfig` já depende dos controllers, e o contrário criaria
   ciclo entre pacotes.
+
+### Execução com Docker Compose (Etapa 10, já implementada)
+
+- Projeto Compose com nome próprio (`name: restaurantes-fase2`) e **sem `container_name`**:
+  nome de container é global no Docker, e a Fase 1 desta máquina usa `restaurantes-db`. O
+  volume é `restaurantes-fase2_postgres_data`; nunca rodar `down -v` pensando que é outro.
+- Dentro do Compose, a aplicação acha os serviços pelo nome: `DB_HOST` e `MAIL_HOST` são
+  **fixos** no `docker-compose.yml`, não interpolados do `.env` — o `localhost` do `.env.example`
+  é para rodar fora do Docker e, lá dentro, apontaria para o próprio container.
+- E-mails de teste vão para o Mailpit (`http://localhost:8025`; API em `/api/v1/messages`). É o
+  único jeito de obter o token de redefinição de senha localmente.
+- **Toda imagem com versão exata** (Compose, `Dockerfile` e Testcontainers), nunca tag móvel
+  (`latest`, `16-alpine`). O Postgres do `SharedPostgres` é o mesmo do serviço `db`: mudou um,
+  muda o outro.
+- **Portas publicadas só em `127.0.0.1`**, com a porta do host vinda do `.env` (`DB_PORT`,
+  `APP_PORT`, `MAIL_PORT`, `MAILPIT_UI_PORT`). A porta interna do Compose é fixa. Serviço novo
+  segue o mesmo padrão: `"127.0.0.1:${X_PORT:-padrão}:interna"`.
+- Credenciais de SMTP real não são repassadas ao Compose; lá o e-mail é sempre do Mailpit.
+- A imagem roda como usuário `app`, sem privilégio. Build com cache do BuildKit para o `~/.m2`
+  e `-Dmaven.test.skip=true` (testes são do `mvn verify`, fora da imagem).
+- Healthcheck decide pelo código HTTP do `/actuator/health` (503 quando algo está DOWN). A
+  saúde conta banco e disco; indicador de serviço opcional (e-mail) fica desligado, senão o
+  container vira `unhealthy` por causa dele. `HealthIT` garante isso com SMTP real inalcançável.
+- Nos ITs por HTTP, login pelo `autenticar(login, senha)` da `WebIntegrationTestSupport`.
 
 ## Convenções do domínio (Etapa 2, já implementadas)
 
