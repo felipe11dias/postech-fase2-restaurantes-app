@@ -3,11 +3,18 @@ package com.postech.restaurantes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.domain.JavaMethod;
+import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
 import com.tngtech.archunit.library.Architectures;
+import java.util.List;
 
 /**
  * Regra de dependência da Clean Architecture, verificada em build.
@@ -29,6 +36,23 @@ class ArchitectureTest {
     private static final String ADAPTER = "..adapter..";
     private static final String INFRASTRUCTURE = "..infrastructure..";
     private static final String PACKAGE_INFO = "package-info";
+
+    private static final ArchCondition<JavaClass> TER_RUN_COMO_UNICA_ENTRADA_PUBLICA =
+            new ArchCondition<>("ter run como único método público de instância") {
+                @Override
+                public void check(JavaClass classe, ConditionEvents eventos) {
+                    List<String> publicos = classe.getMethods().stream()
+                            .filter(metodo -> metodo.getModifiers().contains(JavaModifier.PUBLIC))
+                            .filter(metodo -> !metodo.getModifiers().contains(JavaModifier.STATIC))
+                            .map(JavaMethod::getName)
+                            .distinct()
+                            .toList();
+                    if (!publicos.equals(List.of("run"))) {
+                        eventos.add(SimpleConditionEvent.violated(classe, classe.getName()
+                                + " expõe " + publicos + " em vez de só run"));
+                    }
+                }
+            };
 
     private static final String[] FRAMEWORK_PACKAGES = {
         "org.springframework..",
@@ -83,12 +107,18 @@ class ArchitectureTest {
                     .should().dependOnClassesThat().resideInAnyPackage(FRAMEWORK_PACKAGES)
                     .allowEmptyShould(true);
 
+    /**
+     * Um caso de uso é uma intenção do ator (Cockburn), e a sua única porta de entrada é
+     * {@code run}: a fábrica estática monta, {@code run} executa. Um segundo método público de
+     * instância seria um segundo caso de uso escondido dentro do primeiro.
+     */
     @ArchTest
     static final ArchRule casos_de_uso_terminam_em_UseCase =
             classes().that().resideInAPackage("..application.usecase..")
                     .and().areNotInterfaces()
                     .and().doNotHaveSimpleName(PACKAGE_INFO)
                     .should().haveSimpleNameEndingWith("UseCase")
+                    .andShould(TER_RUN_COMO_UNICA_ENTRADA_PUBLICA)
                     .allowEmptyShould(true);
 
     @ArchTest

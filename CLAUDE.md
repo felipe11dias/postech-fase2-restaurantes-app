@@ -50,6 +50,10 @@ docker compose up --build                  # app + banco + Mailpit (exige JWT_SE
 Cobertura: `target/site/jacoco/index.html` (XML em `jacoco.xml`). **O `verify` falha abaixo de
 100% de linhas e ramos** — toda classe nova entra com seus testes no mesmo passo, ou o build
 quebra. Únicas exclusões: `RestaurantesApplication` e `infrastructure/config/*Config`.
+**O gate mede só os testes unitários** (`target/jacoco.exec`): o Failsafe tem agente próprio,
+grava `jacoco-it.exec`, e o relatório da integração (`target/site/jacoco-it`) é informativo.
+Linha coberta só por `*IT` não conta — escreva o teste unitário. Rodando só um IT
+(`-Dtest=NoSuch -Dsurefire.failIfNoSpecifiedTests=false`) não há `jacoco.exec` e o `check` é pulado.
 
 Surefire roda `**/*Test`; Failsafe roda `**/*IT` (só no `verify`). Testes de integração
 estendem `IntegrationTestSupport` (`@SpringBootTest` + Testcontainers `postgres:16.15-alpine3.24`) e
@@ -148,6 +152,10 @@ Pontos que só ficam claros lendo várias camadas:
   `@PreAuthorize("hasRole('ADMIN') or @userSecurity.isSelf(#id, authentication)")`.
 - `CompositionConfig` é a raiz de composição: os controllers de adaptação são objetos comuns
   criados pelas fábricas estáticas, nunca `@Component`.
+- **Listagem paginada dá links de navegação** (`self`/`first`/`last` sempre, `prev`/`next`
+  quando existem), repetindo `name` e `sort` como o cliente mandou. Montar a URL a partir dos
+  parâmetros decodificados e codificar uma vez (`toUriComponentsBuilder()...build().encode()`),
+  nunca a partir da query string crua. Vale para toda listagem nova (restaurante, cardápio).
 - **Operação sobre o conjunto de cadastros é administrativa** (`GET /api/v1/users` →
   `hasRole('ADMIN')`). Endpoint que devolve dados de vários usuários não pode ficar só em
   `authenticated()`, senão anula a regra de posse das operações por id. Vale para restaurante
@@ -248,13 +256,28 @@ Pontos que só ficam claros lendo várias camadas:
 - Ao verificar "nenhum elemento nulo" em coleções use `stream().noneMatch(Objects::isNull)`
   — `contains(null)` lança NPE em `Set.of`/`List.of`.
 
-## Testes
+## Testes (Etapa 11, já implementada)
 
-- Estrutura arrange / act / assert; `@DisplayName` em linguagem de negócio; métodos
-  `deve<Comportamento>Quando<Condição>`; casos "em branco" com `@ParameterizedTest` +
-  `@NullAndEmptySource`.
+- **`TestConventionsTest` verifica no build** (ArchUnit sobre as classes de teste): `@DisplayName`
+  em todo `@Test`/`@ParameterizedTest`; método `deve<Comportamento>[Quando<Condição>]` ou
+  `naoDeve…`; `*Test` sem Testcontainers, `spring-boot-test`, contexto de teste do Spring nem
+  JDBC; `*IT` estende `IntegrationTestSupport` ou `WebIntegrationTestSupport`; `@MockitoBean` só
+  em `JavaMailSender`; nenhum `@MockitoSpyBean`; nenhum `@Testcontainers`.
+- Estrutura arrange / act / assert; casos "em branco" com `@ParameterizedTest` + `@NullAndEmptySource`.
 - Unitário nunca sobe contexto Spring nem toca banco. `domain` sem mocks; casos de uso com
   mocks de `I*Gateway`; adaptadores com mocks de `I*DataSource`.
+- Caso de uso tem `run` como **único** método público de instância (regra do `ArchitectureTest`).
+- Em IT, `JdbcTemplate` só para o que a API não permite: preparar o que o tempo não deixa
+  esperar (empurrar um vencimento para trás) ou ler o que ela não expõe (colunas de autoria).
+  Nunca para contornar uma regra — quem decide continua sendo a aplicação.
+- Token forjado/expirado em IT: montar com jjwt e **sempre** incluir um controle com o mesmo
+  formato e a chave certa respondendo 200; sem ele, a recusa pode ser só token malformado.
+- Um `PUT` idêntico ao estado gravado não gera `UPDATE` (dirty checking): teste de auditoria
+  precisa mudar algum dado a cada alteração.
+- Independência de ordem: rodar de vez em quando
+  `mvn verify -Djunit.jupiter.testclass.order.default='org.junit.jupiter.api.ClassOrderer$Random'
+  -Djunit.jupiter.testmethod.order.default='org.junit.jupiter.api.MethodOrderer$Random'
+  -Djunit.jupiter.execution.order.random.seed=<n>`.
 - ArchUnit enxerga `package-info` como classe: regras de nomenclatura devem excluí-lo
   (`doNotHaveSimpleName("package-info")`).
 

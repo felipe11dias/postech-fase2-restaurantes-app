@@ -193,17 +193,43 @@
                     </excludes>
                 </configuration>
                 <executions>
+                    <!--
+                      Dois agentes, dois arquivos. O gate de 100% é dos testes UNITÁRIOS: se o
+                      Failsafe gravasse no mesmo jacoco.exec (o padrão, porque os dois plugins leem
+                      o mesmo argLine), uma linha coberta só por teste de integração passaria no
+                      check. append=false: sem isso o arquivo acumula execuções anteriores, e um
+                      teste apagado continuaria "cobrindo" pelos dados velhos.
+                    -->
                     <execution>
                         <id>prepare-agent</id>
                         <goals>
                             <goal>prepare-agent</goal>
                         </goals>
+                        <configuration>
+                            <append>false</append>
+                        </configuration>
                     </execution>
                     <execution>
                         <id>report</id>
                         <phase>test</phase>
                         <goals>
                             <goal>report</goal>
+                        </goals>
+                    </execution>
+                    <!-- Cobertura da integração: informativa, em target/site/jacoco-it; fora do gate. -->
+                    <execution>
+                        <id>prepare-agent-integration</id>
+                        <goals>
+                            <goal>prepare-agent-integration</goal>
+                        </goals>
+                        <configuration>
+                            <append>false</append>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>report-integration</id>
+                        <goals>
+                            <goal>report-integration</goal>
                         </goals>
                     </execution>
                     <execution>

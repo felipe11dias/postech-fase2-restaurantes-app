@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.postech.restaurantes.WebIntegrationTestSupport;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -18,7 +19,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.SimpleMailMessage;
@@ -37,6 +40,9 @@ class AuthApiIT extends WebIntegrationTestSupport {
 
     @MockitoBean
     private JavaMailSender mailSender;
+
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @BeforeEach
     void limparMock() {
@@ -139,6 +145,28 @@ class AuthApiIT extends WebIntegrationTestSupport {
 
         assertEquals(HttpStatus.BAD_REQUEST, segunda.getStatusCode());
         assertEquals("urn:restaurantes:problema:token-invalido", segunda.getBody().get("type").asText());
+    }
+
+    @Test
+    @DisplayName("Token vencido é recusado com 400 token-invalido, e a senha continua a mesma")
+    void deveRecusarTokenVencido() {
+        String login = "vencido" + UUID.randomUUID().toString().substring(0, 8);
+        cadastrar(login);
+        rest.postForEntity(FORGOT, corpo(Map.of("email", login + "@email.com")), Void.class);
+        String token = tokenEnviado();
+        // Não dá para esperar a validade real passar: o vencimento é empurrado para trás no banco,
+        // e quem decide que o token venceu continua sendo a aplicação.
+        jdbc.update("UPDATE password_reset_tokens t SET expires_at = ? FROM users u "
+                + "WHERE t.user_id = u.id AND u.login = ?", LocalDateTime.now().minusDays(1), login);
+
+        ResponseEntity<JsonNode> resposta = rest.postForEntity(RESET, corpo(Map.of("token", token,
+                "newPassword", "senhaNova456", "confirmPassword", "senhaNova456")), JsonNode.class);
+
+        assertEquals(HttpStatus.BAD_REQUEST, resposta.getStatusCode());
+        assertEquals("urn:restaurantes:problema:token-invalido", resposta.getBody().get("type").asText());
+        assertEquals(HttpStatus.OK, rest.postForEntity(LOGIN,
+                corpo(Map.of("login", login, "password", "senhaSegura123")), JsonNode.class).getStatusCode(),
+                "a senha antiga continua valendo");
     }
 
     @Test
