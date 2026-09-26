@@ -69,3 +69,10 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+  # O SMTP fora do ar não torna a API indisponível: o "esqueci minha senha" registra a falha e
+  # responde normalmente (Etapa 7). Se o indicador de e-mail contasse, o healthcheck do container
+  # daria a aplicação como doente — e um orquestrador a reiniciaria — por causa de um serviço
+  # opcional. A saúde reflete o que de fato impede a API de funcionar: o banco.
+  health:
+    mail:
+      enabled: false

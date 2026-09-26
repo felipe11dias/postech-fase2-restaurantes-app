@@ -1,3 +1,5 @@
+# O contexto de build só precisa de pom.xml e src/. Todo o resto é peso enviado ao Docker a
+# cada build — ou, no caso de .env, segredo que não pode acabar numa camada da imagem.
 target/
 .git/
 .gitignore
@@ -6,3 +8,5 @@ target/
 .vscode/
 *.md
 .env
+relatorios/
+postman/

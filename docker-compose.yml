@@ -1,7 +1,16 @@
+# Nome próprio do projeto. Sem ele o Compose usa o nome da pasta (`restaurantes`) — o mesmo da
+# Fase 1 —, e as duas fases passam a compartilhar volume: o banco da Fase 2 subiria sobre o
+# histórico do Flyway da Fase 1 e a aplicação recusaria iniciar. Com nome próprio, containers,
+# rede e volume ficam separados.
+#
+# Pelo mesmo motivo não há `container_name`: nome de container é global no Docker e colidiria
+# com o `restaurantes-db` da Fase 1. O Compose gera nomes já prefixados pelo projeto
+# (restaurantes-fase2-db-1, ...).
+name: restaurantes-fase2
+
 services:
   db:
     image: postgres:16-alpine
-    container_name: restaurantes-db
     environment:
       POSTGRES_DB: ${DB_NAME:-restaurantes-app}
       POSTGRES_USER: ${DB_USER:-postgres}
@@ -16,12 +25,22 @@ services:
       timeout: 5s
       retries: 5
 
+  # Servidor SMTP de testes: recebe os e-mails da aplicação e os mostra numa interface web em
+  # http://localhost:8025, sem entregar nada a ninguém. É o que torna a recuperação de senha
+  # verificável — o token só existe no corpo do e-mail.
+  mailpit:
+    image: axllent/mailpit:v1.31.2
+    ports:
+      - "8025:8025"   # interface web
+      - "1025:1025"   # SMTP, para a aplicação rodando fora do Docker
+
   app:
     build: .
-    container_name: restaurantes-app
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     environment:
       DB_HOST: db
       DB_PORT: 5432
@@ -31,18 +50,15 @@ services:
       # Sem padrão: a aplicação recusa subir sem um segredo próprio (ver .env.example).
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-3600000}
-      MAIL_HOST: ${MAIL_HOST:-host.docker.internal}
-      MAIL_PORT: ${MAIL_PORT:-1025}
-      MAIL_USERNAME: ${MAIL_USERNAME:-}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
-      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
-      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-false}
+      # Fixos, como o DB_HOST: dentro do Compose o SMTP é sempre o Mailpit. Se viessem do .env,
+      # o MAIL_HOST=localhost do exemplo apontaria para o próprio container da aplicação, e todo
+      # e-mail se perderia em silêncio (falha de SMTP não derruba a requisição, de propósito).
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
       MAIL_FROM: ${MAIL_FROM:-no-reply@restaurantes.postech}
       MAIL_RESET_TOKEN_EXPIRATION_MINUTES: ${MAIL_RESET_TOKEN_EXPIRATION_MINUTES:-30}
     ports:
       - "8080:8080"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
 volumes:
   postgres_data:

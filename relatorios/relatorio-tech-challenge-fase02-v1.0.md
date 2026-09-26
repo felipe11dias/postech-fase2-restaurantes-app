@@ -35,11 +35,11 @@
 | 7   | API REST, Segurança e JWT (infraestrutura)         | ✅     |
 | 8   | Tratamento de Erros (ProblemDetail)                | ✅     |
 | 9   | Documentação Swagger                               | ✅     |
-| 10  | Execução com Docker Compose                        | ⏳     |
+| 10  | Execução com Docker Compose                        | ✅     |
 | 11  | Testes — unitários (100% cobertura) e de integração | ⏳    |
 | 12  | Entregáveis (Postman, README)                      | ⏳     |
 
-**Progresso:** 9 de 12 etapas concluídas.
+**Progresso:** 10 de 12 etapas concluídas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -1212,37 +1212,55 @@ métodos** — 100%.
 
 ## Etapa 10 — Execução com Docker Compose
 
+### Serviços
+
+| Serviço   | Imagem                    | Porta no host | Papel |
+| --------- | ------------------------- | ------------- | ----- |
+| `app`     | construída pelo `Dockerfile` | `8080`     | A API. Sobe depois que o banco está saudável. |
+| `db`      | `postgres:16-alpine`      | `5432`        | Banco, com volume próprio `restaurantes-fase2_postgres_data`. |
+| `mailpit` | `axllent/mailpit:v1.31.2` | `8025` (web), `1025` (SMTP) | SMTP de testes: recebe os e-mails de redefinição de senha e os mostra em `http://localhost:8025`, sem entregar nada a ninguém. |
+
 ### Variáveis de ambiente
 
 | Variável         | Padrão                              | Descrição                     |
 | ---------------- | ----------------------------------- | ----------------------------- |
+| `JWT_SECRET`     | **obrigatória, sem padrão**         | Segredo de assinatura do JWT (≥ 256 bits; o valor do `.env.example` é recusado de propósito) |
+| `JWT_EXPIRATION` | `3600000`                           | Expiração do token em ms      |
 | `DB_NAME`        | `restaurantes-app`                  | Nome do banco                 |
 | `DB_USER`        | `postgres`                          | Usuário do banco              |
 | `DB_PASSWORD`    | `postgres`                          | Senha do banco                |
-| `DB_HOST`        | `localhost` (local) / `db` (compose)| Host do banco                 |
+| `DB_HOST`        | `localhost` — no Compose, fixo em `db` | Host do banco                 |
 | `DB_PORT`        | `5432`                              | Porta do banco                |
-| `JWT_SECRET`     | **obrigatória, sem padrão**         | Segredo de assinatura do JWT (≥ 256 bits; valores de exemplo são recusados) |
-| `JWT_EXPIRATION` | `3600000`                           | Expiração do token em ms      |
-| `MAIL_HOST`      | `localhost` / `host.docker.internal`| SMTP para recuperação de senha |
+| `MAIL_HOST`      | `localhost` — no Compose, fixo em `mailpit` | SMTP para recuperação de senha |
 | `MAIL_PORT`      | `1025`                              | Porta do SMTP                 |
+| `MAIL_FROM`      | `no-reply@restaurantes.postech`     | Remetente                     |
+| `MAIL_RESET_TOKEN_EXPIRATION_MINUTES` | `30`           | Validade do token de redefinição |
+
+`DB_HOST` e `MAIL_HOST` só valem para rodar a aplicação **fora** do Docker; dentro do Compose,
+ela fala com os serviços pelo nome.
 
 ### Passo a passo
 
 ```bash
-# 1. (Opcional) criar seu .env a partir do exemplo
+# 1. Criar o .env e gerar um segredo JWT próprio (o do exemplo é recusado na subida)
 cp .env.example .env
+#    edite JWT_SECRET no .env — por exemplo, com o valor de: openssl rand -base64 48
 
-# 2. Subir apenas o banco (útil durante o desenvolvimento)
-docker compose up -d db
-
-# 3. Subir aplicação + banco juntos
+# 2. Subir tudo: aplicação, banco e Mailpit (o primeiro build leva alguns minutos)
 docker compose up --build
 
-# 4. Encerrar (adicione -v para apagar os dados do banco)
+# 3. Conferir
+#    API:      http://localhost:8080          (saúde: /actuator/health)
+#    Swagger:  http://localhost:8080/swagger-ui.html
+#    E-mails:  http://localhost:8025          (token de redefinição de senha)
+
+# 4. Encerrar — os dados do banco são mantidos; com -v, são apagados
 docker compose down
 ```
 
-Aplicação em `http://localhost:8080`; Swagger em `http://localhost:8080/swagger-ui.html`.
+Para desenvolver com a aplicação na IDE, suba só os serviços de apoio com
+`docker compose up -d db mailpit`; os valores `localhost` do `.env.example` já apontam para
+eles.
 
 ### Nome do projeto Compose
 
@@ -1256,6 +1274,36 @@ nenhuma apaga ou corrompe os dados da outra.
 > O Docker também é pré-requisito para `mvn verify`: os testes de integração da Etapa 11
 > sobem um PostgreSQL 16 via Testcontainers, com a mesma imagem `postgres:16-alpine` do
 > `docker-compose.yml`.
+
+### O que foi entregue nesta etapa
+
+Os arquivos de execução existiam desde a Etapa 1, mas nunca tinham sido executados de ponta a
+ponta. Revisados antes de rodar, tinham quatro problemas — e um quinto apareceu ao seguir o
+próprio passo a passo:
+
+| Componente | Decisão e conceito que a sustenta |
+| ---------- | --------------------------------- |
+| `name: restaurantes-fase2`, sem `container_name` | Isola a Fase 2 da Fase 1 (ver acima). O `container_name` fixo também saiu: nome de container é **global** no Docker, e `restaurantes-db` colidiria com o container da Fase 1 mesmo com o projeto renomeado. O Compose gera nomes já prefixados (`restaurantes-fase2-db-1`). |
+| Serviço `mailpit` | A recuperação de senha entrega o token **só** por e-mail — é o que a torna segura. Sem um SMTP, o recurso existia no código e era impossível de usar: o padrão anterior, `host.docker.internal:1025`, não tinha nada escutando. O Mailpit recebe os e-mails e os mostra numa interface, sem entregar nada a ninguém; é também o que a coleção Postman da Etapa 12 vai usar. Versão fixada (`v1.31.2`): `latest` faria o mesmo `docker compose up` produzir ambientes diferentes em dias diferentes. |
+| `MAIL_HOST`/`MAIL_PORT` fixos no Compose | O defeito que o passo a passo revelou: o `.env.example` traz `MAIL_HOST=localhost` (para quem roda fora do Docker), e o Compose usava o `.env` para interpolar o host do SMTP. Dentro do container da aplicação, `localhost` é ela mesma — e como falha de SMTP não derruba a requisição (Etapa 7), **todo e-mail se perderia em silêncio**. Agora o SMTP do Compose é fixo, como o `DB_HOST` já era: dentro do Compose, os serviços se encontram pelo nome. |
+| `Dockerfile` | Execução como usuário **sem privilégio** — se a aplicação for comprometida, o invasor não é root no container. Estágio de execução só com o JRE. Dependências numa camada separada do código, para o rebuild não baixá-las de novo. `HEALTHCHECK` no `/actuator/health`, com `start-period` cobrindo a subida do Spring e as migrations. Heap limitado a 75% da memória do container. |
+| `management.health.mail.enabled: false` | Com o indicador de e-mail ligado, o SMTP fora do ar marcaria a API como `DOWN`, e o healthcheck daria o container como doente — um orquestrador o reiniciaria por causa de um serviço **opcional**. Isso contradiria a decisão da Etapa 7, de que falha de SMTP é registrada e não derruba nada. A saúde passa a refletir o que de fato impede a API de funcionar: o banco. Com isso, o ajuste equivalente que o `AuthApiIT` fazia ficou redundante e saiu. |
+| `.dockerignore` e `.env.example` | O contexto de build deixa de enviar o relatório e o PDF, e o `.env` nunca entra numa camada da imagem. O `.env.example` passa a dizer quais variáveis valem dentro e fora do Docker. |
+
+**Verificação — o passo a passo executado literalmente**, contra os containers:
+
+| Passo | Resultado |
+| ----- | --------- |
+| `cp .env.example .env` e `docker compose up --build` **sem** trocar o segredo | `db` e `mailpit` saudáveis; `app` encerra com *"Segredo do JWT é o valor de exemplo publicado no repositório; gere um próprio…"* — a recusa é clara e diz o que fazer |
+| Segredo gerado com `openssl rand -base64 48` e `docker compose up` | os três serviços `healthy`; o processo da aplicação roda como `app`, não root |
+| Swagger UI, `/actuator/health`, login do administrador e listagem | `200`, `{"status":"UP"}`, `200`, `200` |
+| Cadastro → "esqueci minha senha" → token lido **no e-mail do Mailpit** → redefinição → login com a senha nova / com a antiga | `201` → `202` → token de 43 caracteres → `204` → `200` / `401` |
+| `docker compose down` e `up` | o usuário cadastrado continua lá; o Flyway reporta *"Schema is up to date. No migration necessary"* |
+| `docker compose down -v` | remove `restaurantes-fase2_postgres_data`; o volume e o container da Fase 1 continuam intactos |
+
+`mvn verify` segue verde — **411 testes unitários** e **73 de integração**, cobertura 100%
+(998/998 linhas, 222/222 ramos). Nenhuma classe Java nova nesta etapa: a entrega é o ambiente
+de execução e a sua verificação.
 
 ---
 

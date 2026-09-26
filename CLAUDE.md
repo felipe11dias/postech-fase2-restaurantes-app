@@ -43,8 +43,8 @@ mvn verify                                 # + testes *IT (Testcontainers, exige
 mvn test -Dtest=UserTest                   # uma classe
 mvn test -Dtest='UserTest#deveCriarQuandoValido'   # um método
 mvn verify -Dit.test=UserLifecycleIT       # um teste de integração
-docker compose up -d db                    # só o PostgreSQL (porta 5432)
-docker compose up --build                  # app + banco
+docker compose up -d db mailpit            # só o PostgreSQL (5432) e o Mailpit (SMTP 1025, web 8025)
+docker compose up --build                  # app + banco + Mailpit (exige JWT_SECRET no .env)
 ```
 
 Cobertura: `target/site/jacoco/index.html` (XML em `jacoco.xml`). **O `verify` falha abaixo de
@@ -179,8 +179,9 @@ Pontos que só ficam claros lendo várias camadas:
 - `type` é URN (`urn:restaurantes:problema:<categoria>`), único por categoria — é o identificador
   em que o cliente se apoia.
 - Nos testes de integração por HTTP, estender `WebIntegrationTestSupport` (`RANDOM_PORT`).
-  Ao substituir o `JavaMailSender` por dublê, desligar `management.health.mail.enabled` —
-  o indicador de saúde se monta a partir dos beans concretos e derruba o contexto.
+  O indicador de saúde do e-mail é desligado na própria aplicação (`management.health.mail.enabled:
+  false`, Etapa 10): SMTP é opcional e não pode marcar a API como doente. Por isso substituir o
+  `JavaMailSender` por dublê nos testes não exige configuração extra.
 
 ### Documentação OpenAPI (Etapa 9, já implementada)
 
@@ -198,6 +199,20 @@ Pontos que só ficam claros lendo várias camadas:
 - Constantes compartilhadas entre `config` e controllers ficam em `web/doc/ApiDocumentation`,
   não na `OpenApiConfig` — a `SecurityConfig` já depende dos controllers, e o contrário criaria
   ciclo entre pacotes.
+
+### Execução com Docker Compose (Etapa 10, já implementada)
+
+- Projeto Compose com nome próprio (`name: restaurantes-fase2`) e **sem `container_name`**:
+  nome de container é global no Docker, e a Fase 1 desta máquina usa `restaurantes-db`. O
+  volume é `restaurantes-fase2_postgres_data`; nunca rodar `down -v` pensando que é outro.
+- Dentro do Compose, a aplicação acha os serviços pelo nome: `DB_HOST` e `MAIL_HOST` são
+  **fixos** no `docker-compose.yml`, não interpolados do `.env` — o `localhost` do `.env.example`
+  é para rodar fora do Docker e, lá dentro, apontaria para o próprio container.
+- E-mails de teste vão para o Mailpit (`http://localhost:8025`; API em `/api/v1/messages`). É o
+  único jeito de obter o token de redefinição de senha localmente.
+- Serviço novo no Compose: versão de imagem fixada, nunca `latest`.
+- A imagem roda como usuário `app`, sem privilégio. Healthcheck depende só do banco — indicador
+  de serviço opcional (e-mail) fica desligado para não reiniciar a API por causa dele.
 
 ## Convenções do domínio (Etapa 2, já implementadas)
 
