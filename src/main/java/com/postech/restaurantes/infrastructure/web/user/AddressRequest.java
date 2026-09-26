@@ -1,6 +1,7 @@
 package com.postech.restaurantes.infrastructure.web.user;
 
 import com.postech.restaurantes.application.dto.common.AddressDTO;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.util.List;
@@ -12,12 +13,13 @@ import java.util.List;
  * a palavra final.
  */
 public record AddressRequest(
-        @NotBlank @Size(max = 150) String street,
-        @NotBlank @Size(max = 20) String number,
-        @Size(max = 100) String complement,
-        @NotBlank @Size(max = 100) String neighborhood,
-        @NotBlank @Size(max = 100) String city,
-        @NotBlank @Size(min = 2, max = 2) String state,
+        @Schema(example = "Rua das Flores") @NotBlank @Size(max = 150) String street,
+        @Schema(example = "100") @NotBlank @Size(max = 20) String number,
+        @Schema(example = "Apto 21") @Size(max = 100) String complement,
+        @Schema(example = "Centro") @NotBlank @Size(max = 100) String neighborhood,
+        @Schema(example = "São Paulo") @NotBlank @Size(max = 100) String city,
+        @Schema(description = "UF", example = "SP") @NotBlank @Size(min = 2, max = 2) String state,
+        @Schema(description = "8 dígitos, com ou sem máscara; a resposta devolve sem máscara", example = "01001-000")
         @NotBlank @Size(max = 9) String zipCode) {
 
     public AddressDTO toDTO() {

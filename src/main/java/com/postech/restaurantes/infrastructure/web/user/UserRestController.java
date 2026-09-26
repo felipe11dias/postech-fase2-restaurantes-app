@@ -4,6 +4,14 @@ import com.postech.restaurantes.adapter.controller.UserController;
 import com.postech.restaurantes.adapter.presenter.view.UserView;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.SortDirection;
+import com.postech.restaurantes.infrastructure.web.doc.ApiDocumentation;
+import com.postech.restaurantes.infrastructure.web.doc.ErrorResponse;
+import com.postech.restaurantes.infrastructure.web.error.ProblemType;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.UUID;
@@ -32,9 +40,16 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p><strong>Autorização por posse.</strong> As operações por id exigem ser o dono do cadastro
  * ou ter {@code ROLE_ADMIN}: conhecer o id de outra pessoa não basta para lê-la ou alterá-la.
+ *
+ * <p><strong>Documentação.</strong> Cada operação declara aqui o que devolve e, com
+ * {@code @ErrorResponse}, em que casos falha — pela categoria do erro, de onde sai o código HTTP.
+ * O {@code @SecurityRequirement} de cada operação precisa bater com o {@code @PreAuthorize} e
+ * com a {@code SecurityConfig} — e há teste de integração que confere isso contra o
+ * comportamento real.
  */
 @RestController
 @RequestMapping(UserRestController.BASE_PATH)
+@Tag(name = "Usuários")
 public class UserRestController {
 
     public static final String BASE_PATH = "/api/v1/users";
@@ -54,8 +69,21 @@ public class UserRestController {
         this.assembler = assembler;
     }
 
-    /** Autocadastro público. Pedir {@code ROLE_ADMIN} aqui é recusado pelo caso de uso. */
+    /**
+     * Autocadastro público. Pedir {@code ROLE_ADMIN} aqui é recusado pelo caso de uso.
+     *
+     * <p>O {@code @ResponseStatus} não muda o comportamento — quem define o 201 é o
+     * {@code ResponseEntity.created} —, mas sem ele o springdoc documentaria 200.
+     */
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Autocadastro",
+            description = "Cria um usuário. Público. Pode pedir ROLE_OWNER e/ou ROLE_CUSTOMER; "
+                    + "ROLE_ADMIN é recusado. A resposta traz o header Location do recurso criado.")
+    @ApiResponse(responseCode = "201", description = "Usuário criado")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Campo inválido, papel inexistente ou endereço inconsistente")
+    @ErrorResponse(type = ProblemType.FORBIDDEN_OPERATION, description = "Autocadastro pediu ROLE_ADMIN")
+    @ErrorResponse(type = ProblemType.DATA_CONFLICT, description = "E-mail ou login já cadastrado")
     public ResponseEntity<EntityModel<UserResponse>> register(@Valid @RequestBody NewUserRequest request) {
         UserView criado = controller.register(request.toDTO());
         EntityModel<UserResponse> corpo = assembler.toModel(criado);
@@ -64,7 +92,14 @@ public class UserRestController {
 
     @GetMapping("/{id}")
     @PreAuthorize(DONO_OU_ADMIN)
-    public EntityModel<UserResponse> findById(@PathVariable UUID id) {
+    @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
+    @Operation(summary = "Consulta um cadastro", description = "Só o próprio usuário ou um administrador.")
+    @ApiResponse(responseCode = "200", description = "Cadastro encontrado")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Id não é um UUID")
+    @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
+    @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Cadastro de outro usuário")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Usuário não encontrado")
+    public EntityModel<UserResponse> findById(@Parameter(description = "Id do usuário") @PathVariable UUID id) {
         return assembler.toModel(controller.findById(id));
     }
 
@@ -79,31 +114,70 @@ public class UserRestController {
      */
     @GetMapping
     @PreAuthorize(SO_ADMIN)
+    @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
+    @Operation(summary = "Lista os cadastros",
+            description = "Paginada, com busca parcial por nome sem diferenciar maiúsculas. Só administrador.")
+    @ApiResponse(responseCode = "200", description = "Página de usuários")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Página ou tamanho fora dos limites")
+    @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
+    @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Usuário não é administrador")
     public PagedModel<EntityModel<UserResponse>> search(
+            @Parameter(description = "Trecho do nome, sem diferenciar maiúsculas", example = "silva")
             @RequestParam(required = false) String name,
+            @Parameter(description = "Página, a partir de 0", example = "0")
             @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Itens por página, de 1 a 100", example = "20")
             @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "propriedade,direcao — id, name, email, login, createdAt ou lastUpdatedAt; "
+                    + "asc ou desc. Propriedade fora da lista cai em name.", example = "name,asc")
             @RequestParam(required = false) String sort) {
         return assembler.toPagedModel(controller.search(name, paginacao(page, size, sort)));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize(DONO_OU_ADMIN)
-    public EntityModel<UserResponse> update(@PathVariable UUID id, @Valid @RequestBody UpdateUserRequest request) {
+    @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
+    @Operation(summary = "Atualiza um cadastro",
+            description = "Substitui nome, e-mail, login e a lista de endereços inteira. Não altera senha nem "
+                    + "papéis. Só o próprio usuário ou um administrador.")
+    @ApiResponse(responseCode = "200", description = "Cadastro atualizado")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Campo inválido ou endereço inconsistente")
+    @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
+    @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Cadastro de outro usuário")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Usuário não encontrado")
+    @ErrorResponse(type = ProblemType.DATA_CONFLICT, description = "E-mail ou login já usado por outro cadastro")
+    public EntityModel<UserResponse> update(@Parameter(description = "Id do usuário") @PathVariable UUID id,
+                                            @Valid @RequestBody UpdateUserRequest request) {
         return assembler.toModel(controller.update(id, request.toDTO()));
     }
 
     @PatchMapping("/{id}/password")
     @PreAuthorize(DONO_OU_ADMIN)
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void changePassword(@PathVariable UUID id, @Valid @RequestBody ChangePasswordRequest request) {
+    @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
+    @Operation(summary = "Troca a senha", description = "Exige a senha atual. Só o próprio usuário ou um administrador.")
+    @ApiResponse(responseCode = "204", description = "Senha trocada")
+    @ErrorResponse(type = ProblemType.INVALID_PASSWORD, description = "Senha atual incorreta ou confirmação divergente")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Campo ausente ou senha nova fora das regras de tamanho")
+    @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
+    @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Cadastro de outro usuário")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Usuário não encontrado")
+    public void changePassword(@Parameter(description = "Id do usuário") @PathVariable UUID id,
+                               @Valid @RequestBody ChangePasswordRequest request) {
         controller.changePassword(id, request.toDTO());
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize(DONO_OU_ADMIN)
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable UUID id) {
+    @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
+    @Operation(summary = "Exclui um cadastro",
+            description = "Remove também endereços e tokens de redefinição. Só o próprio usuário ou um administrador.")
+    @ApiResponse(responseCode = "204", description = "Cadastro excluído")
+    @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
+    @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Cadastro de outro usuário")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Usuário não encontrado")
+    public void delete(@Parameter(description = "Id do usuário") @PathVariable UUID id) {
         controller.delete(id);
     }
 

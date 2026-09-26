@@ -34,12 +34,12 @@
 | 6   | Migrations e Seeds (Flyway)                        | ✅     |
 | 7   | API REST, Segurança e JWT (infraestrutura)         | ✅     |
 | 8   | Tratamento de Erros (ProblemDetail)                | ✅     |
-| 9   | Documentação Swagger                               | ⏳     |
+| 9   | Documentação Swagger                               | ✅     |
 | 10  | Execução com Docker Compose                        | ⏳     |
 | 11  | Testes — unitários (100% cobertura) e de integração | ⏳    |
 | 12  | Entregáveis (Postman, README)                      | ⏳     |
 
-**Progresso:** 8 de 12 etapas concluídas.
+**Progresso:** 9 de 12 etapas concluídas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -236,6 +236,7 @@ src/main/java/com/postech/restaurantes/
     ├── web/
     │   ├── error/                 # GlobalExceptionHandler, ProblemDetailFactory, ProblemType
     │   ├── validation/            # @ValidPassword
+    │   ├── doc/                   # ErrorResponse, ProblemDetailOpenApiCustomizer, ErrorResponseOperationCustomizer
     │   ├── user/                  # UserRestController, Request/Response, UserModelAssembler
     │   └── auth/                  # AuthRestController, Request/Response
     ├── persistence/               # AuditableJpaEntity, TransactionalUnitOfWork, AuthenticatedAuditorAware
@@ -243,7 +244,7 @@ src/main/java/com/postech/restaurantes/
     │   └── address/               # AddressJpaEntity
     ├── security/                  # JwtTokenIssuer, JwtAuthenticationFilter, BCryptPasswordAdapter, UserSecurity, JwtAuthenticationEntryPoint
     ├── mail/                      # SmtpMailGateway, MailProperties
-    └── config/                    # SecurityConfig, PersistenceConfig, CompositionConfig (raiz de composição)
+    └── config/                    # SecurityConfig, PersistenceConfig, OpenApiConfig, CompositionConfig (raiz de composição)
 ```
 
 Cada pacote nasce com um `package-info.java` que documenta sua regra de dependência — o
@@ -1150,6 +1151,62 @@ OpenAPI gerada pelo springdoc a partir dos `@RestController` e dos DTOs HTTP. A
 
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+
+**Como usar.** Chame `POST /api/v1/auth/login` com o exemplo já preenchido (`admin.demo` /
+`admin12345`), copie o `token` da resposta, clique em **Authorize** e cole só o token — o
+prefixo `Bearer` é incluído. As operações protegidas têm um cadeado; o token fica guardado
+mesmo se a página for recarregada.
+
+### Ponto de partida: o documento gerado sem configuração estava errado
+
+Antes de qualquer anotação, o documento que o springdoc publicava sozinho foi lido e
+comparado com a aplicação. Não era só incompleto — **afirmava coisas falsas**:
+
+| O que o documento dizia | O que a API faz |
+| ----------------------- | --------------- |
+| Nenhum esquema de segurança, nenhuma operação protegida | Cinco das nove operações exigem token |
+| `POST /api/v1/users` responde `200` | Responde `201` com `Location` — o springdoc não infere o status de um `ResponseEntity.created(...)` |
+| Nenhuma resposta de erro | Cada operação tem de dois a seis casos de erro, todos em ProblemDetail |
+| Título "OpenAPI definition", versão "v0" | — |
+
+Isso orientou a decisão central da etapa: documentação é **contrato**, e contrato que ninguém
+confere diverge do código em silêncio. Por isso a entrega não é só o documento, mas o documento
+**conferido contra a aplicação rodando**.
+
+### O que foi entregue nesta etapa
+
+| Componente | Decisão e conceito que a sustenta |
+| ---------- | --------------------------------- |
+| `@ErrorResponse(type = ProblemType.X, description = "…")` | Cada caso de erro é declarado pela **categoria**, não pelo número. O código HTTP documentado sai de `ProblemType.status()` — o mesmo catálogo que o `GlobalExceptionHandler` usa para responder. Com `@ApiResponse(responseCode = "403")` o número seria uma cópia, e cópia envelhece; assim existe **um lugar só** onde "acesso negado é 403" está escrito, e documentação e comportamento não podem divergir. |
+| `ErrorResponseOperationCustomizer` | Converte cada `@ErrorResponse` em resposta ProblemDetail com exemplo real da categoria (`type`, `title`, `status`). Casos com o mesmo código viram uma resposta só com um exemplo nomeado para cada um — a troca de senha documenta os dois `400` (senha atual incorreta e senha nova inválida), em vez de perder um deles. |
+| `ProblemDetailOpenApiCustomizer` | Registra o esquema `ProblemDetail`, montado à mão: gerado a partir da classe do Spring, descreveria um mapa `properties` que a API nunca produz, porque em execução `timestamp` e `errors` saem achatados no corpo. O campo `type` é enumerado a partir do próprio `ProblemType` — o catálogo documentado é o mesmo que o handler usa. Serve ainda de rede de segurança: um erro declarado de outro jeito nunca fica documentado com o formato do tipo de retorno. |
+| `ApiDocumentation` (pacote `web/doc`) | O nome do esquema de segurança é usado pela configuração e pelos controllers. Se morasse na `OpenApiConfig`, criaria um ciclo entre `config` e `web.user` — a `SecurityConfig` já importa os caminhos dos controllers. Num pacote neutro, as duas pontas dependem dele e nenhuma da outra: o **Princípio das Dependências Acíclicas** de Martin. |
+| `@SecurityRequirement` por operação | O cadeado vai só nas cinco operações protegidas; o autocadastro e os três endpoints de autenticação ficam abertos, como na `SecurityConfig`. |
+| `@ResponseStatus(CREATED)` no cadastro | Não muda o comportamento — o `ResponseEntity.created` já responde 201 —, mas é o que o springdoc lê. Sem ele, o documento seguiria dizendo 200. |
+| Exemplos nos corpos de requisição | O *Try it out* vem preenchido com dados válidos: o login de exemplo é o administrador de demonstração, e o cadastro de exemplo passa em todas as validações. |
+| `springdoc.swagger-ui` | Token preservado ao recarregar (`persist-authorization`), tags e operações em ordem estável, tempo de cada requisição visível. |
+
+**Testes unitários — 22 casos em 2 classes** (`ErrorResponseOperationCustomizerTest`,
+`ProblemDetailOpenApiCustomizerTest`), com documentos OpenAPI e controllers de exemplo
+montados no próprio teste.
+
+**Testes de integração — `OpenApiDocumentationIT`, 9 casos.** Leem o documento que a
+aplicação publica e o confrontam com a aplicação rodando:
+
+- **o cadeado bate com a segurança real** — cada operação é chamada sem token: a marcada como
+  protegida tem de responder 401, e a marcada como pública não pode;
+- **os exemplos funcionam** — um cadastro montado só com os exemplos do documento é aceito
+  (201), e o login de exemplo autentica;
+- **todo exemplo de erro é coerente** com o código da resposta em que aparece;
+- o cadastro é documentado como 201, os nove endpoints estão presentes sob a tag certa, todo
+  erro é ProblemDetail, e a interface do Swagger é pública.
+
+Conferido também visualmente na aplicação empacotada: o Swagger UI mostra o cadeado nas
+cinco operações protegidas e o exemplo certo em cada código de erro.
+
+**Verificação.** `mvn verify`: **411 testes unitários** e **73 de integração** — **BUILD
+SUCCESS**. Cobertura pelos testes unitários: **998/998 linhas, 222/222 ramos, 426/426
+métodos** — 100%.
 
 ---
 

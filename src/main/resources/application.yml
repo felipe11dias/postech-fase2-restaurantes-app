@@ -52,6 +52,13 @@ mail:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+    # Mantém o token do botão Authorize ao recarregar a página.
+    persist-authorization: true
+    tags-sorter: alpha
+    # Ordena as operações pelo caminho: estável, e agrupa as de um mesmo recurso.
+    operations-sorter: alpha
+    # Mostra quanto cada requisição do "Try it out" levou.
+    display-request-duration: true
 
 # Actuator: exposição controlada de endpoints de monitoramento
 management:

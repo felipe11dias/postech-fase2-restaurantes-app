@@ -160,3 +160,21 @@
   excluído).
 - 26 testes unitários novos (389 no total) e `ErrorHandlingIT` com 14 casos (64 de integração);
   cobertura unitária 100% (930 linhas, 204 ramos).
+
+## Etapa 9 — Documentação Swagger
+- `OpenApiConfig`: título, versão, instruções de autenticação com os usuários de
+  demonstração, tags e o esquema de segurança Bearer JWT (botão Authorize).
+- `@ErrorResponse(type = ProblemType.X, …)` documenta cada erro pela categoria; o código HTTP
+  sai do mesmo `ProblemType` que o `GlobalExceptionHandler` usa. `ErrorResponseOperationCustomizer`
+  gera a resposta ProblemDetail com exemplo real da categoria e agrupa casos do mesmo código.
+- `ProblemDetailOpenApiCustomizer`: esquema `ProblemDetail` montado à mão (o gerado da classe
+  do Spring descreveria um mapa que a API não produz), com `type` enumerado do catálogo.
+- `@SecurityRequirement` nas cinco operações protegidas; `@ResponseStatus(CREATED)` no cadastro,
+  que antes era documentado como 200; exemplos nos corpos de requisição.
+- `ApiDocumentation` em `web/doc` para não criar ciclo entre `config` e `web.user`.
+- `springdoc.swagger-ui`: token preservado ao recarregar, ordem estável, duração das requisições.
+- `OpenApiDocumentationIT` confronta o documento com a aplicação: o cadeado bate com a
+  segurança real, os exemplos são aceitos pela API e cada exemplo de erro é coerente com o
+  seu código.
+- 22 testes unitários novos (411 no total) e 9 de integração (73 no total); cobertura unitária
+  100% (998 linhas, 222 ramos).
