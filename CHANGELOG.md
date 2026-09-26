@@ -236,12 +236,20 @@
 - `mvn clean verify`: 422 testes unitários e 89 de integração; cobertura unitária 100%
   (1016 linhas, 226 ramos, 427 métodos).
 
-## Etapa 12 — Entregáveis (Postman, README) — em andamento
-- `postman/Restaurantes.postman_collection.json` (v2.1): 50 requests em 9 pastas, um por caso de
+## Etapa 12 — Entregáveis (Postman, README)
+- `postman/Restaurantes.postman_collection.json` (v2.1): 52 requests em 9 pastas, um por caso de
   cada endpoint (sucesso e cada erro previsto), com testes de status e `type` do ProblemDetail;
-  guarda `adminToken`, `token`, `userId` e lê o token de redefinição no Mailpit. Validada com
-  Newman contra a pilha do Compose (106/106 asserções, duas execuções seguidas) e contra a
-  aplicação fora do Docker (`mvn spring-boot:run`).
-- `postman/prints/`: 50 prints gerados de uma execução do Newman por `postman/gerar-prints.js`.
-- `README.md` reescrito: estado da entrega (restaurante e cardápio pendentes), execução com
-  geração do segredo JWT, variáveis, usuários da seed, autenticação, endpoints, erros, coleção e testes.
+  guarda `adminToken`, `token` e `userId` e lê o token de redefinição no Mailpit. Cria os
+  próprios usuários e os exclui ao fim; os casos de 403 miram um cadastro descartável, nunca a
+  seed; login ou cadastro essencial que falhe interrompe a execução.
+- `postman/prints/`: 52 prints de uma execução do Newman, gerados por `postman/gerar-prints.js`
+  (altura medida pelo Chrome headless; substitui os antigos só depois de gerar todos; request sem
+  resposta vira print da falha).
+- `README.md` reescrito: estado da entrega (restaurante, cardápio e CRUD de tipos pendentes),
+  geração do segredo JWT, variáveis, carga do `.env` para rodar fora do Docker, usuários da seed,
+  autenticação, endpoints, catálogo de erros, coleção (`newman@6`), prints e testes.
+- Correções da revisão de código da etapa (dez achados): seed fora dos casos de 403, gerador de
+  prints sem apagar nada antes de gerar tudo e tolerante a request sem resposta, execução
+  interrompida em falha essencial, `.env` exportado explicitamente, Newman com versão fixada,
+  pasta temporária removida, relatório atualizado.
+- Newman: 52 requests, 108 asserções, nenhuma falha, duas execuções seguidas contra o Compose.

@@ -232,6 +232,23 @@ Pontos que só ficam claros lendo várias camadas:
   container vira `unhealthy` por causa dele. `HealthIT` garante isso com SMTP real inalcançável.
 - Nos ITs por HTTP, login pelo `autenticar(login, senha)` da `WebIntegrationTestSupport`.
 
+### Coleção Postman e prints (Etapa 12, já implementada)
+
+- **Endpoint novo entra na coleção** (`postman/Restaurantes.postman_collection.json`): um request
+  para o sucesso e um para cada `@ErrorResponse` da operação, na pasta da operação, conferindo
+  status e `type`. O JSON da coleção é a fonte de verdade — edite no Postman ou à mão.
+- Casos de acesso negado miram um cadastro **descartável criado pela coleção**, nunca a seed; a
+  coleção exclui o que cria. Ela precisa poder rodar várias vezes contra o mesmo banco.
+- Request que produz variável essencial (token, id) confere o status **antes** de ler o corpo e,
+  se falhar, faz `postman.setNextRequest(null)` — nada de gravar `undefined` e seguir.
+- Validar sempre com `npx newman@6 run ...` (versão fixada) contra a pilha do Compose e, depois,
+  gerar os prints da mesma execução:
+  `npx newman@6 run postman/Restaurantes.postman_collection.json --reporters cli,json --reporter-json-export target/newman.json`
+  e `node postman/gerar-prints.js target/newman.json postman/Restaurantes.postman_collection.json postman/prints`
+  (`CHROME_PATH` fora do Windows).
+- Rodar a aplicação fora do Docker exige **exportar** o `.env` (Maven e IDE não o leem); o README
+  traz os comandos para bash e PowerShell.
+
 ## Convenções do domínio (Etapa 2, já implementadas)
 
 - Sem Lombok nem geração de código no núcleo; construtores, fábricas e acessores à mão.

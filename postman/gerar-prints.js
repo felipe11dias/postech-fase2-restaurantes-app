@@ -1,25 +1,41 @@
 // Gera os prints da coleção (postman/prints/NN-nome.png) a partir de UMA execução do Newman:
 // cada imagem mostra o request, a resposta e os testes daquela chamada.
 //
-//   npx newman run postman/Restaurantes.postman_collection.json --reporters cli,json \
+//   npx newman@6 run postman/Restaurantes.postman_collection.json --reporters cli,json \
 //       --reporter-json-export target/newman.json
 //   node postman/gerar-prints.js target/newman.json postman/Restaurantes.postman_collection.json postman/prints
 //
-// Usa o Chrome em modo headless (CHROME_PATH, se não estiver no caminho padrão do Windows).
+// Usa o Chrome em modo headless: defina CHROME_PATH fora do Windows ou se ele estiver em outro
+// lugar. Os prints antigos só são substituídos depois que todos os novos forem gerados — uma
+// falha no meio do caminho não deixa a pasta vazia.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
 const [relatorio, colecaoPath, saida] = process.argv.slice(2);
+if (!relatorio || !colecaoPath || !saida) {
+  console.error('Uso: node postman/gerar-prints.js <relatorio-newman.json> <colecao.json> <pasta-de-saida>');
+  process.exit(1);
+}
+const CHROME = process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+if (!fs.existsSync(CHROME)) {
+  console.error(`Chrome não encontrado em "${CHROME}". Defina CHROME_PATH com o caminho do executável.`);
+  process.exit(1);
+}
 const run = JSON.parse(fs.readFileSync(relatorio, 'utf8')).run;
 const colecao = JSON.parse(fs.readFileSync(colecaoPath, 'utf8'));
-const CHROME = process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const LARGURA = 1200;
 const ALTURA_LINHA = 19;
 
+// Nome do request → caminho das pastas que o contêm, em qualquer profundidade.
 const pastaDe = {};
-colecao.item.forEach((pasta) => pasta.item.forEach((req) => { pastaDe[req.name] = pasta.name; }));
+(function mapear(itens, caminho) {
+  itens.forEach((item) => {
+    if (item.item) mapear(item.item, [...caminho, item.name]);
+    else pastaDe[item.name] = caminho.join(' / ');
+  });
+}(colecao.item, []));
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const abreviaJwt = (s) => String(s).replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g,
@@ -35,28 +51,35 @@ function formata(texto) {
   try { return abreviaJwt(JSON.stringify(JSON.parse(texto), null, 2)); } catch { return abreviaJwt(texto); }
 }
 function cabecalhos(lista, chaves) {
-  return lista.filter((h) => !h.system && chaves.includes(h.key.toLowerCase()))
+  return (lista || []).filter((h) => !h.system && chaves.includes(h.key.toLowerCase()))
     .map((h) => `${h.key}: ${abreviaJwt(h.value)}`).join('\n');
 }
 
-fs.mkdirSync(saida, { recursive: true });
-fs.readdirSync(saida).filter((f) => f.endsWith('.png')).forEach((f) => fs.unlinkSync(path.join(saida, f)));
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'prints-'));
+// No JSON do Newman o erro de rede perde o `message` (Error não serializa); sobram code/syscall.
+function motivo(erro) {
+  if (!erro) return 'erro desconhecido';
+  if (erro.message) return erro.message;
+  return [erro.syscall, erro.code, erro.address && `${erro.address}:${erro.port}`].filter(Boolean).join(' ');
+}
 
-run.executions.forEach((ex, i) => {
+function html(ex, i) {
   const nome = ex.item.name;
   const req = ex.request;
+  // Sem resposta (conexão recusada, tempo esgotado): o print mostra a falha em vez de quebrar.
   const resp = ex.response;
   const corpoReq = formata(req.body && req.body.raw);
-  const corpoResp = formata(resp.stream ? Buffer.from(resp.stream.data).toString('utf8') : '');
+  const corpoResp = resp
+    ? formata(resp.stream ? Buffer.from(resp.stream.data).toString('utf8') : '')
+    : `Sem resposta: ${motivo(ex.requestError)}`;
   const hReq = cabecalhos(req.header, ['content-type', 'authorization']);
-  const hResp = cabecalhos(resp.header, ['content-type', 'location']);
+  const hResp = resp ? cabecalhos(resp.header, ['content-type', 'location']) : '';
   const asserts = ex.assertions || [];
-  const classe = resp.code < 300 ? 'ok' : resp.code < 500 ? 'aviso' : 'erro';
-  const bloco = (titulo, conteudo) => conteudo
-    ? `<h3>${titulo}</h3><pre>${esc(conteudo)}</pre>` : '';
+  const classe = !resp || resp.code >= 500 ? 'erro' : resp.code < 300 ? 'ok' : 'aviso';
+  const status = resp ? `${resp.code} ${esc(resp.status)}` : 'sem resposta';
+  const tempo = resp ? `${resp.responseTime} ms` : '';
+  const bloco = (titulo, conteudo) => conteudo ? `<h3>${titulo}</h3><pre>${esc(conteudo)}</pre>` : '';
 
-  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><style>
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><style>
     body{margin:0;background:#f4f5f7;font:14px/1.45 "Segoe UI",Arial,sans-serif;color:#1f2328}
     .card{margin:16px;background:#fff;border:1px solid #d0d7de;border-radius:8px;overflow:hidden}
     .topo{padding:12px 18px;border-bottom:1px solid #d0d7de;background:#fafbfc}
@@ -77,8 +100,8 @@ run.executions.forEach((ex, i) => {
     .rodape{padding:6px 18px;color:#8c959f;font-size:11px;border-top:1px solid #eaeef2}
   </style></head><body><div class="card">
     <div class="topo"><div class="pasta">${esc(pastaDe[nome] || '')}</div><div class="nome">${esc(nome)}</div></div>
-    <div class="linha"><span class="metodo">${req.method}</span><span class="url">${esc(url(req.url))}</span>
-      <span class="status ${classe}">${resp.code} ${esc(resp.status)}</span><span class="tempo">${resp.responseTime} ms</span></div>
+    <div class="linha"><span class="metodo">${esc(req.method)}</span><span class="url">${esc(url(req.url))}</span>
+      <span class="status ${classe}">${status}</span><span class="tempo">${tempo}</span></div>
     <div class="cols">
       <div class="col">${bloco('Cabeçalhos da requisição', hReq)}${bloco('Corpo da requisição', corpoReq) || '<h3>Corpo da requisição</h3><pre>(sem corpo)</pre>'}</div>
       <div class="col">${bloco('Cabeçalhos da resposta', hResp)}${bloco('Corpo da resposta', corpoResp) || '<h3>Corpo da resposta</h3><pre>(sem corpo)</pre>'}</div>
@@ -87,18 +110,33 @@ run.executions.forEach((ex, i) => {
       ${asserts.map((a) => `<div class="t ${a.error ? 'falhou' : 'passou'}">${a.error ? '✗' : '✓'} ${esc(a.assertion)}</div>`).join('')}</div>
     <div class="rodape">Execução Newman de ${new Date(run.timings.started).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} · requisição ${i + 1} de ${run.executions.length}</div>
   </div><script>document.body.setAttribute("data-altura", Math.ceil(document.documentElement.getBoundingClientRect().height))</script></body></html>`;
+}
 
-  const arquivoHtml = path.join(tmp, `${i}.html`);
-  fs.writeFileSync(arquivoHtml, html);
-  const slug = nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const png = path.resolve(saida, `${slug}.png`);
-  // Primeira passada mede a altura real renderizada; a segunda fotografa exatamente esse tamanho.
-  const dom = execFileSync(CHROME, ["--headless=new", "--disable-gpu", `--window-size=${LARGURA},600`, "--dump-dom",
-    "file:///" + arquivoHtml.replace(/\\/g, "/")], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
-  const altura = Number(/data-altura="(\d+)"/.exec(dom)[1]);
-  execFileSync(CHROME, ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1',
-    `--window-size=${LARGURA},${altura}`, `--screenshot=${png}`, 'file:///' + arquivoHtml.replace(/\\/g, '/')],
-  { stdio: 'ignore' });
-});
-console.log(`${run.executions.length} prints em ${saida}`);
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'prints-'));
+const novos = path.join(tmp, 'png');
+fs.mkdirSync(novos);
+try {
+  run.executions.forEach((ex, i) => {
+    const arquivoHtml = path.join(tmp, `${i}.html`);
+    fs.writeFileSync(arquivoHtml, html(ex, i));
+    const endereco = 'file:///' + arquivoHtml.replace(/\\/g, '/');
+    // Primeira passada mede a altura real renderizada; a segunda fotografa exatamente esse tamanho.
+    const dom = execFileSync(CHROME, ['--headless=new', '--disable-gpu', `--window-size=${LARGURA},600`, '--dump-dom',
+      endereco], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const medida = /data-altura="(\d+)"/.exec(dom);
+    if (!medida) throw new Error(`o Chrome não renderizou a página de "${ex.item.name}"`);
+    const slug = ex.item.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    execFileSync(CHROME, ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1',
+      `--window-size=${LARGURA},${medida[1]}`, `--screenshot=${path.join(novos, `${slug}.png`)}`, endereco],
+    { stdio: 'ignore' });
+  });
+
+  // Tudo gerado: só agora os prints antigos saem e os novos entram.
+  fs.mkdirSync(saida, { recursive: true });
+  fs.readdirSync(saida).filter((f) => f.endsWith('.png')).forEach((f) => fs.unlinkSync(path.join(saida, f)));
+  fs.readdirSync(novos).forEach((f) => fs.copyFileSync(path.join(novos, f), path.join(saida, f)));
+  console.log(`${run.executions.length} prints em ${saida}`);
+} finally {
+  fs.rmSync(tmp, { recursive: true, force: true });
+}
