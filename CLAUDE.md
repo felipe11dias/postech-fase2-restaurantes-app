@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (12 etapas) e cada etapa
+Architecture**. O projeto está sendo entregue **etapa por etapa** (14 até aqui) e cada etapa
 tem três saídas obrigatórias: código + testes, entrada no `CHANGELOG.md`, e atualização do
 relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v1.0.md` (marcar a etapa
 como ✅ no Sumário de Progresso, atualizar o contador e acrescentar a subseção
@@ -67,7 +67,7 @@ cada teste cria seus próprios dados com marca única em vez de depender de esta
 ## Arquitetura — a regra de dependência é verificada em build
 
 `src/test/java/.../ArchitectureTest.java` (ArchUnit, 14 regras) falha o build se violada — e o
-`InfrastructureModulesTest` (14 regras, Etapa 13) faz o mesmo *dentro* da infraestrutura:
+`InfrastructureModulesTest` (15 regras, Etapas 13 e 14) faz o mesmo *dentro* da infraestrutura:
 
 ```
 domain          → só JDK. Nenhum import de outro pacote do projeto nem de biblioteca.
@@ -81,8 +81,12 @@ Cada pacote tem um `package-info.java` com sua regra. Dentro de cada camada, ent
 uso e DTOs ficam em **subpacotes por agregado/feature** (`domain/entity/user`,
 `application/usecase/auth`, `application/dto/common`...) — *screaming architecture*: uma feature
 nova (restaurante, cardápio) ganha o próprio subpacote em cada camada. Convenções também verificadas:
-classes em `application.usecase` terminam em `UseCase`; tudo em `application.gateway` e
-`adapter.datasource` são interfaces com prefixo `I`.
+classes em `application.usecase` terminam em `UseCase`; tudo em `application.gateway`,
+`adapter.datasource` e `adapter.service` são interfaces com prefixo `I`.
+
+**Cada camada tem um documento em `docs/arquitetura/`** (aula × autor × código, padrões, desvios
+conscientes, regra que verifica). **Decisão ou padrão novo atualiza o documento correspondente em
+`docs/arquitetura/`** no mesmo passo — e o `package-info` da camada, se o resumo mudar.
 
 ### Infraestrutura em módulos substituíveis (Etapa 13, já implementada)
 
@@ -98,9 +102,9 @@ infrastructure/
     security/          SecurityConfig, BearerTokenAuthenticationFilter, 401, AuthenticatedUser,
                        UserSecurity, AuthenticatedActor, IAccessTokenReader (porta do módulo)
   persistence/jpa/     PersistenceConfig, TransactionalUnitOfWork; audit/; um subpacote por agregado
-  token/jwt/           ITokenIssuer + IAccessTokenReader (jjwt), JwtProperties, JwtConfig
+  token/jwt/           ITokenEncoder + IAccessTokenReader (jjwt): JwtTokenEncoder, JwtProperties, JwtConfig
   crypto/              IPasswordEncoder (BCrypt), ISecureTokenGenerator (SecureRandom)
-  mail/smtp/           IMailGateway (Spring Mail), MailProperties, MailConfig
+  mail/smtp/           IMailSender (Spring Mail): SmtpMailSender, MailProperties, MailConfig
 ```
 
 Regras (verificadas pelo `InfrastructureModulesTest`):
@@ -115,11 +119,16 @@ Regras (verificadas pelo `InfrastructureModulesTest`):
   `main`, para ligar o `AuditorAware`); jjwt em `token.jwt`; Spring Mail em `mail.smtp`; Spring
   Security em `web` (e `spring-security-crypto` em `crypto`); Spring MVC, HATEOAS, Servlet, Bean
   Validation e springdoc em `web`.
+- **A infraestrutura só implementa diretamente as portas técnicas** (`IPasswordEncoder`,
+  `ISecureTokenGenerator`, `IUnitOfWork`) — regra `infraestrutura_so_implementa_portas_tecnicas`.
+  Toda outra porta de `application.gateway` é implementada por um gateway em `adapter/gateway`,
+  que consome a infraestrutura por uma interface de `adapter/datasource` ou `adapter/service`.
 - **Cada módulo habilita a própria configuração** (`JwtConfig`, `MailConfig`, `PersistenceConfig`,
   `SecurityConfig`, `OpenApiConfig`); `CompositionConfig` não conhece propriedade de tecnologia.
 - Política da aplicação não mora em módulo de tecnologia: a validade do token de redefinição é
   `main/PasswordResetProperties` (`PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES`), e chega ao e-mail
-  pela porta `IMailGateway.sendPasswordReset(to, token, validity)`.
+  pela porta `IMailGateway.sendPasswordReset(to, token, validity)`; quem escreve o texto é o
+  `PasswordResetMailGateway` (adaptador).
 - Módulo novo (ex.: armazenamento da foto do prato): pacote de papel + subpacote de tecnologia,
   `package-info` dizendo qual porta implementa e como substituí-lo, e as regras acima estendidas.
 
@@ -145,6 +154,14 @@ Pontos que só ficam claros lendo várias camadas:
 - **Interfaces de gateway ficam em `application`** (quem as consome as declara);
   interfaces de origem de dados (`I*DataSource`) ficam em `adapter/datasource`, com os records
   `*Data` em `adapter/datasource/data`, e são implementadas em `infrastructure/persistence/jpa`.
+- **Gateways de serviço (Etapa 14).** Serviço externo que não é origem de dados segue o mesmo
+  formato: interface em `adapter/service` (`IMailSender`, `ITokenEncoder`; records em
+  `adapter/service/data`, ex.: `TokenClaimsData`), gateway que **traduz** em `adapter/gateway`
+  (`PasswordResetMailGateway` monta assunto e corpo; `TokenGateway` faz `User` → claims) e
+  implementação que só transporta/codifica na infraestrutura (`SmtpMailSender`, `JwtTokenEncoder`,
+  sem import do domínio). O controller recebe o serviço e cria o gateway **a cada operação**.
+  Critério: **havendo tradução, há gateway**; porta sem tradução (hash, aleatório, transação) é
+  técnica e vai direto — e entrar nessa lista exige justificativa no relatório.
 - **Saída do núcleo são views** (`adapter/presenter/view`, records `*View`), produzidas só pelos
   presenters; `UserView` não tem campo de senha. Gateways do adapter reconstroem entidades com
   `restore(...)` (revalida invariantes) e desmontam com `toData`. ArchUnit exige que toda
@@ -208,10 +225,10 @@ Pontos que só ficam claros lendo várias camadas:
   `JwtProperties` recusa o valor de exemplo do `.env.example`. Os testes de integração
   fornecem o próprio segredo por `IntegrationTestProperties.JWT_SECRET` no `@SpringBootTest`
   — não criar `src/test/resources/application.yml`, que substituiria o principal inteiro.
-- **`IMailGateway` não propaga falha de transporte** (contrato declarado na porta):
-  `SmtpMailGateway` registra em ERROR, sem o destinatário no log. Se a falha subisse, o
+- **O envio de e-mail não propaga falha de transporte** (contrato declarado em `IMailGateway` e
+  repassado a `IMailSender`): `SmtpMailSender` registra em ERROR, sem o destinatário no log. Se a falha subisse, o
   "esqueci minha senha" revelaria quais e-mails têm conta.
-- `JwtTokenIssuer.read` (implementa `IAccessTokenReader`) exige `sub` e `login`; qualquer recusa devolve vazio, nunca exceção.
+- `JwtTokenEncoder.read` (implementa `IAccessTokenReader`) exige `sub` e `login`; qualquer recusa devolve vazio, nunca exceção.
 
 ### Tratamento de erros (Etapa 8, já implementada)
 
@@ -324,7 +341,7 @@ Pontos que só ficam claros lendo várias camadas:
   em `JavaMailSender`; nenhum `@MockitoSpyBean`; nenhum `@Testcontainers`.
 - Estrutura arrange / act / assert; casos "em branco" com `@ParameterizedTest` + `@NullAndEmptySource`.
 - Unitário nunca sobe contexto Spring nem toca banco. `domain` sem mocks; casos de uso com
-  mocks de `I*Gateway`; adaptadores com mocks de `I*DataSource`.
+  mocks de `I*Gateway`; adaptadores com mocks de `I*DataSource` e de `adapter/service`.
 - Caso de uso tem `run` como **único** método público de instância (regra do `ArchitectureTest`).
 - Em IT, `JdbcTemplate` só para o que a API não permite: preparar o que o tempo não deixa
   esperar (empurrar um vencimento para trás) ou ler o que ela não expõe (colunas de autoria).

@@ -35,7 +35,7 @@ flowchart TB
 |---|---|---|
 | Entidades | `domain/entity`, `domain/vo`, `domain/exception` | Regras de negócio e invariantes, sem nenhuma dependência de biblioteca |
 | Casos de Uso | `application/usecase`, `application/gateway`, `application/dto` | Uma intenção do ator por classe (`create` + `run`), dependendo só de interfaces |
-| Adaptadores de Interface | `adapter/controller`, `adapter/gateway`, `adapter/datasource`, `adapter/presenter` | Tradução entre o núcleo e o mundo externo |
+| Adaptadores de Interface | `adapter/controller`, `adapter/gateway`, `adapter/datasource`, `adapter/service`, `adapter/presenter` | Tradução entre o núcleo e o mundo externo: o controller orquestra, o gateway traduz (inclusive o texto do e-mail e os dados do token), o presenter decide o que sai |
 | Frameworks & Drivers | `infrastructure/main`, `web`, `persistence/jpa`, `token/jwt`, `crypto`, `mail/smtp` | Spring, JPA, JWT, SMTP — os únicos detalhes técnicos do sistema |
 
 Dentro de cada camada o código é agrupado por agregado (`user`, `auth`, `address`…), para que a
@@ -46,18 +46,25 @@ Bean Validation.
 A infraestrutura, por sua vez, é um conjunto de **módulos substituíveis**: o pacote diz o papel e
 o subpacote a tecnologia (`persistence/jpa`, `token/jwt`, `mail/smtp`). Nenhum módulo conhece
 outro; só `main` (a composição) liga as pontas. Trocar uma tecnologia é apagar um subpacote e
-criar outro ao lado — outras 14 regras ArchUnit provam que nada mais dependia dele, que não há
-ciclos entre pacotes e que cada biblioteca só aparece no módulo que a encapsula.
+criar outro ao lado — outras 15 regras ArchUnit provam que nada mais dependia dele, que não há
+ciclos entre pacotes, que cada biblioteca só aparece no módulo que a encapsula e que a
+infraestrutura só implementa diretamente as portas técnicas (hash de senha, token aleatório,
+unidade de trabalho) — o resto passa por um gateway do adaptador.
 
 ```
 infrastructure/
   main/          composição: liga controllers, portas e módulos
   web/           entrega HTTP — api/<feature>, error, doc, validation, security
   persistence/   jpa/ — origens de dados, unidade de trabalho, auditoria
-  token/         jwt/ — emite e lê o token de acesso
+  token/         jwt/ — codifica e lê o token de acesso
   crypto/        BCrypt (senha) e SecureRandom (token de redefinição)
-  mail/          smtp/ — e-mail de redefinição de senha
+  mail/          smtp/ — transporte do e-mail (o texto é montado no adaptador)
 ```
+
+Cada camada tem um documento em [`docs/arquitetura/`](docs/arquitetura/README.md) que relaciona o
+que as aulas da Fase 2 ensinam, o que os autores de referência (Martin, Cockburn, Freeman, Date,
+Machado) dizem e como o projeto implementa — com os padrões adotados, os desvios conscientes e a
+regra do build que verifica cada parte.
 
 ## Stack
 
@@ -262,8 +269,8 @@ mvn test      # unitários + regras ArchUnit — segundos, sem Docker
 mvn verify    # + testes de integração (Testcontainers) + gate de 100% de cobertura
 ```
 
-- **Unitários (441):** entidades sem mocks; casos de uso com mocks das portas; adaptadores com
-  mocks das origens de dados; infraestrutura com lógica instanciada diretamente. Nenhum sobe
+- **Unitários (447):** entidades sem mocks; casos de uso com mocks das portas; adaptadores com
+  mocks das origens de dados e dos serviços; infraestrutura com lógica instanciada diretamente. Nenhum sobe
   contexto Spring nem toca em banco.
 - **Integração (89):** contexto Spring completo, PostgreSQL real, migrations do Flyway,
   segurança JWT ativa e chamadas HTTP de verdade. Nenhum bean é substituído, exceto o envio de
@@ -272,7 +279,7 @@ mvn verify    # + testes de integração (Testcontainers) + gate de 100% de cobe
   integração é medida à parte, só para informação. Relatórios: `target/site/jacoco/index.html`
   (unitários) e `target/site/jacoco-it/index.html` (integração).
 - **Arquitetura e convenções:** o ArchUnit verifica a regra de dependência (14 regras), os módulos
-  da infraestrutura (14 regras) e as
+  da infraestrutura (15 regras) e as
   convenções da própria suíte (7 regras: `@DisplayName` em todo teste, nome `deve…`, unitário
   sem contexto Spring, integração sem dublê de bean da aplicação…).
 
@@ -282,9 +289,10 @@ mvn verify    # + testes de integração (Testcontainers) + gate de 100% de cobe
 src/main/java/com/postech/restaurantes/
   domain/          entidades, objetos de valor e exceções de negócio
   application/     casos de uso, portas (gateways) e DTOs do núcleo
-  adapter/         controllers, gateways, origens de dados e presenters
+  adapter/         controllers, gateways, origens de dados, serviços externos e presenters
   infrastructure/  módulos substituíveis: main, web, persistence/jpa, token/jwt, crypto, mail/smtp
 src/main/resources/db/migration/   V1 (schema) e V2 (seed de demonstração)
 postman/                           coleção e prints
 relatorios/                        relatório técnico por etapa (Markdown e PDF)
+docs/arquitetura/                  cada camada: o que as aulas ensinam, o que os autores dizem, como o projeto faz
 ```

@@ -273,3 +273,25 @@
   Exclusão do JaCoCo generalizada para `**/infrastructure/**/*Config.class`.
 - `mvn clean verify`: 441 testes unitários e 89 de integração; cobertura unitária 100% (1022
   linhas, 226 ramos). Newman: 52 requests, 108 asserções, nenhuma falha.
+
+## Etapa 14 — Revisão de conformidade e documentação da arquitetura
+- Revisão do relatório e da arquitetura contra as referências (Martin, Cockburn, Freeman, Date,
+  Machado) e as Aulas 01 a 07 da Fase 2.
+- Gateways de serviço no adaptador (Aulas 02, 05 e 06: o gateway traduz, a infraestrutura
+  transporta): `adapter/service` com `IMailSender`, `ITokenEncoder` e `TokenClaimsData`;
+  `PasswordResetMailGateway` (monta assunto e corpo do e-mail) e `TokenGateway` (`User` → claims)
+  em `adapter/gateway`; `SmtpMailGateway` → `SmtpMailSender` (só transporte) e `JwtTokenIssuer` →
+  `JwtTokenEncoder` (só codificação, sem import do domínio). `AuthController` recebe os serviços e
+  cria os gateways a cada operação.
+- ArchUnit: regras de prefixo `I` e de records `*Data` estendidas a `adapter.service`; regra nova
+  `infraestrutura_so_implementa_portas_tecnicas` (só `IPasswordEncoder`, `ISecureTokenGenerator` e
+  `IUnitOfWork` são implementadas direto pela infraestrutura), conferida com violação proposital.
+- `docs/arquitetura/`: índice e um documento por parte da Clean Architecture (visão geral,
+  entidades, casos de uso, adaptadores, frameworks & drivers, princípios, testes), cada um com o que
+  a aula ensina, o que os autores dizem, como o projeto implementa, padrões, desvios conscientes e
+  verificação no build. `package-info` das camadas e subpacotes principais resumidos com o link.
+- Relatório: abertura, seção de escopo do Tech Challenge (restaurante, cardápio e CRUD de tipos
+  pendentes), Visão Geral com o fluxo e o diagrama reais, Etapas 1, 3 e 4 alinhadas ao código,
+  RFC 9457, geração do UUID, aulas e Freeman nas referências, seção da Etapa 14.
+- `mvn clean verify`: 447 testes unitários e 89 de integração; cobertura unitária 100% (1037
+  linhas, 226 ramos). Newman: 52 requests, 108 asserções, nenhuma falha; e-mail no Mailpit idêntico.
