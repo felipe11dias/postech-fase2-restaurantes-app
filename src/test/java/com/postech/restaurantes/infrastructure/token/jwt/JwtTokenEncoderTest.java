@@ -66,6 +66,36 @@ class JwtTokenEncoderTest {
         assertEquals(Set.of("sub", "login", "roles", "iat", "exp"), payload.keySet());
     }
 
+    @Test
+    @DisplayName("A assinatura é sempre HS256: um segredo mais longo não troca o algoritmo")
+    void deveAssinarEmHS256MesmoComSegredoLongo() {
+        String segredoLongo = SECRET + "-e-mais-trinta-e-dois-bytes-para-passar-de-quinhentos-bits";
+        JwtTokenEncoder comSegredoLongo = new JwtTokenEncoder(new JwtProperties(segredoLongo, VALIDITY), RELOGIO);
+
+        String token = comSegredoLongo.encode(CLAIMS).token();
+
+        String algoritmo = Jwts.parser()
+                .verifyWith(Keys.hmacShaKeyFor(segredoLongo.getBytes(StandardCharsets.UTF_8)))
+                .clock(() -> Date.from(RELOGIO.instant()))
+                .build().parseSignedClaims(token).getHeader().getAlgorithm();
+        assertEquals("HS256", algoritmo);
+        assertTrue(comSegredoLongo.read(token).isPresent());
+    }
+
+    @Test
+    @DisplayName("Os papéis saem em ordem alfabética, e o mesmo portador gera sempre o mesmo claim")
+    void deveOrdenarOsPapeis() {
+        var claims = new TokenClaimsData(USER_ID, "joao.silva", Set.of("ROLE_OWNER", "ROLE_ADMIN", "ROLE_CUSTOMER"));
+
+        String token = encoder.encode(claims).token();
+
+        var payload = Jwts.parser()
+                .verifyWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+                .clock(() -> Date.from(RELOGIO.instant()))
+                .build().parseSignedClaims(token).getPayload();
+        assertEquals(List.of("ROLE_ADMIN", "ROLE_CUSTOMER", "ROLE_OWNER"), payload.get("roles", List.class));
+    }
+
     @ParameterizedTest
     @NullAndEmptySource
     @ValueSource(strings = {"   ", "nao-e-um-jwt", "a.b.c"})

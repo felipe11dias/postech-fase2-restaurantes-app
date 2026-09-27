@@ -6,6 +6,7 @@ import static com.postech.restaurantes.adapter.AdapterFixtures.TOKEN_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.USER_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.USER_ID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -14,6 +15,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -39,6 +41,8 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -90,7 +94,7 @@ class AuthControllerTest {
                         create(t.userDataSource, null, t.passwordEncoder, t.tokenEncoder, t.tokenGenerator, t.mailSender, VALIDITY, CLOCK, t.unitOfWork)),
                 Arguments.of("encoder", (Function<AuthControllerTest, AuthController>) t ->
                         create(t.userDataSource, t.tokenDataSource, null, t.tokenEncoder, t.tokenGenerator, t.mailSender, VALIDITY, CLOCK, t.unitOfWork)),
-                Arguments.of("emissor", (Function<AuthControllerTest, AuthController>) t ->
+                Arguments.of("codificador de token", (Function<AuthControllerTest, AuthController>) t ->
                         create(t.userDataSource, t.tokenDataSource, t.passwordEncoder, null, t.tokenGenerator, t.mailSender, VALIDITY, CLOCK, t.unitOfWork)),
                 Arguments.of("gerador", (Function<AuthControllerTest, AuthController>) t ->
                         create(t.userDataSource, t.tokenDataSource, t.passwordEncoder, t.tokenEncoder, null, t.mailSender, VALIDITY, CLOCK, t.unitOfWork)),
@@ -152,6 +156,52 @@ class AuthControllerTest {
         verify(mailSender).send(eq("joao.silva@email.com"), eq("Redefinição de senha"),
                 argThat(corpo -> corpo.contains("token-em-claro") && corpo.contains("30 minutos")));
         assertEquals(1, unitOfWork.executions());
+    }
+
+    @Test
+    @DisplayName("Esqueci minha senha: o e-mail só sai depois que a unidade de trabalho confirma")
+    void deveEnviarOEmailSoDepoisDoCommit() {
+        prepararRecuperacao();
+        AtomicBoolean enviadoDentroDaTransacao = new AtomicBoolean();
+        IUnitOfWork registraEnvio = new IUnitOfWork() {
+            @Override
+            public <T> T execute(Supplier<T> work) {
+                T resultado = work.get();
+                enviadoDentroDaTransacao.set(!mockingDetails(mailSender).getInvocations().isEmpty());
+                return resultado;
+            }
+        };
+
+        create(userDataSource, tokenDataSource, passwordEncoder, tokenEncoder, tokenGenerator, mailSender,
+                VALIDITY, CLOCK, registraEnvio).forgotPassword("joao.silva@email.com");
+
+        assertFalse(enviadoDentroDaTransacao.get(), "nada sai enquanto a transação está aberta");
+        verify(mailSender).send(eq("joao.silva@email.com"), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Esqueci minha senha: se o commit falha, nenhum e-mail com token inexistente é enviado")
+    void naoDeveEnviarOEmailQuandoOCommitFalha() {
+        prepararRecuperacao();
+        IUnitOfWork commitFalha = new IUnitOfWork() {
+            @Override
+            public <T> T execute(Supplier<T> work) {
+                work.get();
+                throw new IllegalStateException("commit falhou");
+            }
+        };
+        AuthController comCommitFalho = create(userDataSource, tokenDataSource, passwordEncoder, tokenEncoder,
+                tokenGenerator, mailSender, VALIDITY, CLOCK, commitFalha);
+
+        assertThrows(IllegalStateException.class, () -> comCommitFalho.forgotPassword("joao.silva@email.com"));
+        verifyNoInteractions(mailSender);
+    }
+
+    private void prepararRecuperacao() {
+        when(userDataSource.findByEmail("joao.silva@email.com")).thenReturn(Optional.of(USER_DATA));
+        when(tokenGenerator.generate()).thenReturn("token-em-claro");
+        when(tokenGenerator.hash("token-em-claro")).thenReturn("hash-do-token");
+        when(tokenDataSource.insert(any())).thenReturn(TOKEN_DATA);
     }
 
     @Test

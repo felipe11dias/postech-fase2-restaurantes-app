@@ -46,7 +46,8 @@
 | 14  | Revisão de conformidade e documentação da arquitetura | ✅  |
 
 **Progresso:** 14 de 14 etapas concluídas. As etapas cobrem a base do sistema; restaurante,
-cardápio e o CRUD de tipos de usuário estão pendentes (ver "Escopo do Tech Challenge Fase 2 e estado").
+cardápio, o CRUD de tipos de usuário e a troca do tipo de um usuário já cadastrado estão
+pendentes (ver "Escopo do Tech Challenge Fase 2 e estado").
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -75,7 +76,8 @@ features de restaurante e cardápio. O escopo funcional do enunciado ainda não 
 | Requisito funcional do enunciado | Estado | Onde |
 | --- | --- | --- |
 | Usuários (herdado da Fase 1): cadastro, consulta, atualização, exclusão, troca de senha, login | ✅ | Etapas 2 a 8 |
-| Tipo de usuário: distinguir "Dono de Restaurante" e "Cliente" e associar o tipo ao usuário | ✅ catálogo fixo (`ROLE_OWNER`, `ROLE_CUSTOMER`, `ROLE_ADMIN`), associado no cadastro pela tabela `user_roles` | Etapas 2, 5, 6 |
+| Tipo de usuário: distinguir "Dono de Restaurante" e "Cliente" | ✅ catálogo fixo (`ROLE_OWNER`, `ROLE_CUSTOMER`, `ROLE_ADMIN`) e tabela de associação `user_roles` | Etapas 2, 5, 6 |
+| Tipo de usuário: associar o tipo a usuários **existentes** | 🔄 parcial — o tipo é escolhido no cadastro; alterar o tipo de um usuário já cadastrado ainda não é possível (`UpdateUserDTO` não tem papéis) | Etapa 3 |
 | Tipo de usuário: CRUD do catálogo (campo "nome do tipo") | ⏳ pendente | — |
 | Cadastro de restaurante (nome, endereço, tipo de cozinha, horário de funcionamento, dono) | ⏳ pendente — `Address` já é compartilhável e o dono será um `User` existente | — |
 | Cadastro de itens do cardápio (nome, descrição, preço, só no local, caminho da foto) | ⏳ pendente | — |
@@ -1866,14 +1868,28 @@ Os `package-info.java` das camadas e dos subpacotes principais resumem o papel d
 conceito do autor) e apontam para o documento correspondente — a documentação fica perto do código,
 e o detalhe, num lugar só.
 
+### O que foi entregue nesta etapa
+
+| Decisão | Conceito que a sustenta |
+| --- | --- |
+| **Gateways de serviço no adaptador** (`PasswordResetMailGateway`, `TokenGateway`), consumindo `IMailSender` e `ITokenEncoder` de `adapter/service` | O gateway é o tradutor (Aulas 02 e 05); *Adapter* (Freeman, cap. 7); DIP — o gateway consome o serviço por interface (Aula 06) |
+| **Infraestrutura só transporta e codifica**: `SmtpMailSender` e `JwtTokenEncoder`, sem import do domínio | CCP (Martin, cap. 13): o texto do e-mail muda com a política de conta, não com o transporte |
+| **Portas técnicas sem gateway**, com critério explícito — havendo tradução, há gateway | *Clean Code*: uma camada que só repassa não faz nada; a Aula 06 continua atendida, porque o caso de uso só conhece interfaces |
+| **"Esqueci minha senha" aceito na requisição e processado em fila** (`ForgotPasswordConfig`) | A resposta idêntica é regra de aplicação (Etapa 3), e o tempo de resposta também é resposta. Concorrência é detalhe de entrega e fica na borda (Martin, cap. 32) |
+| **E-mail só depois do commit** (`MailOutbox`, no controller) | O que não se desfaz fica fora da unidade de trabalho; demarcar o que vem depois do commit é orquestração, o papel do controller (Aula 05) |
+| **SMTP com timeouts; JWT em HS256 fixo** | Um detalhe não pode travar o sistema nem mudar de comportamento sozinho com a configuração (Martin, cap. 17: a fronteira protege do que muda) |
+| **Documentação por camada** (`docs/arquitetura/`) e `package-info` com resumo e link | A documentação fica perto do código e diz *por quê*; o detalhe, num lugar só |
+| **Regras de build novas** | Uma decisão que não quebra o build quando violada é só intenção (o mesmo raciocínio desde a Etapa 1) |
+
 ### De → para
 
 | Antes (até a Etapa 13) | Agora |
 | --- | --- |
 | `mail/smtp/SmtpMailGateway` implementa `IMailGateway` e monta o texto | `adapter/gateway/PasswordResetMailGateway` implementa `IMailGateway` e monta o texto; `mail/smtp/SmtpMailSender` implementa `IMailSender` e só transporta |
 | `token/jwt/JwtTokenIssuer` implementa `ITokenIssuer` (recebe `User`) e `IAccessTokenReader` | `adapter/gateway/TokenGateway` implementa `ITokenIssuer` (`User` → `TokenClaimsData`); `token/jwt/JwtTokenEncoder` implementa `ITokenEncoder` e `IAccessTokenReader`, sem import do domínio |
-| `AuthController.create(..., ITokenIssuer, ..., IMailGateway, ...)` | `AuthController.create(..., ITokenEncoder, ..., IMailSender, ...)` — gateways criados por operação |
-| `SmtpMailGatewayTest`, `JwtTokenIssuerTest` | `SmtpMailSenderTest`, `JwtTokenEncoderTest`, `ServiceGatewaysTest` (novo) |
+| `AuthController.create(..., ITokenIssuer, ..., IMailGateway, ...)` | `AuthController.create(..., ITokenEncoder, ..., IMailSender, ...)` — gateways criados por operação; e-mail entregue depois do commit |
+| `forgot-password` processado dentro da requisição | aceito (202) e processado na fila `forgotPasswordExecutor` |
+| `SmtpMailGatewayTest`, `JwtTokenIssuerTest` | `SmtpMailSenderTest`, `JwtTokenEncoderTest`, `ServiceGatewaysTest` (novo), `SmtpTimeoutIT` (novo) |
 
 As portas do núcleo (`IMailGateway`, `ITokenIssuer`) e os casos de uso não mudaram.
 
@@ -1882,22 +1898,46 @@ As portas do núcleo (`IMailGateway`, `ITokenIssuer`) e os casos de uso não mud
 | Regra | Onde | Protege |
 | --- | --- | --- |
 | Tudo em `adapter.datasource` **e** `adapter.service` é interface com prefixo `I`; seus subpacotes `data` só têm records com sufixo `Data` | `ArchitectureTest` (regras existentes, generalizadas — continuam 14) | o mesmo formato para origens de dados e serviços |
-| `infraestrutura_so_implementa_portas_tecnicas`: nenhuma classe de `infrastructure` implementa porta de `application.gateway`, exceto `IPasswordEncoder`, `ISecureTokenGenerator` e `IUnitOfWork` | `InfrastructureModulesTest` (15 regras) | o gateway como tradutor; toda porta com tradução passa pelo adaptador |
+| `infraestrutura_so_conhece_portas_tecnicas`: nenhuma classe de `infrastructure` **depende** de porta de `application.gateway`, exceto `IPasswordEncoder`, `ISecureTokenGenerator` e `IUnitOfWork` | `InfrastructureModulesTest` | o gateway como tradutor. Proíbe depender, não só implementar: uma lambda num `@Bean` não é classe para o ArchUnit, mas o tipo de retorno do método é uma dependência |
+| `transporte_nao_conhece_o_dominio`: `mail` e `token` não dependem de `domain` | `InfrastructureModulesTest` (16 regras no total) | a infraestrutura só transporta e codifica o que o gateway traduziu |
 
-A regra nova foi conferida ao contrário: uma classe temporária em `infrastructure` implementando
-`IMailGateway` fez falhar exatamente ela; removida a classe, o build voltou a passar.
+As regras foram conferidas ao contrário: uma classe temporária em `infrastructure/main` devolvendo
+um `IMailGateway` por lambda e outra em `mail/smtp` recebendo um `Email` fizeram falhar exatamente as
+duas regras visadas — a primeira passaria na versão anterior da regra, que só olhava `implement`.
+Removidas as classes, o build voltou a passar.
+
+### Revisão de código da etapa
+
+Antes de fechar, o diff da etapa passou por uma revisão focada em falhas reais. Os treze achados
+foram corrigidos:
+
+| Achado | Correção |
+| --- | --- |
+| **O tempo de resposta do "esqueci minha senha" revelava quem tem conta.** Só o e-mail cadastrado gerava token, gravava e falava com o SMTP; o desconhecido voltava na hora. A resposta era idêntica no corpo, não na latência. | A requisição valida a sintaxe e entrega o pedido a uma fila (2 threads, 100 lugares, excedente descartado com aviso); o processamento acontece fora dela. O `AuthApiIT` prende o envio numa trava de 10 s e exige a resposta antes de 5 s. |
+| **SMTP sem limite de espera.** O Jakarta Mail espera para sempre por padrão; um servidor que descarta pacotes prenderia threads e a conexão do banco. | `connectiontimeout`, `timeout` e `writetimeout` de 5 s em `application.yml`, conferidos pelo `SmtpTimeoutIT` na configuração que a aplicação montou. |
+| **E-mail enviado antes do commit.** Se o commit falhasse, o usuário receberia um token que não existe, e a transação ficava aberta durante o envio. | `MailOutbox` no controller: o caso de uso pede, a caixa guarda, o controller entrega depois de `unitOfWork.execute`. Testes: nada sai durante a transação, e nada sai se o commit falha. |
+| **A regra de portas técnicas não pegava lambda, e nada impedia `mail`/`token` de voltar a importar o domínio.** | Regra trocada de `implement` para `dependOn`; regra nova `transporte_nao_conhece_o_dominio`. |
+| **O escopo marcava ✅ "associar o tipo ao usuário"**, mas o enunciado pede a associação a usuários existentes, e o tipo só é escolhido no cadastro. | Linha dividida: distinção ✅, associação a usuários existentes 🔄 parcial; README alinhado. |
+| **A Etapa 14 não tinha a subseção "O que foi entregue nesta etapa"**, exigida pelo `CLAUDE.md`. | Esta subseção, com o conceito de cada decisão. |
+| **"HMAC-SHA256" era falso**: o jjwt escolhe o algoritmo pelo tamanho do segredo (HS384 na execução do Newman). | `signWith(key, Jwts.SIG.HS256)`; teste com segredo longo exige HS256 no cabeçalho. |
+| O índice de `docs/arquitetura/` listava aulas diferentes das que os documentos resumem. | Coluna alinhada à seção 1 de cada documento. |
+| O log de falha do SMTP perdeu o contexto ("Falha ao enviar e-mail"). | O log traz o assunto — qual mensagem falhou —, ainda sem o destinatário. |
+| "Ele vale por 1 minutos"; validade fracionária virava "0 minutos". | `describe(validity)`: singular e plural, e segundos quando não é minuto inteiro. |
+| Teste de assunto duplicado, um deles comparando a constante com ela mesma. | Um teste só, com o texto literal. |
+| Caso de teste ainda chamado "emissor" para o `ITokenEncoder`. | "codificador de token". |
+| A ordenação dos papéis no token não tinha teste. | `deveOrdenarOsPapeis`. |
 
 ### Verificação
 
 | Verificação | Resultado |
 | --- | --- |
-| `mvn clean verify` | **447 testes unitários** e **89 de integração** — BUILD SUCCESS; cobertura unitária **1037/1037 linhas, 226/226 ramos, 439/439 métodos** |
-| Pilha do Compose + coleção Postman (`npx newman@6`) | 52 requests, 108 asserções, nenhuma falha |
+| `mvn clean verify` | **458 testes unitários** e **91 de integração** — BUILD SUCCESS; cobertura unitária **1065/1065 linhas, 232/232 ramos, 449/449 métodos** |
+| Pilha do Compose + coleção Postman (`npx newman@6`) | 52 requests, 108 asserções, nenhuma falha; a busca no Mailpit repete até o e-mail chegar |
 | E-mail no Mailpit | assunto e corpo **idênticos** aos da Etapa 13 (o texto mudou de lugar, não de conteúdo): "Redefinição de senha", "Ele vale por 30 minutos" |
-| Token de acesso | mesmos claims de antes — `sub`, `login`, `roles`, `iat`, `exp` —, agora montados pelo `TokenGateway` |
+| Token de acesso | mesmos claims de antes — `sub`, `login`, `roles`, `iat`, `exp` —, agora montados pelo `TokenGateway`; algoritmo `HS256` |
 | Documentação | todo link relativo de `docs/arquitetura/` aponta para arquivo existente; toda classe do projeto citada existe no código |
 
-Nenhum comportamento HTTP mudou, e por isso os prints da Etapa 12 continuam valendo.
+Nenhum status nem corpo de resposta HTTP mudou, e por isso os prints da Etapa 12 continuam valendo.
 
 ---
 
@@ -1908,6 +1948,9 @@ Nenhum comportamento HTTP mudou, e por isso os prints da Etapa 12 continuam vale
   (`IMailSender`, `ITokenEncoder`); só as portas técnicas (`IPasswordEncoder`,
   `ISecureTokenGenerator`, `IUnitOfWork`) são implementadas direto pela infraestrutura — regra
   verificada por ArchUnit. Cada camada documentada em `docs/arquitetura/`. Etapa 14.
+- **"Esqueci minha senha" com o mesmo tempo de resposta para qualquer e-mail:** a requisição só
+  valida e enfileira; o processamento acontece em fila própria, e o e-mail sai depois do commit
+  (`MailOutbox`). SMTP com timeouts; JWT em HS256 fixo. Etapa 14.
 - **Infraestrutura em módulos substituíveis:** o pacote diz o papel, o subpacote a tecnologia;
   nenhum módulo conhece outro, só o Main os liga; sem ciclos; cada biblioteca confinada ao seu
   módulo — tudo verificado por ArchUnit. Etapa 13.

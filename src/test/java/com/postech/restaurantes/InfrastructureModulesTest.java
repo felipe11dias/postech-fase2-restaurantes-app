@@ -130,20 +130,35 @@ class InfrastructureModulesTest {
     // ---- Gateway é o tradutor, no adaptador (Aulas 02, 05, 06) --------------------------------
 
     /**
-     * A infraestrutura só implementa diretamente as portas técnicas, em que não há tradução: hash
-     * de senha, geração de token seguro, unidade de trabalho. Toda outra porta do núcleo passa por
-     * um gateway em {@code adapter.gateway}, que traduz e consome a infraestrutura por interface
+     * A infraestrutura só conhece, do núcleo, as portas técnicas — em que não há tradução: hash de
+     * senha, geração de token seguro, unidade de trabalho. Toda outra porta passa por um gateway em
+     * {@code adapter.gateway}, que traduz e consome a infraestrutura por interface
      * ({@code adapter.datasource} ou {@code adapter.service}) — é onde mora o texto do e-mail e a
      * escolha dos claims do token, e por isso trocar SMTP ou JWT não os reescreve.
+     *
+     * <p>A regra proíbe <em>depender</em>, e não só implementar: uma porta de um método só pode ser
+     * implementada por uma lambda num {@code @Bean}, e lambda não é classe para o ArchUnit — mas o
+     * tipo de retorno do método é uma dependência, e ela aparece.
      */
     @ArchTest
-    static final ArchRule infraestrutura_so_implementa_portas_tecnicas =
+    static final ArchRule infraestrutura_so_conhece_portas_tecnicas =
             noClasses().that().resideInAPackage("..infrastructure..")
-                    .should().implement(resideInAPackage("..application.gateway..")
+                    .should().dependOnClassesThat(resideInAPackage("..application.gateway..")
                             .and(not(belongToAnyOf(IPasswordEncoder.class, ISecureTokenGenerator.class,
                                     IUnitOfWork.class))))
                     .because("porta com tradução é implementada por um gateway no adaptador, que o controller "
                             + "instancia com o serviço externo recebido por interface");
+
+    /**
+     * E-mail e token só transportam e codificam: o que a mensagem diz e quem é o portador foram
+     * decididos pelo gateway. Um módulo desses que voltasse a importar {@code User} ou {@code Email}
+     * estaria traduzindo de novo — e trocar a tecnologia voltaria a reescrever a regra.
+     */
+    @ArchTest
+    static final ArchRule transporte_nao_conhece_o_dominio =
+            noClasses().that().resideInAnyPackage("..infrastructure.mail..", "..infrastructure.token..")
+                    .should().dependOnClassesThat().resideInAPackage("..domain..")
+                    .because("a tradução do domínio para a mensagem e para os claims é do gateway no adaptador");
 
     // ---- Configuração só declara ---------------------------------------------------------------
 

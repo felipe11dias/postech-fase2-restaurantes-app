@@ -67,7 +67,7 @@ cada teste cria seus próprios dados com marca única em vez de depender de esta
 ## Arquitetura — a regra de dependência é verificada em build
 
 `src/test/java/.../ArchitectureTest.java` (ArchUnit, 14 regras) falha o build se violada — e o
-`InfrastructureModulesTest` (15 regras, Etapas 13 e 14) faz o mesmo *dentro* da infraestrutura:
+`InfrastructureModulesTest` (16 regras, Etapas 13 e 14) faz o mesmo *dentro* da infraestrutura:
 
 ```
 domain          → só JDK. Nenhum import de outro pacote do projeto nem de biblioteca.
@@ -119,10 +119,13 @@ Regras (verificadas pelo `InfrastructureModulesTest`):
   `main`, para ligar o `AuditorAware`); jjwt em `token.jwt`; Spring Mail em `mail.smtp`; Spring
   Security em `web` (e `spring-security-crypto` em `crypto`); Spring MVC, HATEOAS, Servlet, Bean
   Validation e springdoc em `web`.
-- **A infraestrutura só implementa diretamente as portas técnicas** (`IPasswordEncoder`,
-  `ISecureTokenGenerator`, `IUnitOfWork`) — regra `infraestrutura_so_implementa_portas_tecnicas`.
+- **A infraestrutura só conhece, do núcleo, as portas técnicas** (`IPasswordEncoder`,
+  `ISecureTokenGenerator`, `IUnitOfWork`) — regra `infraestrutura_so_conhece_portas_tecnicas`. A
+  regra proíbe *depender*, não só implementar: uma lambda num `@Bean` escaparia de `implement(...)`.
   Toda outra porta de `application.gateway` é implementada por um gateway em `adapter/gateway`,
   que consome a infraestrutura por uma interface de `adapter/datasource` ou `adapter/service`.
+  `mail` e `token` não conhecem o `domain` (`transporte_nao_conhece_o_dominio`): só transportam e
+  codificam o que o gateway traduziu.
 - **Cada módulo habilita a própria configuração** (`JwtConfig`, `MailConfig`, `PersistenceConfig`,
   `SecurityConfig`, `OpenApiConfig`); `CompositionConfig` não conhece propriedade de tecnologia.
 - Política da aplicação não mora em módulo de tecnologia: a validade do token de redefinição é
@@ -226,8 +229,21 @@ Pontos que só ficam claros lendo várias camadas:
   fornecem o próprio segredo por `IntegrationTestProperties.JWT_SECRET` no `@SpringBootTest`
   — não criar `src/test/resources/application.yml`, que substituiria o principal inteiro.
 - **O envio de e-mail não propaga falha de transporte** (contrato declarado em `IMailGateway` e
-  repassado a `IMailSender`): `SmtpMailSender` registra em ERROR, sem o destinatário no log. Se a falha subisse, o
-  "esqueci minha senha" revelaria quais e-mails têm conta.
+  repassado a `IMailSender`): `SmtpMailSender` registra em ERROR com o assunto, sem o destinatário
+  no log. Se a falha subisse, o "esqueci minha senha" revelaria quais e-mails têm conta. O SMTP tem
+  **timeouts** de 5 s (`spring.mail.properties.mail.smtp.*timeout`, conferidos pelo `SmtpTimeoutIT`):
+  sem eles o Jakarta Mail espera para sempre.
+- **O "esqueci minha senha" responde no mesmo tempo, exista ou não o e-mail.** O
+  `AuthRestController` só valida a sintaxe e entrega o pedido à fila `forgotPasswordExecutor`
+  (`web/api/auth/ForgotPasswordConfig`: 2 threads, fila de 100, excedente descartado com aviso); o
+  processamento — busca, gravação do token, e-mail — acontece fora da requisição. Esperar o envio
+  ou a gravação faria a latência revelar quem tem conta. Endpoint novo com a mesma natureza
+  (resposta que não pode revelar existência) segue o mesmo desenho.
+- **E-mail sai depois do commit.** O `AuthController` entrega ao caso de uso uma `MailOutbox`
+  (adapter/controller) e só chama `deliver()` depois que `unitOfWork.execute` retorna: se o commit
+  falhar, nenhum e-mail com token inexistente sai, e a transação não espera o servidor de e-mail.
+- O JWT é assinado em **HS256 fixo** (`signWith(key, Jwts.SIG.HS256)`); deixado ao jjwt, o algoritmo
+  seria escolhido pelo tamanho do segredo.
 - `JwtTokenEncoder.read` (implementa `IAccessTokenReader`) exige `sub` e `login`; qualquer recusa devolve vazio, nunca exceção.
 
 ### Tratamento de erros (Etapa 8, já implementada)
@@ -290,6 +306,8 @@ Pontos que só ficam claros lendo várias camadas:
   saúde conta banco e disco; indicador de serviço opcional (e-mail) fica desligado, senão o
   container vira `unhealthy` por causa dele. `HealthIT` garante isso com SMTP real inalcançável.
 - Nos ITs por HTTP, login pelo `autenticar(login, senha)` da `WebIntegrationTestSupport`.
+- Depois de um `forgot-password` num IT, chamar `aguardarProcessamentoEmSegundoPlano()` antes de
+  conferir e-mail, token gravado ou a *ausência* deles — o 202 volta antes do processamento.
 
 ### Coleção Postman e prints (Etapa 12, já implementada)
 
@@ -300,6 +318,9 @@ Pontos que só ficam claros lendo várias camadas:
   coleção exclui o que cria. Ela precisa poder rodar várias vezes contra o mesmo banco.
 - Request que produz variável essencial (token, id) confere o status **antes** de ler o corpo e,
   se falhar, faz `postman.setNextRequest(null)` — nada de gravar `undefined` e seguir.
+- Efeito de um pedido processado em segundo plano (o e-mail do `forgot-password` no Mailpit) é
+  procurado com nova tentativa: o request se repete (`postman.setNextRequest(pm.info.requestName)`,
+  com espera no pré-request) até achar ou esgotar as tentativas.
 - Validar sempre com `npx newman@6 run ...` (versão fixada) contra a pilha do Compose e, depois,
   gerar os prints da mesma execução:
   `npx newman@6 run postman/Restaurantes.postman_collection.json --reporters cli,json --reporter-json-export target/newman.json`

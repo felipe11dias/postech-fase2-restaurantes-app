@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -30,6 +29,8 @@ import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 
 /**
@@ -51,17 +52,17 @@ class ServiceGatewaysTest {
             gateway.sendPasswordReset(Email.of("Joao.Silva@Email.com"), "token-em-claro", Duration.ofMinutes(45));
 
             ArgumentCaptor<String> corpo = ArgumentCaptor.forClass(String.class);
-            verify(mailSender).send(eq("joao.silva@email.com"), eq(PasswordResetMailGateway.SUBJECT), corpo.capture());
+            verify(mailSender).send(eq("joao.silva@email.com"), eq("Redefinição de senha"), corpo.capture());
             assertTrue(corpo.getValue().contains("token-em-claro"));
             assertTrue(corpo.getValue().contains("45 minutos"), "a validade é a que o caso de uso informou");
         }
 
-        @Test
-        @DisplayName("O assunto é o que o usuário reconhece na caixa de entrada")
-        void deveUsarOAssuntoDeRedefinicao() {
-            gateway.sendPasswordReset(Email.of("joao.silva@email.com"), "t", Duration.ofMinutes(30));
-
-            verify(mailSender).send(anyString(), eq("Redefinição de senha"), anyString());
+        @ParameterizedTest(name = "{0} → {1}")
+        @CsvSource({"PT1M, 1 minuto", "PT30M, 30 minutos", "PT90S, 90 segundos", "PT1S, 1 segundo",
+                "PT0.5S, menos de um segundo"})
+        @DisplayName("A validade sai como o usuário a lê: singular e plural, e em segundos quando não é minuto inteiro")
+        void deveDescreverAValidade(Duration validade, String esperado) {
+            assertEquals(esperado, PasswordResetMailGateway.describe(validade));
         }
 
         @Test

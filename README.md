@@ -16,7 +16,7 @@ desenvolvimento, está em [`relatorios/`](relatorios/).
 | Cadastro de usuários (autocadastro, consulta, listagem, atualização, exclusão, troca de senha) | ✅ Implementado |
 | Autenticação JWT, autorização por posse e papel de administrador | ✅ Implementado |
 | Recuperação de senha por e-mail (token de uso único com validade) | ✅ Implementado |
-| Tipos de usuário | ✅ Catálogo fixo — dono de restaurante, cliente e administrador — associado no cadastro. CRUD do catálogo: pendente |
+| Tipos de usuário | 🔄 Parcial — catálogo fixo (dono de restaurante, cliente e administrador), escolhido no cadastro. Pendentes: o CRUD do catálogo e a troca do tipo de um usuário já cadastrado |
 | Cadastro de restaurantes | ⏳ Pendente |
 | Cadastro de itens de cardápio | ⏳ Pendente |
 
@@ -46,7 +46,7 @@ Bean Validation.
 A infraestrutura, por sua vez, é um conjunto de **módulos substituíveis**: o pacote diz o papel e
 o subpacote a tecnologia (`persistence/jpa`, `token/jwt`, `mail/smtp`). Nenhum módulo conhece
 outro; só `main` (a composição) liga as pontas. Trocar uma tecnologia é apagar um subpacote e
-criar outro ao lado — outras 15 regras ArchUnit provam que nada mais dependia dele, que não há
+criar outro ao lado — outras 16 regras ArchUnit provam que nada mais dependia dele, que não há
 ciclos entre pacotes, que cada biblioteca só aparece no módulo que a encapsula e que a
 infraestrutura só implementa diretamente as portas técnicas (hash de senha, token aleatório,
 unidade de trabalho) — o resto passa por um gateway do adaptador.
@@ -185,7 +185,9 @@ Criados pela migration `V2`. O administrador só existe por aqui: o autocadastro
    - A **listagem** de cadastros é exclusiva do administrador, porque expõe dados pessoais de todos.
    - O autocadastro é público, mas não concede `ROLE_ADMIN`.
 4. **Recuperação de senha:** `POST /api/v1/auth/forgot-password` responde `202` sempre, exista ou
-   não o e-mail (a API não revela quais e-mails têm conta). O token chega **só por e-mail**: abra
+   não o e-mail, e no mesmo tempo: o pedido é processado em segundo plano, então a API não revela
+   quais e-mails têm conta nem pela resposta nem pela demora. O token chega **só por e-mail**, em
+   instantes: abra
    o Mailpit em `http://localhost:8025`, copie o token e envie em
    `POST /api/v1/auth/reset-password`. Ele vale uma vez e expira em 30 minutos.
 
@@ -269,17 +271,17 @@ mvn test      # unitários + regras ArchUnit — segundos, sem Docker
 mvn verify    # + testes de integração (Testcontainers) + gate de 100% de cobertura
 ```
 
-- **Unitários (447):** entidades sem mocks; casos de uso com mocks das portas; adaptadores com
+- **Unitários (458):** entidades sem mocks; casos de uso com mocks das portas; adaptadores com
   mocks das origens de dados e dos serviços; infraestrutura com lógica instanciada diretamente. Nenhum sobe
   contexto Spring nem toca em banco.
-- **Integração (89):** contexto Spring completo, PostgreSQL real, migrations do Flyway,
+- **Integração (91):** contexto Spring completo, PostgreSQL real, migrations do Flyway,
   segurança JWT ativa e chamadas HTTP de verdade. Nenhum bean é substituído, exceto o envio de
   e-mail.
 - **Cobertura:** o build **falha** abaixo de 100% de linhas e ramos **dos testes unitários**. A
   integração é medida à parte, só para informação. Relatórios: `target/site/jacoco/index.html`
   (unitários) e `target/site/jacoco-it/index.html` (integração).
 - **Arquitetura e convenções:** o ArchUnit verifica a regra de dependência (14 regras), os módulos
-  da infraestrutura (15 regras) e as
+  da infraestrutura (16 regras) e as
   convenções da própria suíte (7 regras: `@DisplayName` em todo teste, nome `deve…`, unitário
   sem contexto Spring, integração sem dublê de bean da aplicação…).
 

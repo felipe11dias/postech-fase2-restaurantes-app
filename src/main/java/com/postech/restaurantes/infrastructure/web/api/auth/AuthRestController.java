@@ -7,6 +7,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,10 +31,15 @@ public class AuthRestController {
 
     public static final String BASE_PATH = "/api/v1/auth";
 
-    private final AuthController controller;
+    private static final Logger LOG = LoggerFactory.getLogger(AuthRestController.class);
 
-    public AuthRestController(AuthController controller) {
+    private final AuthController controller;
+    private final Executor forgotPasswordExecutor;
+
+    public AuthRestController(AuthController controller,
+                              @Qualifier(ForgotPasswordConfig.EXECUTOR) Executor forgotPasswordExecutor) {
         this.controller = controller;
+        this.forgotPasswordExecutor = forgotPasswordExecutor;
     }
 
     @PostMapping("/login")
@@ -47,6 +57,11 @@ public class AuthRestController {
      * Responde {@code 202 Accepted} — e o mesmo {@code 202} — exista ou não o e-mail. Um
      * {@code 404} para endereço desconhecido transformaria este endpoint em um verificador de
      * quem tem conta no sistema.
+     *
+     * <p>A resposta também precisa levar o <em>mesmo tempo</em>: só o e-mail cadastrado grava um
+     * token e fala com o servidor de e-mail, e a diferença de latência revelaria quem tem conta tão
+     * bem quanto um 404. Por isso a requisição só valida a sintaxe e entrega o pedido a uma fila; o
+     * processamento acontece fora dela. É o que o 202 significa: aceito para processamento.
      */
     @PostMapping("/forgot-password")
     @ResponseStatus(HttpStatus.ACCEPTED)
@@ -56,7 +71,21 @@ public class AuthRestController {
     @ApiResponse(responseCode = "202", description = "Pedido aceito")
     @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "E-mail ausente ou malformado")
     public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        controller.forgotPassword(request.email());
+        String email = request.email();
+        try {
+            forgotPasswordExecutor.execute(() -> process(email));
+        } catch (RejectedExecutionException e) {
+            LOG.warn("Pedido de redefinição de senha descartado: fila cheia");
+        }
+    }
+
+    /** Fora da requisição não há quem receba a exceção: ela vai para o log, sem o e-mail. */
+    private void process(String email) {
+        try {
+            controller.forgotPassword(email);
+        } catch (RuntimeException e) {
+            LOG.error("Falha ao processar pedido de redefinição de senha", e);
+        }
     }
 
     @PostMapping("/reset-password")

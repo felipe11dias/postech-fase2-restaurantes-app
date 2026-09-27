@@ -107,6 +107,12 @@ a porta `IUnitOfWork` — porque o caso de uso não deve saber que transação e
 pode conhecer o `@Transactional` do Spring. A implementação (`TransactionTemplate`) fica na
 infraestrutura.
 
+O que não se desfaz fica **depois** da unidade de trabalho. O e-mail de redefinição passa por uma
+[`MailOutbox`](../../src/main/java/com/postech/restaurantes/adapter/controller/MailOutbox.java): o
+caso de uso pede o envio normalmente, a caixa guarda a mensagem, e o `AuthController` só a entrega
+depois que `unitOfWork.execute` retorna. Se o commit falhar, nenhum e-mail com um token inexistente
+sai; e a transação não fica aberta esperando o servidor de e-mail.
+
 ## 4. Padrões adotados e por quê
 
 | Padrão | Onde | Problema que resolve |
@@ -145,9 +151,11 @@ Outros pontos em relação ao código das aulas:
   implementa uma interface de `application.gateway`; `adapter.datasource` e `adapter.service` só
   têm interfaces com prefixo `I`; seus subpacotes `data` só têm records com sufixo `Data`; views
   são records com sufixo `View`.
-- `InfrastructureModulesTest`: **a infraestrutura só implementa diretamente as portas técnicas** —
-  qualquer outra porta do núcleo implementada fora de `adapter.gateway` quebra o build.
+- `InfrastructureModulesTest`: **a infraestrutura só conhece as portas técnicas** do núcleo — qualquer
+  outra porta implementada (ou referenciada, como uma lambda num `@Bean`) fora de `adapter.gateway`
+  quebra o build; e os módulos de e-mail e token não conhecem o `domain`.
 - Testes: `UserGatewayTest`, `RoleAndTokenGatewaysTest`, `ServiceGatewaysTest` (tradução com os
-  serviços mockados), `PresentersTest`, e `UserControllerTest`/`AuthControllerTest`, que testam o
+  serviços mockados), `PresentersTest`, e `UserControllerTest`/`AuthControllerTest` (inclusive: e-mail só depois do commit, e nenhum se
+  o commit falha), que testam o
   controller "de ponta a ponta dentro do núcleo" — origens de dados e serviços mockados, casos de
   uso, gateways e presenters reais.

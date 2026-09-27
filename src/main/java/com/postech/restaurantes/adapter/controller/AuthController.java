@@ -69,10 +69,16 @@ public final class AuthController {
         return AuthPresenter.toView(unitOfWork.execute(() -> useCase.run(credentials)));
     }
 
+    /**
+     * O e-mail só sai depois do commit: se a gravação do token falhar, nenhuma mensagem com um
+     * token inexistente chega ao usuário, e a transação não espera pelo servidor de e-mail.
+     */
     public void forgotPassword(String email) {
+        var outbox = new MailOutbox(mailSender);
         var useCase = ForgotPasswordUseCase.create(userGateway(), tokenGateway(), tokenGenerator,
-                PasswordResetMailGateway.create(mailSender), resetTokenValidity, clock);
+                PasswordResetMailGateway.create(outbox), resetTokenValidity, clock);
         unitOfWork.execute(() -> useCase.run(email));
+        outbox.deliver();
     }
 
     public void resetPassword(ResetPasswordDTO dto) {

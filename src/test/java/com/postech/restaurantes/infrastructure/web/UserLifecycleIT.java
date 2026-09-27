@@ -74,6 +74,7 @@ class UserLifecycleIT extends WebIntegrationTestSupport {
 
         // 5. Um pedido de redefinição pendente, para que a exclusão tenha um token a levar junto
         rest.postForEntity("/api/v1/auth/forgot-password", corpo(Map.of("email", login + "@email.com")), Void.class);
+        aguardarProcessamentoEmSegundoPlano();
         assertEquals(1, linhas("password_reset_tokens", id));
 
         // 6. Exclusão: o cadastro some, e com ele tudo o que dependia dele

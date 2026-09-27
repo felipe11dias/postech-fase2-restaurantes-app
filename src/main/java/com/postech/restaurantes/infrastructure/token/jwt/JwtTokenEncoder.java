@@ -25,8 +25,10 @@ import org.springframework.stereotype.Component;
 
 /**
  * Implementação de {@link ITokenEncoder} (emitir, para o login) e de {@link IAccessTokenReader}
- * (ler, para a cadeia HTTP) com JWT assinado em HMAC-SHA256. Não conhece o domínio: recebe os
- * dados do portador já traduzidos pelo gateway do adaptador.
+ * (ler, para a cadeia HTTP) com JWT assinado em HMAC-SHA256. O algoritmo é fixado na emissão:
+ * deixado ao jjwt, ele seria escolhido pelo tamanho do segredo (HS384 ou HS512 com o segredo de 48
+ * bytes que o README sugere) e mudaria sozinho a cada troca de segredo. Não conhece o domínio:
+ * recebe os dados do portador já traduzidos pelo gateway do adaptador.
  *
  * <p>Emite e lê o <em>mesmo</em> formato de token, e é o único lugar do sistema que sabe que
  * o token de acesso é um JWT — para o núcleo ele é apenas um texto opaco com uma expiração.
@@ -59,7 +61,7 @@ public class JwtTokenEncoder implements ITokenEncoder, IAccessTokenReader {
                 .claim(BEARER_ROLES, claims.roles().stream().sorted().toList())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiresAt))
-                .signWith(key)
+                .signWith(key, Jwts.SIG.HS256)
                 .compact();
         return new IssuedToken(token, LocalDateTime.ofInstant(expiresAt, clock.getZone()));
     }

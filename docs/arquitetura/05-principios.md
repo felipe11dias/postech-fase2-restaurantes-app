@@ -68,8 +68,8 @@ se ele rompe a integridade entre a arquitetura aplicada e os conceitos; se rompe
 
 ## 6. Como o build verifica
 
-Os princípios não ficam só no texto: **36 regras ArchUnit** os fazem quebrar o build quando
-violados — 14 no `ArchitectureTest` (regra de dependência e nomenclatura), 15 no
-`InfrastructureModulesTest` (módulos, ciclos, bibliotecas, portas técnicas) e 7 no
+Os princípios não ficam só no texto: **37 regras ArchUnit** os fazem quebrar o build quando
+violados — 14 no `ArchitectureTest` (regra de dependência e nomenclatura), 16 no
+`InfrastructureModulesTest` (módulos, ciclos, bibliotecas, portas técnicas, transporte sem domínio) e 7 no
 `TestConventionsTest` (convenções da suíte). Cada regra foi conferida ao contrário, com uma violação
 proposital, na etapa em que foi criada.

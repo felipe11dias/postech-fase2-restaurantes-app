@@ -42,9 +42,9 @@ tecnologia. Trocar uma tecnologia é apagar um subpacote e criar outro ao lado.
 | [`main`](../../src/main/java/com/postech/restaurantes/infrastructure/main) | a composição (Main, cap. 26): `CompositionConfig`, `PasswordResetProperties` | Spring (`@Configuration`) | — é o único que conhece todos |
 | [`web`](../../src/main/java/com/postech/restaurantes/infrastructure/web) | entrega HTTP: `api/<feature>` (`@RestController`, `*Request`/`*Response`, assembler HATEOAS), `error` (ProblemDetail), `doc` (OpenAPI), `validation`, `security` | Spring MVC, Spring Security, springdoc, Bean Validation | outro canal (gRPC, CLI) chama os mesmos controllers de adaptação |
 | [`persistence/jpa`](../../src/main/java/com/postech/restaurantes/infrastructure/persistence/jpa) | `I*DataSource` (`UserDataSourceJpa`, …) e `IUnitOfWork` (`TransactionalUnitOfWork`); `audit` (colunas de auditoria) | JPA/Hibernate, Spring Data, PostgreSQL | `persistence/jdbc` com as mesmas interfaces; o schema continua do Flyway |
-| [`token/jwt`](../../src/main/java/com/postech/restaurantes/infrastructure/token/jwt) | `ITokenEncoder` e `IAccessTokenReader` (`JwtTokenEncoder`) | jjwt | `token/<outro>` implementando as duas interfaces |
+| [`token/jwt`](../../src/main/java/com/postech/restaurantes/infrastructure/token/jwt) | `ITokenEncoder` e `IAccessTokenReader` (`JwtTokenEncoder`, HS256 fixo) | jjwt | `token/<outro>` implementando as duas interfaces |
 | [`crypto`](../../src/main/java/com/postech/restaurantes/infrastructure/crypto) | `IPasswordEncoder` (`BCryptPasswordAdapter`), `ISecureTokenGenerator` (`SecureRandomTokenGenerator`) | spring-security-crypto, JDK | nova classe (ex.: Argon2) implementando a porta |
-| [`mail/smtp`](../../src/main/java/com/postech/restaurantes/infrastructure/mail/smtp) | `IMailSender` (`SmtpMailSender`) — **só transporte** | Spring Mail | `mail/<provedor>` implementando `IMailSender`; o texto do e-mail está no adaptador e não muda |
+| [`mail/smtp`](../../src/main/java/com/postech/restaurantes/infrastructure/mail/smtp) | `IMailSender` (`SmtpMailSender`) — **só transporte**, com timeouts de 5 s | Spring Mail | `mail/<provedor>` implementando `IMailSender`; o texto do e-mail está no adaptador e não muda |
 
 **Duas fronteiras de mapeamento.** As entidades JPA (`UserJpaEntity`, …) são classes separadas
 das entidades de domínio, só com mapeamento; os DTOs HTTP (`NewUserRequest`, `UserResponse`) são
@@ -55,6 +55,12 @@ separados dos DTOs dos casos de uso. Nenhuma anotação atravessa para dentro �
 da auditoria (persistência) vem de `web/security/AuthenticatedActor` por um `Supplier` ligado na
 `CompositionConfig`; o filtro HTTP lê o token pela porta `IAccessTokenReader`, que ele mesmo
 declara e o módulo JWT implementa.
+
+**O "esqueci minha senha" é aceito, não processado, na requisição.** O `AuthRestController` valida a
+sintaxe e entrega o pedido a uma fila própria (`ForgotPasswordConfig`: 2 threads, 100 lugares); a
+busca, a gravação do token e o e-mail acontecem fora dela. Só o e-mail cadastrado grava e envia —
+se a resposta esperasse por isso, o tempo dela revelaria quem tem conta. Concorrência é um detalhe
+de entrega, e fica na borda: o núcleo continua síncrono.
 
 **Schema versionado.** O Flyway é o dono do schema
 ([`V1__create_schema.sql`](../../src/main/resources/db/migration/V1__create_schema.sql)); o JPA só
@@ -91,10 +97,11 @@ imagens de versão fixa e portas só em `127.0.0.1`.
 ## 6. Como o build verifica
 
 [`InfrastructureModulesTest`](../../src/test/java/com/postech/restaurantes/InfrastructureModulesTest.java)
-(15 regras): nenhum ciclo entre pacotes; `persistence`, `crypto` e `mail` não conhecem outro
+(16 regras): nenhum ciclo entre pacotes; `persistence`, `crypto` e `mail` não conhecem outro
 módulo; `token` só conhece, de `web`, a porta que implementa; `web` não conhece implementações;
 cada biblioteca só no seu módulo (JPA em `persistence`, jjwt em `token.jwt`, Spring Mail em
 `mail.smtp`, Spring Security em `web`/`crypto`, Spring MVC/springdoc em `web`); `*Config` ⇔
-`@Configuration`; e a infraestrutura só implementa diretamente as portas técnicas.
+`@Configuration`; a infraestrutura só conhece, do núcleo, as portas técnicas; e `mail` e `token` não
+conhecem o `domain`.
 Testes de integração (Testcontainers, PostgreSQL real) provam os módulos juntos — ver
 [Testes](06-testes.md).

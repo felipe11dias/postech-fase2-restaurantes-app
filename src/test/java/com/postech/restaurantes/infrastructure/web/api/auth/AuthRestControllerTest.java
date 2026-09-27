@@ -1,16 +1,23 @@
 package com.postech.restaurantes.infrastructure.web.api.auth;
 
 import static com.postech.restaurantes.infrastructure.web.WebFixtures.NOW;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.postech.restaurantes.adapter.controller.AuthController;
 import com.postech.restaurantes.adapter.presenter.view.AuthView;
 import com.postech.restaurantes.application.dto.auth.CredentialsDTO;
 import com.postech.restaurantes.application.dto.auth.ResetPasswordDTO;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.RejectedExecutionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,12 +26,14 @@ import org.mockito.ArgumentCaptor;
 class AuthRestControllerTest {
 
     private AuthController controller;
+    private List<Runnable> fila;
     private AuthRestController restController;
 
     @BeforeEach
     void setUp() {
         controller = mock(AuthController.class);
-        restController = new AuthRestController(controller);
+        fila = new ArrayList<>();
+        restController = new AuthRestController(controller, fila::add);
     }
 
     @Test
@@ -44,11 +53,36 @@ class AuthRestControllerTest {
     }
 
     @Test
-    @DisplayName("Esqueci minha senha repassa o e-mail e não devolve corpo")
-    void deveDelegarARecuperacao() {
+    @DisplayName("Esqueci minha senha responde sem esperar o processamento, que roda depois, fora da requisição")
+    void deveDelegarARecuperacaoEmSegundoPlano() {
         restController.forgotPassword(new ForgotPasswordRequest("joao.silva@email.com"));
 
+        verifyNoInteractions(controller);
+        assertEquals(1, fila.size(), "o pedido foi para a fila");
+
+        fila.get(0).run();
+
         verify(controller).forgotPassword("joao.silva@email.com");
+    }
+
+    @Test
+    @DisplayName("Fila cheia: o pedido é descartado e a resposta continua a mesma")
+    void naoDeveFalharComAFilaCheia() {
+        AuthRestController comFilaCheia = new AuthRestController(controller, tarefa -> {
+            throw new RejectedExecutionException("fila cheia");
+        });
+
+        assertDoesNotThrow(() -> comFilaCheia.forgotPassword(new ForgotPasswordRequest("joao.silva@email.com")));
+        verifyNoInteractions(controller);
+    }
+
+    @Test
+    @DisplayName("Falha no processamento em segundo plano vai para o log e não derruba a thread da fila")
+    void naoDevePropagarFalhaDoProcessamento() {
+        doThrow(new IllegalStateException("banco fora do ar")).when(controller).forgotPassword(anyString());
+        restController.forgotPassword(new ForgotPasswordRequest("joao.silva@email.com"));
+
+        assertDoesNotThrow(() -> fila.get(0).run());
     }
 
     @Test

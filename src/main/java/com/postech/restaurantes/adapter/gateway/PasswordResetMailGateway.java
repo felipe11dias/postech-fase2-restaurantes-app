@@ -13,7 +13,7 @@ import java.time.Duration;
  */
 public final class PasswordResetMailGateway implements IMailGateway {
 
-    static final String SUBJECT = "Redefinição de senha";
+    private static final String SUBJECT = "Redefinição de senha";
 
     private final IMailSender mailSender;
 
@@ -38,9 +38,26 @@ public final class PasswordResetMailGateway implements IMailGateway {
 
                 %s
 
-                Ele vale por %d minutos e só pode ser usado uma vez.
+                Ele vale por %s e só pode ser usado uma vez.
 
                 Se não foi você quem pediu, ignore esta mensagem: nada muda até que o token seja usado.
-                """.formatted(rawToken, validity.toMinutes());
+                """.formatted(rawToken, describe(validity));
+    }
+
+    /**
+     * A validade como o usuário a lê: em minutos quando é um número inteiro deles (o caso da
+     * configuração), senão em segundos. Só a fração de segundo é descartada — "1 minuto e meio"
+     * vira "90 segundos", e não "1 minutos".
+     */
+    static String describe(Duration validity) {
+        long seconds = validity.toSeconds();
+        if (seconds == 0) {
+            return "menos de um segundo";
+        }
+        return seconds % 60 == 0 ? count(seconds / 60, "minuto") : count(seconds, "segundo");
+    }
+
+    private static String count(long amount, String unit) {
+        return amount + " " + unit + (amount == 1 ? "" : "s");
     }
 }

@@ -27,8 +27,11 @@ public class SmtpMailSender implements IMailSender {
 
     /**
      * Honra o contrato da porta: falha de SMTP é registrada em ERROR e não sobe. Resposta vaga
-     * para o cliente, registro detalhado para quem opera. O destinatário não vai para o log —
-     * um log com a lista de quem pediu redefinição seria o mesmo vazamento por outra porta.
+     * para o cliente, registro detalhado para quem opera. O log diz <em>qual</em> mensagem falhou
+     * (o assunto), mas não para quem — um log com a lista de quem pediu redefinição seria o mesmo
+     * vazamento por outra porta. O tempo de espera pelo servidor é limitado na configuração
+     * ({@code spring.mail.properties.mail.smtp.*timeout}): sem limite, um servidor que não responde
+     * prenderia a thread para sempre.
      */
     @Override
     public void send(String to, String subject, String body) {
@@ -40,7 +43,7 @@ public class SmtpMailSender implements IMailSender {
         try {
             mailSender.send(message);
         } catch (MailException e) {
-            LOG.error("Falha ao enviar e-mail", e);
+            LOG.error("Falha ao enviar o e-mail \"{}\"", subject, e);
         }
     }
 }

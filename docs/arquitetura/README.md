@@ -18,15 +18,15 @@ aula e página, nunca transcritas.
 
 Comece pela visão geral e siga de dentro para fora, na ordem da regra de dependência:
 
-| # | Documento | Parte da arquitetura | Aulas | Pacotes |
+| # | Documento | Parte da arquitetura | Aulas resumidas na seção 1 | Pacotes |
 |---|---|---|---|---|
 | 0 | [Visão geral](00-visao-geral.md) | as quatro camadas e o fluxo de uma requisição | 01, 02, 07 | todos |
 | 1 | [Entidades](01-entidades.md) | *Enterprise Business Rules* | 02, 03 | `domain` |
-| 2 | [Casos de uso](02-casos-de-uso.md) | *Application Business Rules* | 02, 03 | `application` |
-| 3 | [Adaptadores de interface](03-adaptadores.md) | controllers, gateways, presenters | 02, 05, 07 | `adapter` |
+| 2 | [Casos de uso](02-casos-de-uso.md) | *Application Business Rules* | 02, 03, 07 | `application` |
+| 3 | [Adaptadores de interface](03-adaptadores.md) | controllers, gateways, presenters | 02, 05, 06, 07 | `adapter` |
 | 4 | [Frameworks & Drivers](04-frameworks-drivers.md) | os detalhes: web, banco, token, e-mail | 02, 06 | `infrastructure` |
-| 5 | [Princípios](05-principios.md) | o que sustenta tudo: SOLID, componentes, dependência | 06 | — |
-| 6 | [Testes](06-testes.md) | como cada camada é provada | 04 | `src/test` |
+| 5 | [Princípios](05-principios.md) | o que sustenta tudo: SOLID, componentes, dependência | 01, 06, 07 | — |
+| 6 | [Testes](06-testes.md) | como cada camada é provada | 03, 04, 06 | `src/test` |
 
 ## Estrutura de cada documento
 
