@@ -38,8 +38,9 @@
 | 10  | Execução com Docker Compose                        | ✅     |
 | 11  | Testes — unitários (100% cobertura) e de integração | ✅    |
 | 12  | Entregáveis (Postman, README)                      | ✅     |
+| 13  | Infraestrutura em módulos substituíveis            | ✅     |
 
-**Progresso:** 12 de 12 etapas concluídas.
+**Progresso:** 13 de 13 etapas concluídas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -88,7 +89,7 @@ A escolha se justifica por três razões:
 | **Entidades** (Entities)       | `domain/entity`, `domain/vo`, `domain/exception`                                        | Objetos de negócio com seus invariantes. Criados por fábrica estática `create(...)` que valida os dados. VOs de valor (`Email`, `ZipCode`). Exceções de domínio. **Nenhuma dependência além do JDK.**                                    |
 | **Casos de Uso** (Use Cases)   | `application/usecase`, `application/gateway`, `application/dto`                         | Uma classe por ação que o sistema oferece, com `create(gateways...)` e `run(dto)`. Orquestram as entidades e requisitam dados pelas **interfaces de gateway**, declaradas aqui porque é o caso de uso quem define o que precisa.        |
 | **Adaptadores de Interface**   | `adapter/controller`, `adapter/gateway`, `adapter/presenter`                            | **Controllers** coordenam: instanciam o gateway com a origem de dados recebida, instanciam o caso de uso, entregam o resultado ao presenter. **Gateways** implementam as interfaces do núcleo e traduzem entidade ↔ dados externos, dependendo apenas de uma interface de origem de dados. **Presenters** preparam a saída para o cliente. |
-| **Frameworks & Drivers**       | `infrastructure/web`, `infrastructure/persistence`, `infrastructure/security`, `infrastructure/mail`, `infrastructure/config` | Os detalhes: `@RestController`, DTOs HTTP, HATEOAS, handler de erros; entidades JPA, `JpaRepository` e a implementação da origem de dados; JWT, BCrypt, SMTP; configuração do Spring, OpenAPI e Flyway. **Só aqui existe Spring.**        |
+| **Frameworks & Drivers**       | `infrastructure/main`, `infrastructure/web`, `infrastructure/persistence/jpa`, `infrastructure/token/jwt`, `infrastructure/crypto`, `infrastructure/mail/smtp` | Os detalhes, cada um como módulo substituível (Etapa 13): `@RestController`, DTOs HTTP, HATEOAS, handler de erros e Spring Security; entidades JPA, `JpaRepository` e a implementação da origem de dados; JWT; BCrypt; SMTP; e a composição que liga tudo. **Só aqui existe Spring.**        |
 
 ```mermaid
 flowchart TB
@@ -232,20 +233,24 @@ src/main/java/com/postech/restaurantes/
 │   └── presenter/                 # UserPresenter, AuthPresenter
 │       └── view/                  # UserView, RoleView, AddressView, AuthView (records de saída)
 │
-└── infrastructure/                # FRAMEWORKS & DRIVERS — único lugar com Spring/JPA
-    ├── web/
+└── infrastructure/                # FRAMEWORKS & DRIVERS — módulos substituíveis (Etapa 13)
+    ├── main/                      # CompositionConfig (raiz de composição), PasswordResetProperties
+    ├── web/                       # entrega HTTP (Spring MVC)
+    │   ├── api/user/, api/auth/   # @RestController, Request/Response, UserModelAssembler
     │   ├── error/                 # GlobalExceptionHandler, ProblemDetailFactory, ProblemType
+    │   ├── doc/                   # OpenApiConfig, ErrorResponse, customizers do springdoc
     │   ├── validation/            # @ValidPassword
-    │   ├── doc/                   # ErrorResponse, ProblemDetailOpenApiCustomizer, ErrorResponseOperationCustomizer
-    │   ├── user/                  # UserRestController, Request/Response, UserModelAssembler
-    │   └── auth/                  # AuthRestController, Request/Response
-    ├── persistence/               # AuditableJpaEntity, TransactionalUnitOfWork, AuthenticatedAuditorAware
-    │   ├── user/                  # UserJpaEntity, RoleJpaEntity, PasswordResetTokenJpaEntity, SpringData*Repository, *DataSourceJpa
-    │   └── address/               # AddressJpaEntity
-    ├── security/                  # JwtTokenIssuer, JwtAuthenticationFilter, BCryptPasswordAdapter, UserSecurity, JwtAuthenticationEntryPoint
-    ├── mail/                      # SmtpMailGateway, MailProperties
-    └── config/                    # SecurityConfig, PersistenceConfig, OpenApiConfig, CompositionConfig (raiz de composição)
+    │   └── security/              # SecurityConfig, BearerTokenAuthenticationFilter, IAccessTokenReader, AuthenticatedActor, ...
+    ├── persistence/jpa/           # PersistenceConfig, TransactionalUnitOfWork
+    │   ├── audit/                 # AuditableJpaEntity, AuthenticatedAuditorAware, ClockDateTimeProvider
+    │   └── user/                  # *JpaEntity (inclui AddressJpaEntity), SpringData*Repository, *DataSourceJpa
+    ├── token/jwt/                 # JwtTokenIssuer (ITokenIssuer + IAccessTokenReader), JwtProperties, JwtConfig
+    ├── crypto/                    # BCryptPasswordAdapter, SecureRandomTokenGenerator
+    └── mail/smtp/                 # SmtpMailGateway, MailProperties, MailConfig
 ```
+
+> A infraestrutura chegou à forma acima na **Etapa 13**. As subseções "O que foi entregue" das
+> etapas anteriores registram os nomes e pacotes **da época**; a Etapa 13 traz a correspondência.
 
 Cada pacote nasce com um `package-info.java` que documenta sua regra de dependência — o
 que faz a estrutura compilar vazia e deixa a intenção de cada camada registrada no código,
@@ -1238,7 +1243,7 @@ rede local. Todas as imagens têm versão exata, sem tag móvel.
 | `MAIL_HOST`      | `localhost` — no Compose, fixo em `mailpit` | SMTP para recuperação de senha |
 | `MAIL_PORT`      | `1025`                              | Porta do SMTP no host         |
 | `MAIL_FROM`      | `no-reply@restaurantes.postech`     | Remetente                     |
-| `MAIL_RESET_TOKEN_EXPIRATION_MINUTES` | `30`           | Validade do token de redefinição |
+| `PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES` | `30`       | Validade do token de redefinição (até a Etapa 12, `MAIL_RESET_TOKEN_EXPIRATION_MINUTES`) |
 | `APP_PORT`       | `8080`                              | Porta da API no host          |
 | `MAILPIT_UI_PORT` | `8025`                             | Porta da interface do Mailpit no host |
 
@@ -1378,7 +1383,7 @@ subir.
 | **DTOs do núcleo**        | `PageRequestTest`, `PageResultTest`, `DtoTest`             | JUnit 5             | Limites de paginação, cálculo de páginas, `hasNext`/`hasPrevious`, validação do `IssuedToken`.                    |
 | **Casos de uso**          | um `*UseCaseTest` por intenção do ator (`UserQueryUseCasesTest` reúne busca por id, listagem e exclusão) | JUnit 5 + Mockito | Mocks das interfaces `I*Gateway`; sem contexto Spring. Um comportamento por teste; todo `if` tem os dois caminhos cobertos. |
 | **Adaptadores**           | `UserControllerTest`, `AuthControllerTest`, `UserGatewayTest`, `RoleAndTokenGatewaysTest`, `PresentersTest` | JUnit 5 + Mockito | Mocks de `I*DataSource`; verifica tradução entidade ↔ record e a orquestração do controller (unidade de trabalho → caso de uso → presenter). |
-| **Infraestrutura com lógica** | persistência (`UserDataSourceJpaTest`, `RoleAndTokenDataSourcesJpaTest`, `JpaEntitiesTest`, `TransactionalUnitOfWorkTest`, `AuthenticatedAuditorAwareTest`, `ClockDateTimeProviderTest`); segurança (`JwtTokenIssuerTest`, `JwtAuthenticationFilterTest`, `JwtAuthenticationEntryPointTest`, `SecurityComponentsTest`); e-mail (`SmtpMailGatewayTest`); web (`UserRestControllerTest`, `AuthRestControllerTest`, `UserWebMappingTest`, `ValidPasswordTest`, `GlobalExceptionHandlerTest`, `ProblemDetailFactoryTest`); OpenAPI (`ErrorResponseOperationCustomizerTest`, `ProblemDetailOpenApiCustomizerTest`) | JUnit 5 + Mockito | Classes instanciadas diretamente, com `JpaRepository`, `SecurityContext` e `MailSender` mockados. Configurações puramente declarativas (`infrastructure/config/*Config`) são excluídas do cálculo. |
+| **Infraestrutura com lógica** | persistência (`UserDataSourceJpaTest`, `RoleAndTokenDataSourcesJpaTest`, `JpaEntitiesTest`, `TransactionalUnitOfWorkTest`, `AuthenticatedAuditorAwareTest`, `ClockDateTimeProviderTest`); segurança HTTP (`BearerTokenAuthenticationFilterTest`, `ProblemDetailAuthenticationEntryPointTest`, `SecurityComponentsTest`, `AuthenticatedActorTest`); token (`JwtTokenIssuerTest`); criptografia (`CryptoComponentsTest`); e-mail (`SmtpMailGatewayTest`); composição (`PasswordResetPropertiesTest`); web (`UserRestControllerTest`, `AuthRestControllerTest`, `UserWebMappingTest`, `ValidPasswordTest`, `GlobalExceptionHandlerTest`, `ProblemDetailFactoryTest`); OpenAPI (`ErrorResponseOperationCustomizerTest`, `ProblemDetailOpenApiCustomizerTest`) | JUnit 5 + Mockito | Classes instanciadas diretamente, com `JpaRepository`, `SecurityContext` e `MailSender` mockados. Configurações puramente declarativas (`infrastructure/**/*Config`) são excluídas do cálculo. |
 | **Arquitetura**           | `ArchitectureTest` (14 regras)                             | ArchUnit            | Regra de dependência e nomenclatura do código de produção.                                                        |
 | **Convenções da suíte**   | `TestConventionsTest` (7 regras)                           | ArchUnit            | As convenções abaixo, verificadas sobre as próprias classes de teste.                                            |
 
@@ -1388,14 +1393,14 @@ agentes distintos, que gravam arquivos distintos (`jacoco.exec` e `jacoco-it.exe
 `check` lê só o primeiro. A cobertura da integração sai em relatório separado, informativo
 (`target/site/jacoco-it`). Os dois agentes usam `append=false`, para que nenhum arquivo acumule
 execuções anteriores. As únicas exclusões são `RestaurantesApplication` e as classes
-`infrastructure/config/*Config`, que só declaram beans — tudo o que contém um `if`, um `map` ou
+`infrastructure/**/*Config`, que só declaram beans (regra verificada desde a Etapa 13) — tudo o que contém um `if`, um `map` ou
 uma exceção entra na conta.
 
 ```xml
 <configuration>
   <excludes>
     <exclude>**/RestaurantesApplication.class</exclude>
-    <exclude>**/infrastructure/config/*Config.class</exclude>
+    <exclude>**/infrastructure/**/*Config.class</exclude>
   </excludes>
 </configuration>
 <executions>
@@ -1507,7 +1512,7 @@ mvn verify -Djunit.jupiter.testclass.order.default='org.junit.jupiter.api.ClassO
 | tipos em `adapter.datasource` são interfaces com prefixo `I`                         | contrato da origem de dados                  |
 | tipos em `adapter.datasource.data` são records com sufixo `Data`                     | registro da origem de dados é só dado        |
 | tipos em `adapter.presenter.view` são records com sufixo `View`                      | saída do núcleo passa pelo presenter         |
-| classe anotada com `@Entity` reside em `infrastructure.persistence`                  | ORM nunca anota entidade de domínio          |
+| classe anotada com `@Entity` reside em `infrastructure.persistence.jpa`              | ORM nunca anota entidade de domínio          |
 | o sufixo `JpaEntity` é exclusivo desse pacote                                        | entidade JPA não se confunde com a de domínio |
 | toda implementação de `I*DataSource` termina em `DataSourceJpa`                      | persistência é detalhe substituível          |
 | toda classe em `adapter.gateway` implementa uma interface de `application.gateway`   | gateway sempre tem porta no núcleo           |
@@ -1596,7 +1601,118 @@ unitários, 89 de integração, cobertura unitária 100%).
 
 ---
 
+## Etapa 13 — Infraestrutura em módulos substituíveis
+
+O núcleo (`domain`, `application`, `adapter`) tinha as fronteiras verificadas no build desde a
+Etapa 1. A `infrastructure`, não: era um único anel em que tudo podia importar tudo, organizado por
+nomes genéricos (`config`, `security`, `persistence`) que não diziam **qual porta** cada pacote
+atende nem **qual tecnologia** o implementa. Martin trata frameworks, web e banco como *detalhes* —
+plugins das regras de negócio (*Clean Architecture*, caps. 17 e 30–32) —, e um plugin só merece o
+nome se puder ser trocado sozinho. O mapa de dependências mostrou que nenhum podia:
+
+| Acoplamento encontrado | Efeito ao trocar a tecnologia |
+| --- | --- |
+| A auditoria da persistência (`AuthenticatedAuditorAware`) lia o `SecurityContextHolder` do Spring Security | trocar a autenticação quebrava a persistência |
+| `persistence.address` ↔ `persistence.user` se importavam | **ciclo** entre pacotes — nenhuma regra o pegava |
+| O filtro HTTP dependia do `JwtTokenIssuer` concreto | trocar o formato do token mexia na cadeia HTTP |
+| `security/` misturava Spring Security HTTP, jjwt, BCrypt e SecureRandom | quatro motivos de mudança num pacote só |
+| `config/` importava propriedades de JWT e de e-mail, filtro, *entry point* e controllers | todo módulo novo editava o mesmo pacote |
+| A validade do token de redefinição morava em `MailProperties` | política de autenticação dentro do módulo de SMTP |
+
+### Estrutura
+
+```
+infrastructure/
+  main/          composição: CompositionConfig, PasswordResetProperties
+  web/           entrega HTTP (Spring MVC)
+    api/user/, api/auth/     error/     doc/     validation/
+    security/    SecurityConfig, BearerTokenAuthenticationFilter, IAccessTokenReader, AuthenticatedActor, ...
+  persistence/jpa/           PersistenceConfig, TransactionalUnitOfWork
+    audit/       AuditableJpaEntity, AuthenticatedAuditorAware, ClockDateTimeProvider
+    user/        *JpaEntity (inclui AddressJpaEntity), SpringData*Repository, *DataSourceJpa
+  token/jwt/     JwtTokenIssuer, JwtProperties, JwtConfig
+  crypto/        BCryptPasswordAdapter, SecureRandomTokenGenerator
+  mail/smtp/     SmtpMailGateway, MailProperties, MailConfig
+```
+
+O pacote diz o **papel** e o subpacote a **tecnologia** (*screaming architecture*, cap. 21). Trocar
+JPA por JDBC é criar `persistence/jdbc` ao lado; trocar o JWT por um token opaco é criar
+`token/<outro>`. Cada módulo tem um `package-info.java` dizendo qual porta implementa, qual
+tecnologia usa e o que é preciso para substituí-lo.
+
+### O que foi entregue nesta etapa
+
+| Decisão | Conceito que a sustenta |
+| ------- | ----------------------- |
+| **Só `main` liga os módulos.** `CompositionConfig` monta os controllers de adaptação, fornece o `Clock` e liga um módulo ao outro; nenhum módulo importa um irmão. | O componente Main é o mais sujo do sistema e o único que conhece todos os outros (cap. 26). Os demais continuam plugáveis porque só ele os conhece. |
+| **A web não conhece JWT.** O filtro lê o `Bearer` pela porta `IAccessTokenReader`, declarada em `web/security`, e o `JwtTokenIssuer` a implementa junto com `ITokenIssuer`. O filtro e o *entry point* perderam o `Jwt` do nome (`BearerTokenAuthenticationFilter`, `ProblemDetailAuthenticationEntryPoint`). | DIP: a interface pertence a quem a consome (*Agile PPP*). CCP: emitir e ler o mesmo formato mudam juntos, então ficam no mesmo módulo (cap. 13). Nomes revelam intenção (*Clean Code* cap. 2): uma classe que não sabe o que é JWT não pode se chamar `Jwt…`. O teste do filtro passou a usar um leitor falso — nenhum JWT em cena. |
+| **A persistência não conhece segurança.** `web/security/AuthenticatedActor` sabe quem está autenticado; `AuthenticatedAuditorAware` recebe um `Supplier<Optional<String>>`; o `main` liga um ao outro. O comportamento é o mesmo (`system` quando não há autor). | Uma fronteira entre dois detalhes é desenhada como qualquer outra: por uma abstração, e cruzada só onde tudo se encontra — no Main. |
+| **O ciclo sumiu.** `AddressJpaEntity` foi para `persistence/jpa/user`: é mapeamento do **agregado** usuário (a chave estrangeira é dele). | ADP (cap. 14): pacotes num ciclo formam um bloco só, que ninguém troca, testa ou entende separadamente. |
+| **Cada módulo traz a própria configuração** (`JwtConfig`, `MailConfig`, `PersistenceConfig`, `SecurityConfig`, `OpenApiConfig`); `config/` deixou de existir. | CCP e OCP no nível de componente: apagar um módulo não deixa referência em outro lugar, e acrescentar um não edita um pacote central. |
+| **A validade do token é política de autenticação.** `main/PasswordResetProperties` (`PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES`) substitui o campo em `MailProperties`, e o caso de uso passa a validade ao e-mail: `IMailGateway.sendPasswordReset(to, token, validity)`. | Uma fonte de verdade. O caso de uso é quem calcula o vencimento; se o texto do e-mail tivesse configuração própria, o token poderia valer 30 minutos e a mensagem dizer 60. |
+| **Substituibilidade verificada no build:** `InfrastructureModulesTest`, 14 regras ArchUnit. | Uma estrutura de pastas é só intenção; o que a sustenta é a regra que quebra o build (o mesmo raciocínio da regra de dependência desde a Etapa 1). |
+
+**Um desvio consciente do escopo.** A etapa era para ficar só na infraestrutura, mas a validade do
+token não tinha como sair do módulo de e-mail sem uma de três coisas: o e-mail depender do `main`
+(um plugin conhecendo a composição), duas propriedades que precisariam concordar, ou a porta
+`IMailGateway` passar a receber a validade. Foi a terceira — a única que mantém uma fonte de verdade
+—, com um parâmetro `Duration` (JDK) na porta e a chamada correspondente no `ForgotPasswordUseCase`.
+
+### Regras novas (`InfrastructureModulesTest`)
+
+| Regra | Protege |
+| --- | --- |
+| nenhum ciclo entre pacotes, no projeto inteiro | ADP |
+| `persistence`, `crypto` e `mail` não dependem de nenhum outro módulo | cada um trocável sozinho |
+| `token` só conhece, de `web`, `IAccessTokenReader` e `AuthenticatedUser` — a porta que implementa | trocar o formato do token não toca a web |
+| `web` não depende de `main`, `persistence`, `token`, `crypto` nem `mail` | a entrega HTTP fala por portas |
+| JPA, Hibernate, Spring Data e transação só em `persistence` (e em `main`, para ligar o `AuditorAware`) | o banco é um detalhe |
+| jjwt só em `token.jwt`; Spring Mail só em `mail.smtp` | cada biblioteca no seu módulo |
+| Spring Security só em `web` e, dele, só `spring-security-crypto` em `crypto` | autenticação HTTP não vaza |
+| Spring MVC, HATEOAS, Servlet, Bean Validation e springdoc só em `web` | a web é um detalhe |
+| classe `*Config` é `@Configuration` e toda `@Configuration` termina em `Config` | sustenta a exclusão `**/infrastructure/**/*Config.class` do JaCoCo sem esconder lógica |
+
+As regras foram conferidas ao contrário: sete classes temporárias, cada uma violando uma delas
+(ciclo `audit ↔ user`, persistência conhecendo a web, token conhecendo o filtro, web conhecendo o
+JWT, e-mail conhecendo o `main`, jjwt fora do módulo, `@Configuration` sem o sufixo), fizeram
+falhar exatamente as sete regras visadas.
+
+### De → para
+
+| Antes (etapas 5 a 12) | Agora |
+| --- | --- |
+| `infrastructure/config/CompositionConfig` | `infrastructure/main/CompositionConfig` |
+| `infrastructure/config/{SecurityConfig, OpenApiConfig, PersistenceConfig}` | `web/security`, `web/doc`, `persistence/jpa` |
+| `infrastructure/security/{JwtTokenIssuer, JwtProperties}` | `infrastructure/token/jwt` |
+| `infrastructure/security/{BCryptPasswordAdapter, SecureRandomTokenGenerator}` | `infrastructure/crypto` |
+| `infrastructure/security/JwtAuthenticationFilter` | `web/security/BearerTokenAuthenticationFilter` |
+| `infrastructure/security/JwtAuthenticationEntryPoint` | `web/security/ProblemDetailAuthenticationEntryPoint` |
+| `infrastructure/security/{AuthenticatedUser, UserSecurity}` | `infrastructure/web/security` |
+| `infrastructure/persistence/{user, address}` | `infrastructure/persistence/jpa/user` |
+| `infrastructure/persistence/{AuditableJpaEntity, AuthenticatedAuditorAware, ClockDateTimeProvider}` | `infrastructure/persistence/jpa/audit` |
+| `infrastructure/persistence/TransactionalUnitOfWork` | `infrastructure/persistence/jpa` |
+| `infrastructure/mail/*` | `infrastructure/mail/smtp` |
+| `infrastructure/web/{user, auth}` | `infrastructure/web/api/{user, auth}` |
+| `MAIL_RESET_TOKEN_EXPIRATION_MINUTES` | `PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES` |
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `mvn clean verify` | **441 testes unitários** (427 + 14 regras novas) e **89 de integração** — BUILD SUCCESS; cobertura unitária **1022/1022 linhas, 226/226 ramos, 431/431 métodos** |
+| Movimentação | 62 classes movidas com `git mv` (histórico preservado); nenhum teste de integração precisou mudar além do pacote |
+| Pilha do Compose com `PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES=45` | o token grava vencimento em **45** minutos e o e-mail diz *"Ele vale por 45 minutos"* — a validade viaja da configuração ao caso de uso e dele ao texto, por uma fonte só |
+| Coleção Postman (`npx newman@6`) | 52 requests, 108 asserções, nenhuma falha; `cliente.demo` intacto |
+
+Nenhum comportamento HTTP mudou, e por isso os prints da Etapa 12 continuam valendo.
+
+---
+
 ## Decisões Técnicas (registro consolidado)
+
+- **Infraestrutura em módulos substituíveis:** o pacote diz o papel, o subpacote a tecnologia;
+  nenhum módulo conhece outro, só o Main os liga; sem ciclos; cada biblioteca confinada ao seu
+  módulo — tudo verificado por ArchUnit. Etapa 13.
 
 - **Testes em dois níveis obrigatórios:** unitários com **100% de cobertura** de linhas e
   ramos (JaCoCo bloqueia o build abaixo disso) e de integração com contexto Spring completo,

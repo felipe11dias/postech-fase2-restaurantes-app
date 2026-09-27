@@ -63,7 +63,7 @@ class ForgotPasswordUseCaseTest {
         assertEquals("hash-do-token", token.getTokenHash());
         assertEquals(NOW.plus(VALIDITY), token.getExpiresAt());
         assertFalse(token.isUsed());
-        verify(mailGateway).sendPasswordReset(Email.of("joao.silva@email.com"), "token-em-claro");
+        verify(mailGateway).sendPasswordReset(Email.of("joao.silva@email.com"), "token-em-claro", VALIDITY);
     }
 
     @Test
@@ -104,7 +104,7 @@ class ForgotPasswordUseCaseTest {
         when(userGateway.findByEmail(any())).thenReturn(Optional.of(existingUser()));
         when(tokenGenerator.generate()).thenReturn("t");
         when(tokenGenerator.hash(anyString())).thenReturn("h");
-        org.mockito.Mockito.doThrow(new IllegalStateException("smtp fora")).when(mailGateway).sendPasswordReset(any(), anyString());
+        org.mockito.Mockito.doThrow(new IllegalStateException("smtp fora")).when(mailGateway).sendPasswordReset(any(), anyString(), any());
 
         assertThrows(IllegalStateException.class, () -> useCase.run("joao.silva@email.com"));
     }

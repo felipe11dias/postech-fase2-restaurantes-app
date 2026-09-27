@@ -156,14 +156,14 @@ class ArchitectureTest {
     @ArchTest
     static final ArchRule entidades_jpa_so_existem_em_infrastructure_persistence =
             classes().that().areAnnotatedWith(jakarta.persistence.Entity.class)
-                    .should().resideInAPackage("..infrastructure.persistence..")
+                    .should().resideInAPackage("..infrastructure.persistence.jpa..")
                     .andShould().haveSimpleNameEndingWith("JpaEntity")
                     .allowEmptyShould(true);
 
     @ArchTest
     static final ArchRule nome_JpaEntity_e_exclusivo_da_persistencia =
             classes().that().haveSimpleNameEndingWith("JpaEntity")
-                    .should().resideInAPackage("..infrastructure.persistence..")
+                    .should().resideInAPackage("..infrastructure.persistence.jpa..")
                     .allowEmptyShould(true);
 
     @ArchTest
@@ -172,7 +172,7 @@ class ArchitectureTest {
                             "interface em adapter.datasource",
                             (com.tngtech.archunit.core.domain.JavaClass c) ->
                                     c.getPackageName().endsWith("adapter.datasource")))
-                    .should().resideInAPackage("..infrastructure.persistence..")
+                    .should().resideInAPackage("..infrastructure.persistence.jpa..")
                     .andShould().haveSimpleNameEndingWith("DataSourceJpa")
                     .allowEmptyShould(true);
 

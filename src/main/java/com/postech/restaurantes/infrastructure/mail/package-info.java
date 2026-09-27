@@ -1,4 +1,4 @@
 /**
- * Frameworks & Drivers: e-mail. Implementação SMTP de IMailGateway e suas propriedades.
+ * Papel: enviar e-mail. Cada subpacote é um transporte (hoje, {@code smtp}).
  */
 package com.postech.restaurantes.infrastructure.mail;

@@ -253,3 +253,23 @@
   interrompida em falha essencial, `.env` exportado explicitamente, Newman com versão fixada,
   pasta temporária removida, relatório atualizado.
 - Newman: 52 requests, 108 asserções, nenhuma falha, duas execuções seguidas contra o Compose.
+
+## Etapa 13 — Infraestrutura em módulos substituíveis
+- `infrastructure/` reorganizada por papel/tecnologia: `main` (composição), `web` (`api`, `error`,
+  `doc`, `validation`, `security`), `persistence/jpa` (`audit`, `user`), `token/jwt`, `crypto`,
+  `mail/smtp`. 62 classes movidas com `git mv`; `config/` deixou de existir; cada módulo habilita a
+  própria configuração (`JwtConfig`, `MailConfig`, ...).
+- Web não conhece JWT: `BearerTokenAuthenticationFilter` (antes `JwtAuthenticationFilter`) lê pela
+  porta `web/security/IAccessTokenReader`, implementada por `JwtTokenIssuer`;
+  `JwtAuthenticationEntryPoint` → `ProblemDetailAuthenticationEntryPoint`.
+- Persistência não conhece segurança: `AuthenticatedAuditorAware` recebe um `Supplier`;
+  `web/security/AuthenticatedActor` diz quem está autenticado; `main` liga os dois.
+- Ciclo `persistence.address ↔ persistence.user` eliminado: `AddressJpaEntity` em `persistence/jpa/user`.
+- Validade do token de redefinição: `main/PasswordResetProperties`
+  (`PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES`, antes `MAIL_RESET_TOKEN_EXPIRATION_MINUTES`) e
+  `IMailGateway.sendPasswordReset(to, token, validity)` — o texto do e-mail usa a mesma validade do token.
+- `InfrastructureModulesTest`: 14 regras ArchUnit (sem ciclos no projeto; módulos isolados; cada
+  biblioteca no seu módulo; `*Config` ⇔ `@Configuration`), conferidas com violações propositais.
+  Exclusão do JaCoCo generalizada para `**/infrastructure/**/*Config.class`.
+- `mvn clean verify`: 441 testes unitários e 89 de integração; cobertura unitária 100% (1022
+  linhas, 226 ramos). Newman: 52 requests, 108 asserções, nenhuma falha.

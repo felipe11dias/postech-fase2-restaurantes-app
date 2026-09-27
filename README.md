@@ -36,12 +36,28 @@ flowchart TB
 | Entidades | `domain/entity`, `domain/vo`, `domain/exception` | Regras de negócio e invariantes, sem nenhuma dependência de biblioteca |
 | Casos de Uso | `application/usecase`, `application/gateway`, `application/dto` | Uma intenção do ator por classe (`create` + `run`), dependendo só de interfaces |
 | Adaptadores de Interface | `adapter/controller`, `adapter/gateway`, `adapter/datasource`, `adapter/presenter` | Tradução entre o núcleo e o mundo externo |
-| Frameworks & Drivers | `infrastructure/web`, `persistence`, `security`, `mail`, `config` | Spring, JPA, JWT, SMTP — os únicos detalhes técnicos do sistema |
+| Frameworks & Drivers | `infrastructure/main`, `web`, `persistence/jpa`, `token/jwt`, `crypto`, `mail/smtp` | Spring, JPA, JWT, SMTP — os únicos detalhes técnicos do sistema |
 
 Dentro de cada camada o código é agrupado por agregado (`user`, `auth`, `address`…), para que a
 estrutura revele o domínio. A regra de dependência é **verificada no build** pelo ArchUnit
 (14 regras): nenhum tipo fora de `infrastructure` importa Spring, JPA, Hibernate, jjwt ou
 Bean Validation.
+
+A infraestrutura, por sua vez, é um conjunto de **módulos substituíveis**: o pacote diz o papel e
+o subpacote a tecnologia (`persistence/jpa`, `token/jwt`, `mail/smtp`). Nenhum módulo conhece
+outro; só `main` (a composição) liga as pontas. Trocar uma tecnologia é apagar um subpacote e
+criar outro ao lado — outras 14 regras ArchUnit provam que nada mais dependia dele, que não há
+ciclos entre pacotes e que cada biblioteca só aparece no módulo que a encapsula.
+
+```
+infrastructure/
+  main/          composição: liga controllers, portas e módulos
+  web/           entrega HTTP — api/<feature>, error, doc, validation, security
+  persistence/   jpa/ — origens de dados, unidade de trabalho, auditoria
+  token/         jwt/ — emite e lê o token de acesso
+  crypto/        BCrypt (senha) e SecureRandom (token de redefinição)
+  mail/          smtp/ — e-mail de redefinição de senha
+```
 
 ## Stack
 
@@ -136,7 +152,7 @@ Na IDE, configure as mesmas variáveis na configuração de execução (ou use u
 | `JWT_EXPIRATION` | `3600000` | Validade do token, em milissegundos |
 | `DB_NAME` / `DB_USER` / `DB_PASSWORD` | `restaurantes-app` / `postgres` / `postgres` | Banco, usuário e senha (valem para o container e para a aplicação) |
 | `MAIL_FROM` | `no-reply@restaurantes.postech` | Remetente dos e-mails |
-| `MAIL_RESET_TOKEN_EXPIRATION_MINUTES` | `30` | Validade do token de redefinição de senha |
+| `PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES` | `30` | Validade do token de redefinição de senha |
 | `APP_PORT` / `DB_PORT` / `MAIL_PORT` / `MAILPIT_UI_PORT` | `8080` / `5432` / `1025` / `8025` | Portas no host |
 | `DB_HOST` / `MAIL_HOST` | `localhost` | Só fora do Docker; no Compose os serviços se acham pelo nome |
 | `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS` | vazios / `false` | SMTP real, só fora do Docker; no Compose o e-mail vai sempre para o Mailpit |
@@ -246,7 +262,7 @@ mvn test      # unitários + regras ArchUnit — segundos, sem Docker
 mvn verify    # + testes de integração (Testcontainers) + gate de 100% de cobertura
 ```
 
-- **Unitários (422):** entidades sem mocks; casos de uso com mocks das portas; adaptadores com
+- **Unitários (441):** entidades sem mocks; casos de uso com mocks das portas; adaptadores com
   mocks das origens de dados; infraestrutura com lógica instanciada diretamente. Nenhum sobe
   contexto Spring nem toca em banco.
 - **Integração (89):** contexto Spring completo, PostgreSQL real, migrations do Flyway,
@@ -255,7 +271,8 @@ mvn verify    # + testes de integração (Testcontainers) + gate de 100% de cobe
 - **Cobertura:** o build **falha** abaixo de 100% de linhas e ramos **dos testes unitários**. A
   integração é medida à parte, só para informação. Relatórios: `target/site/jacoco/index.html`
   (unitários) e `target/site/jacoco-it/index.html` (integração).
-- **Arquitetura e convenções:** o ArchUnit verifica a regra de dependência (14 regras) e as
+- **Arquitetura e convenções:** o ArchUnit verifica a regra de dependência (14 regras), os módulos
+  da infraestrutura (14 regras) e as
   convenções da própria suíte (7 regras: `@DisplayName` em todo teste, nome `deve…`, unitário
   sem contexto Spring, integração sem dublê de bean da aplicação…).
 
@@ -266,7 +283,7 @@ src/main/java/com/postech/restaurantes/
   domain/          entidades, objetos de valor e exceções de negócio
   application/     casos de uso, portas (gateways) e DTOs do núcleo
   adapter/         controllers, gateways, origens de dados e presenters
-  infrastructure/  web (REST, erros, OpenAPI), persistence (JPA), security (JWT), mail, config
+  infrastructure/  módulos substituíveis: main, web, persistence/jpa, token/jwt, crypto, mail/smtp
 src/main/resources/db/migration/   V1 (schema) e V2 (seed de demonstração)
 postman/                           coleção e prints
 relatorios/                        relatório técnico por etapa (Markdown e PDF)

@@ -49,7 +49,8 @@ docker compose up --build                  # app + banco + Mailpit (exige JWT_SE
 
 Cobertura: `target/site/jacoco/index.html` (XML em `jacoco.xml`). **O `verify` falha abaixo de
 100% de linhas e ramos** — toda classe nova entra com seus testes no mesmo passo, ou o build
-quebra. Únicas exclusões: `RestaurantesApplication` e `infrastructure/config/*Config`.
+quebra. Únicas exclusões: `RestaurantesApplication` e `infrastructure/**/*Config` (a regra
+`configuracao_tem_nome_e_anotacao` garante que `*Config` é só `@Configuration`).
 **O gate mede só os testes unitários** (`target/jacoco.exec`): o Failsafe tem agente próprio,
 grava `jacoco-it.exec`, e o relatório da integração (`target/site/jacoco-it`) é informativo.
 Linha coberta só por `*IT` não conta — escreva o teste unitário. Rodando só um IT
@@ -65,7 +66,8 @@ cada teste cria seus próprios dados com marca única em vez de depender de esta
 
 ## Arquitetura — a regra de dependência é verificada em build
 
-`src/test/java/.../ArchitectureTest.java` (ArchUnit, 14 regras) falha o build se violada:
+`src/test/java/.../ArchitectureTest.java` (ArchUnit, 14 regras) falha o build se violada — e o
+`InfrastructureModulesTest` (14 regras, Etapa 13) faz o mesmo *dentro* da infraestrutura:
 
 ```
 domain          → só JDK. Nenhum import de outro pacote do projeto nem de biblioteca.
@@ -82,12 +84,51 @@ nova (restaurante, cardápio) ganha o próprio subpacote em cada camada. Conven�
 classes em `application.usecase` terminam em `UseCase`; tudo em `application.gateway` e
 `adapter.datasource` são interfaces com prefixo `I`.
 
+### Infraestrutura em módulos substituíveis (Etapa 13, já implementada)
+
+Cada subpacote de `infrastructure` é um **módulo-plugin**: o pacote diz o papel, o subpacote a
+tecnologia. Trocar uma tecnologia = apagar um subpacote e criar outro ao lado.
+
+```
+infrastructure/
+  main/                composição (Main): CompositionConfig, PasswordResetProperties
+  web/                 entrega HTTP (Spring MVC)
+    api/<feature>/     @RestController, *Request/*Response, assembler HATEOAS
+    error/ doc/ validation/
+    security/          SecurityConfig, BearerTokenAuthenticationFilter, 401, AuthenticatedUser,
+                       UserSecurity, AuthenticatedActor, IAccessTokenReader (porta do módulo)
+  persistence/jpa/     PersistenceConfig, TransactionalUnitOfWork; audit/; um subpacote por agregado
+  token/jwt/           ITokenIssuer + IAccessTokenReader (jjwt), JwtProperties, JwtConfig
+  crypto/              IPasswordEncoder (BCrypt), ISecureTokenGenerator (SecureRandom)
+  mail/smtp/           IMailGateway (Spring Mail), MailProperties, MailConfig
+```
+
+Regras (verificadas pelo `InfrastructureModulesTest`):
+- **Nenhum ciclo entre pacotes no projeto inteiro** (ADP). Entidade JPA de parte de um agregado
+  fica no pacote do agregado — o endereço está em `persistence/jpa/user`.
+- **Nenhum módulo conhece outro módulo-irmão; só `main` liga as pontas.** Quando um módulo precisa
+  de algo de outro, ele declara a interface (ou recebe um `Supplier`) e o `main` liga. Ex.: o autor
+  da auditoria vem de `web/security/AuthenticatedActor` para `persistence/jpa/audit` via
+  `CompositionConfig`. Única exceção prevista: `token` implementa `IAccessTokenReader` e devolve
+  `AuthenticatedUser`, as duas classes de `web/security` que ele pode conhecer.
+- **Cada biblioteca só no seu módulo:** JPA/Hibernate/Spring Data/transação em `persistence` (e
+  `main`, para ligar o `AuditorAware`); jjwt em `token.jwt`; Spring Mail em `mail.smtp`; Spring
+  Security em `web` (e `spring-security-crypto` em `crypto`); Spring MVC, HATEOAS, Servlet, Bean
+  Validation e springdoc em `web`.
+- **Cada módulo habilita a própria configuração** (`JwtConfig`, `MailConfig`, `PersistenceConfig`,
+  `SecurityConfig`, `OpenApiConfig`); `CompositionConfig` não conhece propriedade de tecnologia.
+- Política da aplicação não mora em módulo de tecnologia: a validade do token de redefinição é
+  `main/PasswordResetProperties` (`PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES`), e chega ao e-mail
+  pela porta `IMailGateway.sendPasswordReset(to, token, validity)`.
+- Módulo novo (ex.: armazenamento da foto do prato): pacote de papel + subpacote de tecnologia,
+  `package-info` dizendo qual porta implementa e como substituí-lo, e as regras acima estendidas.
+
 ### Como as camadas se encaixam (fluxo de uma requisição)
 
-`@RestController` (infrastructure/web) → `UserController` (adapter/controller) → cria
+`@RestController` (infrastructure/web/api) → `UserController` (adapter/controller) → cria
 `UserGateway(IUserDataSource)` (adapter/gateway) e `XxxUseCase.create(gateway, ...)` →
 `useCase.run(dto)` → entidades de `domain` → `gateway` traduz entidade ↔ record da origem de
-dados → `UserDataSourceJpa` (infrastructure/persistence) → `JpaRepository` → volta →
+dados → `UserDataSourceJpa` (infrastructure/persistence/jpa) → `JpaRepository` → volta →
 `UserPresenter.toView` (adapter/presenter) → `@RestController` monta `Response` + HATEOAS.
 
 Pontos que só ficam claros lendo várias camadas:
@@ -103,7 +144,7 @@ Pontos que só ficam claros lendo várias camadas:
   autocadastro, resposta idêntica no "esqueci minha senha") → caso de uso.
 - **Interfaces de gateway ficam em `application`** (quem as consome as declara);
   interfaces de origem de dados (`I*DataSource`) ficam em `adapter/datasource`, com os records
-  `*Data` em `adapter/datasource/data`, e são implementadas em `infrastructure/persistence`.
+  `*Data` em `adapter/datasource/data`, e são implementadas em `infrastructure/persistence/jpa`.
 - **Saída do núcleo são views** (`adapter/presenter/view`, records `*View`), produzidas só pelos
   presenters; `UserView` não tem campo de senha. Gateways do adapter reconstroem entidades com
   `restore(...)` (revalida invariantes) e desmontam com `toData`. ArchUnit exige que toda
@@ -114,7 +155,7 @@ Pontos que só ficam claros lendo várias camadas:
 ### Persistência (Etapa 5, já implementada)
 
 - Entidades JPA (`*JpaEntity`) são classes **separadas** das de domínio, só com mapeamento e
-  acessores — nenhuma invariante. Ficam em `infrastructure/persistence/<agregado>`, espelhando
+  acessores — nenhuma invariante. Ficam em `infrastructure/persistence/jpa/<agregado>`, espelhando
   `domain/entity/<agregado>`. ArchUnit: `@Entity` só existe nesse pacote e a classe termina em
   `JpaEntity`; implementação de `I*DataSource` termina em `DataSourceJpa`.
 - Coleções mapeadas **não** são campos `final` (o Hibernate substitui a instância ao carregar).
@@ -137,21 +178,22 @@ Pontos que só ficam claros lendo várias camadas:
 
 ### Web e segurança (Etapa 7, já implementada)
 
-- `infrastructure/web/<feature>`: `@RestController` fino + DTOs `*Request`/`*Response` +
+- `infrastructure/web/api/<feature>`: `@RestController` fino + DTOs `*Request`/`*Response` +
   assembler HATEOAS. Bean Validation só aqui, e só **sintática** (`@NotBlank`, `@Email`,
   `@Size`); consistência e comparação de campos ("as senhas conferem") ficam no domínio/caso de
   uso. Conversão por `toDTO()` no próprio record; papel vem como `String` e passa por
   `RoleName.from`, para o erro ser a mensagem do domínio.
 - `SecurityConfig`: stateless, sem CSRF, lista de rotas públicas em um lugar só.
   **Liberar `DispatcherType.ERROR`/`FORWARD`** — sem isso todo erro vira `403` sem corpo e a
-  causa real some. `HttpStatusEntryPoint(UNAUTHORIZED)` para dar `401` sem credenciais e `403`
-  com credenciais insuficientes.
-- `JwtAuthenticationFilter` só traduz o `Bearer` em contexto; quem recusa é a configuração.
+  causa real some. `ProblemDetailAuthenticationEntryPoint` dá `401` sem credenciais e o
+  `@PreAuthorize`, `403` com credenciais insuficientes.
+- `BearerTokenAuthenticationFilter` só traduz o `Bearer` em contexto (lendo pela porta
+  `IAccessTokenReader`, sem saber que é JWT); quem recusa é a configuração.
   Principal é `AuthenticatedUser` (implementa `Principal` para `getName()` devolver o login,
   que é o que a auditoria grava) e carrega o id, que `UserSecurity.isSelf` usa no
   `@PreAuthorize("hasRole('ADMIN') or @userSecurity.isSelf(#id, authentication)")`.
-- `CompositionConfig` é a raiz de composição: os controllers de adaptação são objetos comuns
-  criados pelas fábricas estáticas, nunca `@Component`.
+- `main/CompositionConfig` é a raiz de composição: os controllers de adaptação são objetos comuns
+  criados pelas fábricas estáticas, nunca `@Component`. Feature nova ganha os seus `@Bean` aqui.
 - **Listagem paginada dá links de navegação** (`self`/`first`/`last` sempre, `prev`/`next`
   quando existem), repetindo `name` e `sort` como o cliente mandou. Montar a URL a partir dos
   parâmetros decodificados e codificar uma vez (`toUriComponentsBuilder()...build().encode()`),
@@ -169,14 +211,14 @@ Pontos que só ficam claros lendo várias camadas:
 - **`IMailGateway` não propaga falha de transporte** (contrato declarado na porta):
   `SmtpMailGateway` registra em ERROR, sem o destinatário no log. Se a falha subisse, o
   "esqueci minha senha" revelaria quais e-mails têm conta.
-- `JwtTokenIssuer.read` exige `sub` e `login`; qualquer recusa devolve vazio, nunca exceção.
+- `JwtTokenIssuer.read` (implementa `IAccessTokenReader`) exige `sub` e `login`; qualquer recusa devolve vazio, nunca exceção.
 
 ### Tratamento de erros (Etapa 8, já implementada)
 
 - `infrastructure/web/error/GlobalExceptionHandler` é o **único** lugar que traduz exceção em
   status. Controllers não capturam nada; o núcleo não sabe que HTTP existe. Toda resposta de
   erro é `ProblemDetail` montado pela `ProblemDetailFactory` (com `timestamp` do `Clock` da
-  aplicação); o 401 da cadeia de segurança sai pelo `JwtAuthenticationEntryPoint`, no mesmo formato.
+  aplicação); o 401 da cadeia de segurança sai pelo `ProblemDetailAuthenticationEntryPoint`, no mesmo formato.
 - **Exceção de domínio nova exige handler novo** e categoria em `ProblemType` — sem isso ela
   cai no genérico e vira 500. Uma entrada por exceção, não um mapa genérico.
 - **O que vai para o `detail`:** só mensagem escrita para o usuário — a das exceções de domínio

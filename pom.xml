@@ -189,7 +189,7 @@
                 <configuration>
                     <excludes>
                         <exclude>**/RestaurantesApplication.class</exclude>
-                        <exclude>**/infrastructure/config/*Config.class</exclude>
+                        <exclude>**/infrastructure/**/*Config.class</exclude>
                     </excludes>
                 </configuration>
                 <executions>
