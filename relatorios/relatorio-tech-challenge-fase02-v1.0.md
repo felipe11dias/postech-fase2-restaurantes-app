@@ -14,11 +14,15 @@
 > Documento vivo, organizado pelas etapas de desenvolvimento. Cada etapa do Sumário de
 > Progresso abaixo corresponde a uma seção homônima neste relatório.
 >
-> Esta é a **primeira versão** do relatório da Fase 2. Ela define a arquitetura, o modelo de
-> domínio e as decisões técnicas de um **projeto novo**, construído desde o início sobre a
-> **Clean Architecture** de Robert C. Martin. As seções descrevem o desenho acordado pela
-> equipe; à medida que cada etapa for concluída, o texto correspondente passa a refletir o
-> código entregue.
+> O relatório registra a arquitetura, o modelo de domínio e as decisões técnicas de um
+> **projeto novo**, construído desde o início sobre a **Clean Architecture** de Robert C. Martin.
+> A Visão Geral e as tabelas de referência descrevem o código **como ele está**; a seção de cada
+> etapa diz o que ela entregou, qual conceito sustenta cada decisão e o resultado real do build —
+> com os nomes de classes e pacotes da época (a Etapa 13 traz a correspondência para a
+> infraestrutura, e a Etapa 14, para os gateways de serviço).
+>
+> A correlação detalhada entre o que as aulas da Fase 2 ensinam, o que os autores de referência
+> dizem e como o projeto implementa cada camada está em [`docs/arquitetura/`](../docs/arquitetura/README.md).
 
 ---
 
@@ -39,8 +43,11 @@
 | 11  | Testes — unitários (100% cobertura) e de integração | ✅    |
 | 12  | Entregáveis (Postman, README)                      | ✅     |
 | 13  | Infraestrutura em módulos substituíveis            | ✅     |
+| 14  | Revisão de conformidade e documentação da arquitetura | ✅  |
 
-**Progresso:** 13 de 13 etapas concluídas.
+**Progresso:** 14 de 14 etapas concluídas. As etapas cobrem a base do sistema; restaurante,
+cardápio, o CRUD de tipos de usuário e a troca do tipo de um usuário já cadastrado estão
+pendentes (ver "Escopo do Tech Challenge Fase 2 e estado").
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -56,6 +63,40 @@
 | Documentação Swagger                      | Etapa 9                      |
 | Coleção Postman                           | Etapa 12                     |
 | Passo a passo com Docker Compose          | Etapa 10                     |
+| Correlação aulas × autores × código       | Etapa 14 e [`docs/arquitetura/`](../docs/arquitetura/README.md) |
+
+---
+
+## Escopo do Tech Challenge Fase 2 e estado
+
+As 14 etapas deste relatório constroem a **base** do sistema — arquitetura, agregado de usuário,
+autenticação, persistência, erros, documentação, testes e execução — e a deixam pronta para as
+features de restaurante e cardápio. O escopo funcional do enunciado ainda não está completo:
+
+| Requisito funcional do enunciado | Estado | Onde |
+| --- | --- | --- |
+| Usuários (herdado da Fase 1): cadastro, consulta, atualização, exclusão, troca de senha, login | ✅ | Etapas 2 a 8 |
+| Tipo de usuário: distinguir "Dono de Restaurante" e "Cliente" | ✅ catálogo fixo (`ROLE_OWNER`, `ROLE_CUSTOMER`, `ROLE_ADMIN`) e tabela de associação `user_roles` | Etapas 2, 5, 6 |
+| Tipo de usuário: associar o tipo a usuários **existentes** | 🔄 parcial — o tipo é escolhido no cadastro; alterar o tipo de um usuário já cadastrado ainda não é possível (`UpdateUserDTO` não tem papéis) | Etapa 3 |
+| Tipo de usuário: CRUD do catálogo (campo "nome do tipo") | ⏳ pendente | — |
+| Cadastro de restaurante (nome, endereço, tipo de cozinha, horário de funcionamento, dono) | ⏳ pendente — `Address` já é compartilhável e o dono será um `User` existente | — |
+| Cadastro de itens do cardápio (nome, descrição, preço, só no local, caminho da foto) | ⏳ pendente | — |
+
+| Requisito técnico e de entrega | Estado | Onde |
+| --- | --- | --- |
+| Clean Architecture em camadas | ✅ quatro camadas, regra de dependência verificada no build | Visão Geral, Etapas 11, 13 e 14 |
+| Testes unitários com 80% de cobertura | ✅ **100%** de linhas e ramos, com o build falhando abaixo disso | Etapa 11 |
+| Testes de integração dos componentes | ✅ 89 testes com PostgreSQL real e HTTP de ponta a ponta | Etapa 11 |
+| Documentação do projeto (arquitetura, endpoints, execução) | ✅ README, este relatório, Swagger e `docs/arquitetura/` | Etapas 9, 12 e 14 |
+| Coleção Postman | ✅ 52 requests, validada com Newman | Etapa 12 |
+| Docker Compose com aplicação e banco | ✅ aplicação, PostgreSQL e Mailpit | Etapa 10 |
+| Repositório aberto | ✅ público no GitHub (`felipe11dias/postech-fase2-restaurantes-app`), uma branch por etapa | — |
+| Vídeo de apresentação | ⏳ pendente — depende das features | — |
+
+As features pendentes seguem as mesmas regras já verificadas no build: cada uma ganha o próprio
+subpacote em cada camada (*screaming architecture*), com entidade que valida seus invariantes,
+casos de uso com `create`/`run`, gateway no adaptador, módulo de persistência próprio e request
+por caso na coleção Postman.
 
 ---
 
@@ -86,9 +127,9 @@ A escolha se justifica por três razões:
 
 | Camada                         | Pacote                                                                                  | Responsabilidade                                                                                                                                                                                                                          |
 | ------------------------------ | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entidades** (Entities)       | `domain/entity`, `domain/vo`, `domain/exception`                                        | Objetos de negócio com seus invariantes. Criados por fábrica estática `create(...)` que valida os dados. VOs de valor (`Email`, `ZipCode`). Exceções de domínio. **Nenhuma dependência além do JDK.**                                    |
+| **Entidades** (Entities)       | `domain/entity`, `domain/vo`, `domain/exception`                                        | Objetos de negócio com seus invariantes. Criados por fábrica estática `create(...)` (novo) ou `restore(...)` (já existente), ambas validando os dados. VOs de valor (`Email`, `ZipCode`). Exceções de domínio. **Nenhuma dependência além do JDK.**                                    |
 | **Casos de Uso** (Use Cases)   | `application/usecase`, `application/gateway`, `application/dto`                         | Uma classe por ação que o sistema oferece, com `create(gateways...)` e `run(dto)`. Orquestram as entidades e requisitam dados pelas **interfaces de gateway**, declaradas aqui porque é o caso de uso quem define o que precisa.        |
-| **Adaptadores de Interface**   | `adapter/controller`, `adapter/gateway`, `adapter/presenter`                            | **Controllers** coordenam: instanciam o gateway com a origem de dados recebida, instanciam o caso de uso, entregam o resultado ao presenter. **Gateways** implementam as interfaces do núcleo e traduzem entidade ↔ dados externos, dependendo apenas de uma interface de origem de dados. **Presenters** preparam a saída para o cliente. |
+| **Adaptadores de Interface**   | `adapter/controller`, `adapter/gateway`, `adapter/datasource`, `adapter/service`, `adapter/presenter` | **Controllers** coordenam: a cada operação instanciam os gateways com as origens de dados e os serviços recebidos, instanciam o caso de uso, executam-no numa unidade de trabalho e entregam o resultado ao presenter. **Gateways** implementam as interfaces do núcleo e traduzem entidade ↔ mundo externo, dependendo apenas de interfaces: de origem de dados (`I*DataSource`) ou de serviço externo (`IMailSender`, `ITokenEncoder`). **Presenters** preparam a saída para o cliente. |
 | **Frameworks & Drivers**       | `infrastructure/main`, `infrastructure/web`, `infrastructure/persistence/jpa`, `infrastructure/token/jwt`, `infrastructure/crypto`, `infrastructure/mail/smtp` | Os detalhes, cada um como módulo substituível (Etapa 13): `@RestController`, DTOs HTTP, HATEOAS, handler de erros e Spring Security; entidades JPA, `JpaRepository` e a implementação da origem de dados; JWT; BCrypt; SMTP; e a composição que liga tudo. **Só aqui existe Spring.**        |
 
 ```mermaid
@@ -107,21 +148,37 @@ flowchart TB
             end
             C[Controllers]
             GW[Gateways]
+            DS[("I*DataSource")]
+            SV[("IMailSender · ITokenEncoder")]
             P[Presenters]
         end
-        W["@RestController · DTOs v1 · HATEOAS"]
-        J["@Entity JPA · JpaRepository · DataSourceJpa"]
-        S[JWT · BCrypt · SMTP · Config]
+        W["web: @RestController · DTOs v1 · HATEOAS"]
+        J["persistence/jpa: @Entity · JpaRepository · *DataSourceJpa"]
+        S["mail/smtp · token/jwt: SmtpMailSender · JwtTokenEncoder"]
+        T["crypto · persistence/jpa: BCrypt · SecureRandom · TransactionTemplate"]
+        M["main: CompositionConfig"]
     end
+    M --> C
     W --> C
     C --> GW
     C --> U
     C --> P
     GW -.implementa.-> G
+    GW --> DS
+    GW --> SV
     U --> G
     U --> E
-    GW --> J
+    J -.implementa.-> DS
+    S -.implementa.-> SV
+    T -.implementa portas técnicas.-> G
 ```
+
+As setas sólidas são dependências de código; as tracejadas, implementação de interface — todas
+apontam para dentro. O gateway do adaptador é o **tradutor** (Aulas 02 e 05): converte entidade em
+registro da origem de dados, pedido de e-mail em assunto e corpo, usuário em dados do token. A
+infraestrutura só transporta. As únicas portas do núcleo implementadas direto pela infraestrutura
+são as **técnicas** — hash de senha, geração de token aleatório e unidade de trabalho —, em que não
+há tradução a fazer (Etapa 14). O `main` cria tudo e liga as pontas.
 
 ### A regra de dependência
 
@@ -137,32 +194,42 @@ Essa regra não é convenção: é verificada em build por testes de arquitetura
 
 ### Fluxo de uma requisição
 
+O cadastro de usuário (`POST /api/v1/users`), com os nomes reais das classes:
+
 ```
 Cliente HTTP
     │
     ▼
-[@RestController]  ─UserRegistrationRequest→DTO─►  [UserController]  (adapter)
- (infrastructure/web)                                   │
-                                                        │ cria UserGateway(IUserDataSource)
-                                                        │ cria RegisterUserUseCase.create(gateway)
-                                                        ▼
-                                              [RegisterUserUseCase].run(dto)
-                                                        │
-                                                        │ User.create(...) ── valida invariantes
-                                                        │ gateway.findByEmail / insert
-                                                        ▼
-                                                  [UserGateway]  (adapter)
-                                                        │ traduz entidade ↔ DTO
-                                                        ▼
-                                              [UserDataSourceJpa]  (infrastructure)
-                                                        │ JpaRepository / Hibernate
-                                                        ▼
-                                                   PostgreSQL
-                                                        │
-    ┌───────────────────────────────────────────────────┘
+[UserRestController.register]         infrastructure/web/api/user  — Bean Validation (só sintaxe)
+    │ NewUserRequest.toDTO() → NewUserDTO
     ▼
-[UserPresenter.toDTO]  ──►  [UserController]  ──►  [@RestController] monta UserResponse + links
+[UserController.register]             adapter/controller           — o "maestro"
+    │ cria UserGateway.create(userDataSource), RoleGateway.create(roleDataSource)
+    │ cria RegisterUserUseCase.create(userGateway, roleGateway, passwordEncoder)
+    │ executa run(dto) dentro de IUnitOfWork.execute(...)          — atomicidade
+    ▼
+[RegisterUserUseCase.run]             application/usecase/user     — regras de aplicação
+    │ User.create(...)                domain                       — invariantes
+    │ userGateway.findByEmail / findByLogin / insert
+    ▼
+[UserGateway]                         adapter/gateway              — traduz User ↔ UserData
+    │ IUserDataSource.insert(userData)
+    ▼
+[UserDataSourceJpa]                   infrastructure/persistence/jpa — JpaRepository / Hibernate
+    │
+    ▼
+PostgreSQL ── volta ──►  [UserPresenter.toView(user)]  adapter/presenter — UserView, sem senha
+                              │
+                              ▼
+                        [UserModelAssembler]  infrastructure/web/api/user — UserResponse + links, 201 + Location
 ```
+
+O "esqueci minha senha" percorre o mesmo caminho com um **serviço** no lugar da origem de dados:
+`AuthController` cria `PasswordResetMailGateway.create(mailSender)`; o caso de uso pede
+`IMailGateway.sendPasswordReset(email, token, validade)`; o gateway monta assunto e corpo em
+português e chama `IMailSender.send(to, subject, body)`, que o `SmtpMailSender` apenas transporta.
+O passo a passo de cada camada, com as aulas e os autores que o sustentam, está em
+[`docs/arquitetura/`](../docs/arquitetura/README.md).
 
 Em caso de erro em qualquer ponto, a exceção de domínio sobe até o handler global da
 infraestrutura e é convertida em uma resposta padronizada `ProblemDetail` (Etapa 8).
@@ -227,9 +294,12 @@ src/main/java/com/postech/restaurantes/
 │
 ├── adapter/                       # ADAPTADORES DE INTERFACE — depende de application e domain
 │   ├── controller/                # UserController, AuthController (orquestração)
-│   ├── gateway/                   # UserGateway, RoleGateway, PasswordResetTokenGateway (implementam I*Gateway)
+│   ├── gateway/                   # UserGateway, RoleGateway, PasswordResetTokenGateway (dados),
+│   │                              # PasswordResetMailGateway, TokenGateway (serviços) — implementam I*Gateway
 │   ├── datasource/                # IUserDataSource, IRoleDataSource, IPasswordResetTokenDataSource
 │   │   └── data/                  # UserData, RoleData, AddressData, PasswordResetTokenData (records)
+│   ├── service/                   # IMailSender, ITokenEncoder (serviços externos consumidos pelos gateways)
+│   │   └── data/                  # TokenClaimsData (record)
 │   └── presenter/                 # UserPresenter, AuthPresenter
 │       └── view/                  # UserView, RoleView, AddressView, AuthView (records de saída)
 │
@@ -244,13 +314,14 @@ src/main/java/com/postech/restaurantes/
     ├── persistence/jpa/           # PersistenceConfig, TransactionalUnitOfWork
     │   ├── audit/                 # AuditableJpaEntity, AuthenticatedAuditorAware, ClockDateTimeProvider
     │   └── user/                  # *JpaEntity (inclui AddressJpaEntity), SpringData*Repository, *DataSourceJpa
-    ├── token/jwt/                 # JwtTokenIssuer (ITokenIssuer + IAccessTokenReader), JwtProperties, JwtConfig
+    ├── token/jwt/                 # JwtTokenEncoder (ITokenEncoder + IAccessTokenReader), JwtProperties, JwtConfig
     ├── crypto/                    # BCryptPasswordAdapter, SecureRandomTokenGenerator
-    └── mail/smtp/                 # SmtpMailGateway, MailProperties, MailConfig
+    └── mail/smtp/                 # SmtpMailSender (IMailSender), MailProperties, MailConfig
 ```
 
-> A infraestrutura chegou à forma acima na **Etapa 13**. As subseções "O que foi entregue" das
-> etapas anteriores registram os nomes e pacotes **da época**; a Etapa 13 traz a correspondência.
+> A infraestrutura chegou à forma acima na **Etapa 13**, e os gateways de serviço
+> (`adapter/service`), na **Etapa 14**. As subseções "O que foi entregue" das etapas anteriores
+> registram os nomes e pacotes **da época**; as Etapas 13 e 14 trazem a correspondência.
 
 Cada pacote nasce com um `package-info.java` que documenta sua regra de dependência — o
 que faz a estrutura compilar vazia e deixa a intenção de cada camada registrada no código,
@@ -456,16 +527,20 @@ A distinção orienta onde cada regra mora:
 Declaradas em `application/gateway`, em termos de domínio — recebem e devolvem entidades e
 VOs, nunca tipos de framework:
 
-| Interface                      | Operações                                                                                        |
-| ------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `IUserGateway`                 | `findById`, `findByLogin`, `findByEmail`, `search(name, PageRequest)`, `insert`, `update`, `delete` |
-| `IRoleGateway`                 | `findByNames(Set<RoleName>)`                                                                     |
-| `IPasswordResetTokenGateway`   | `findByTokenHash`, `insert`, `update`                                                            |
-| `IPasswordEncoder`             | `encode`, `matches`, `simulateMatch` (gasta o tempo de uma comparação quando não há hash real — o núcleo não conhece o algoritmo) |
-| `ITokenIssuer`                 | `issue(User)` → `IssuedToken(token, expiresAt)`                                                  |
-| `IMailGateway`                 | `sendPasswordReset(Email, rawToken)`                                                             |
-| `ISecureTokenGenerator`        | `generate()` → token aleatório em claro; `hash(rawToken)` → hash determinístico para persistir e consultar |
-| `IUnitOfWork`                  | `execute(Supplier)` / `execute(Runnable)` — executa um bloco de forma atômica; usada pelo controller de adaptação ao invocar um caso de uso |
+| Interface                      | Operações | Implementada por |
+| ------------------------------ | --------- | ---------------- |
+| `IUserGateway`                 | `findById`, `findByLogin`, `findByEmail`, `search(name, PageRequest)`, `insert`, `update`, `delete` | `UserGateway` (adaptador), sobre `IUserDataSource` |
+| `IRoleGateway`                 | `findByNames(Set<RoleName>)` | `RoleGateway` (adaptador), sobre `IRoleDataSource` |
+| `IPasswordResetTokenGateway`   | `findByTokenHash`, `insert`, `update` | `PasswordResetTokenGateway` (adaptador), sobre `IPasswordResetTokenDataSource` |
+| `ITokenIssuer`                 | `issue(User)` → `IssuedToken(token, expiresAt)` | `TokenGateway` (adaptador), sobre `ITokenEncoder` |
+| `IMailGateway`                 | `sendPasswordReset(Email to, String rawToken, Duration validity)` | `PasswordResetMailGateway` (adaptador), sobre `IMailSender` |
+| `IPasswordEncoder`             | `encode`, `matches`, `simulateMatch` (gasta o tempo de uma comparação quando não há hash real — o núcleo não conhece o algoritmo) | `BCryptPasswordAdapter` (infraestrutura) — porta técnica |
+| `ISecureTokenGenerator`        | `generate()` → token aleatório em claro; `hash(rawToken)` → hash determinístico para persistir e consultar | `SecureRandomTokenGenerator` (infraestrutura) — porta técnica |
+| `IUnitOfWork`                  | `execute(Supplier)` / `execute(Runnable)` — executa um bloco de forma atômica; usada pelo controller de adaptação ao invocar um caso de uso | `TransactionalUnitOfWork` (infraestrutura) — porta técnica |
+
+Onde há **tradução** — entidade ↔ registro, pedido ↔ mensagem, usuário ↔ dados do token — a porta
+é implementada por um gateway do adaptador, que consome a infraestrutura por uma segunda interface
+(Aula 06). As três portas técnicas não têm o que traduzir e são implementadas direto (Etapa 14).
 
 A paginação é expressa por tipos próprios de `application/dto` (`PageRequest`, `PageResult<T>`),
 não por `Pageable`/`Page` do Spring — a tradução acontece na infraestrutura.
@@ -593,18 +668,19 @@ regra de negócio**; contém tradução e orquestração.
 
 ### Controllers (adapter/controller)
 
-O controller de adaptação é o ponto de entrada do núcleo. Ele recebe uma **origem de dados
-por interface** (`IUserDataSource`), e com ela:
+O controller de adaptação é o ponto de entrada do núcleo. Ele recebe as **origens de dados e os
+serviços externos por interface** (`IUserDataSource`, `IMailSender`, `ITokenEncoder`) e as portas
+técnicas (`IPasswordEncoder`, `ISecureTokenGenerator`, `IUnitOfWork`), e a cada operação:
 
-1. instancia o gateway (`UserGateway.create(dataSource)`);
+1. instancia os gateways (`UserGateway.create(dataSource)`, `PasswordResetMailGateway.create(mailSender)`);
 2. instancia o caso de uso (`RegisterUserUseCase.create(gateway, ...)`);
 3. executa `run(dto)`;
 4. entrega a entidade ao presenter e devolve o DTO de saída.
 
 É o controller quem "sabe quem sabe": conhece os componentes e a ordem em que se
-combinam, mas não a lógica de nenhum deles. Como recebe a origem de dados de fora, o mesmo
+combinam, mas não a lógica de nenhum deles. Como recebe a origem de dados e os serviços de fora, o mesmo
 controller funciona com JPA, com um mapa em memória nos testes, ou com qualquer outra
-implementação.
+implementação — e é ele quem instancia os gateways, como a Aula 02 (p. 9) prescreve.
 
 ```java
 // adapter/controller/UserController.java (trecho)
@@ -631,6 +707,19 @@ public final class UserController {
         return UserGateway.create(userDataSource);
     }
 }
+
+// adapter/controller/AuthController.java (trecho) — gateways de serviço, criados do mesmo jeito
+public AuthView login(CredentialsDTO credentials) {
+    var useCase = AuthenticateUseCase.create(userGateway(), passwordEncoder,
+            TokenGateway.create(tokenEncoder));
+    return AuthPresenter.toView(unitOfWork.execute(() -> useCase.run(credentials)));
+}
+
+public void forgotPassword(String email) {
+    var useCase = ForgotPasswordUseCase.create(userGateway(), tokenGateway(), tokenGenerator,
+            PasswordResetMailGateway.create(mailSender), resetTokenValidity, clock);
+    unitOfWork.execute(() -> useCase.run(email));
+}
 ```
 
 O `execute` da unidade de trabalho envolve **cada** `run`: é o controller — e não o caso de uso — que
@@ -644,11 +733,23 @@ convertem para o DTO que a origem de dados entende, chamam a interface `I*DataSo
 reconstroem a entidade (`User.restore(...)`) com o resultado. O gateway não sabe se a origem
 de dados é um banco relacional, um serviço remoto ou memória — ele depende apenas da interface.
 
+Os gateways de **serviço** fazem o mesmo papel diante de um serviço externo (Etapa 14):
+`PasswordResetMailGateway` transforma "token + validade" no assunto e no corpo do e-mail e os
+entrega a `IMailSender`; `TokenGateway` transforma o `User` em `TokenClaimsData` (id, login, nomes
+dos papéis) e pede a `ITokenEncoder` o token codificado. É o *Adapter* de Freeman e Robson (cap. 7):
+converter a interface que o cliente espera na que o fornecedor oferece.
+
 ### Interfaces de origem de dados (adapter/datasource)
 
 `IUserDataSource`, `IRoleDataSource` e `IPasswordResetTokenDataSource` definem, em termos de
 DTOs simples (records), as operações que a infraestrutura precisa oferecer. É o contrato que
 a Etapa 5 implementa com JPA.
+
+### Interfaces de serviço externo (adapter/service)
+
+`IMailSender` (`send(to, subject, body)` — só transporte, falha não se propaga) e `ITokenEncoder`
+(`encode(TokenClaimsData)` — só codificação) são o par de `adapter/datasource` para o que não é
+origem de dados. Implementadas pelos módulos `mail/smtp` e `token/jwt` (Etapa 14).
 
 ### Presenters (adapter/presenter)
 
@@ -765,8 +866,8 @@ erDiagram
         varchar name UK
     }
     USER_ROLES {
-        uuid user_id PK_FK
-        uuid role_id PK_FK
+        uuid user_id PK, FK
+        uuid role_id PK, FK
     }
     ADDRESSES {
         uuid id PK
@@ -1708,8 +1809,148 @@ Nenhum comportamento HTTP mudou, e por isso os prints da Etapa 12 continuam vale
 
 ---
 
+## Etapa 14 — Revisão de conformidade e documentação da arquitetura
+
+Com a base pronta, a proposta do relatório e a arquitetura foram confrontadas, no estado em que
+estavam ao fim da Etapa 13, com duas fontes: as **referências** do relatório (Martin, Cockburn,
+Freeman, Date, Machado) e as **sete aulas da Fase 2**, que mostram em código como cada camada deve
+ser montada. Cada regra das aulas foi extraída com a página, procurada no código (grep e ArchUnit)
+e no texto do relatório. A etapa teve duas saídas: as **correções** do que divergia e uma
+**documentação por camada** que registra a correlação aula × autor × código.
+
+### Resultado da revisão
+
+| Fonte | Regra | Estado encontrado | Correção | Conceito |
+| --- | --- | --- | --- | --- |
+| Aula 02 (pp. 8–9), Aula 05 (pp. 7–9), Aula 07 (p. 7) | O gateway é o **tradutor** e mora no adaptador; a origem de dados é consumida por interface; o controller instancia os gateways | Atendida na persistência (`UserGateway` sobre `IUserDataSource`). **Não** no e-mail e no token: o `SmtpMailGateway` (infraestrutura) montava assunto e texto, e o `JwtTokenIssuer` (infraestrutura) recebia o `User` e decidia os claims. Trocar o SMTP obrigaria a reescrever o texto do e-mail — contradizendo a Etapa 13 | `PasswordResetMailGateway` e `TokenGateway` no adaptador; `SmtpMailSender` e `JwtTokenEncoder` só transportam e codificam; o `AuthController` cria os gateways a cada operação, como faz com o `UserGateway` | *Adapter* (Freeman, cap. 7); CCP (Martin, cap. 13): o texto muda com a política de conta, não com o transporte |
+| Aula 06 (p. 7) | O caso de uso consome o gateway por uma interface, e **o gateway consome o serviço externo por outra** | Não havia a segunda interface: a infraestrutura implementava a porta do núcleo diretamente | `adapter/service` — `IMailSender`, `ITokenEncoder` e o record `TokenClaimsData`, o par de `adapter/datasource` para serviços | DIP (*Agile PPP*; Martin, cap. 11) |
+| Aulas 02 (p. 11) e 06 (pp. 6–7) | Framework só na camada externa — nem nas regras nem na adaptação | Atendida desde a Etapa 1 e verificada no build | — | Independência de framework (Martin, cap. 32) |
+| Aula 03 (pp. 5–14) | Entidade valida na criação; caso de uso com `create` + `run`; testes com gateway mockado | Atendida. Diferenças conscientes: `restore` para reconstruir sem pular a validação; `Optional` em vez de `null` quando não encontra | — (registradas em `docs/arquitetura/`) | *Clean Code*, caps. 6 e 7 |
+| Aula 04 (pp. 5–11) | Testes com nomes descritivos, isolados, rápidos, AAA | Atendida e verificada pelo `TestConventionsTest` | — | F.I.R.S.T. (*Clean Code*, cap. 9) |
+| Aula 05 (p. 7) | O controller da aula captura a exceção de negócio e devolve `null` | Divergência consciente: a exceção sobe até o handler global e vira `ProblemDetail` | — (registrada) | `null` apaga o motivo; o núcleo continua sem saber que HTTP existe |
+| O relatório como especificação | O texto descreve o código como ele é | Desatualizado: abertura ("desenho acordado"), fluxo com `UserRegistrationRequest` e `UserPresenter.toDTO` e sem unidade de trabalho, assinatura antiga de `IMailGateway`, "RFC 7807", "UUID gerado pelo banco" | Abertura, Visão Geral (camadas, diagrama, fluxo com nomes reais), Etapas 1, 3 e 4 e Decisões Técnicas alinhadas ao código | Princípio orientador: relatório e código não podem divergir |
+| Enunciado da Fase 2 | Tipos de usuário (CRUD), restaurante, cardápio, cobertura de 80%, vídeo | O relatório não dizia o que falta | Seção "Escopo do Tech Challenge Fase 2 e estado" | Transparência de escopo |
+| Referências | Toda referência listada sustenta alguma decisão | Freeman listado e nunca citado; as aulas ausentes | Freeman citado no *Adapter* e no *Strategy*; aulas e enunciado nas referências | — |
+
+### O desvio mantido: portas técnicas sem gateway
+
+`IPasswordEncoder`, `ISecureTokenGenerator` e `IUnitOfWork` continuam implementadas direto pela
+infraestrutura. Pelo formato das aulas, cada uma teria um gateway no adaptador — mas um gateway
+que recebe texto e devolve texto só **repassa** a chamada: não há tradução nenhuma, e a camada
+seria indireção sem propósito (*Clean Code*: cada função faz uma coisa, num nível de abstração). O
+critério ficou explícito e é o mesmo para toda porta futura: **havendo tradução, há gateway**.
+E-mail (o que o usuário lê) e token (quem é o portador) têm; hash, número aleatório e transação não
+têm. O princípio da Aula 06 — depender de abstração, não de implementação — é atendido nos dois
+casos: o caso de uso só conhece interfaces.
+
+A regra do build congela essa lista: uma porta nova do núcleo implementada pela infraestrutura
+quebra o build até ganhar um gateway ou entrar, com justificativa, na lista das técnicas.
+
+### Documentação da arquitetura por camada
+
+[`docs/arquitetura/`](../docs/arquitetura/README.md) tem um documento por parte da Clean
+Architecture, todos com as mesmas seis seções: **o que a aula ensina** (resumo com aula e página —
+as apostilas são material exclusivo do curso, então são citadas, não transcritas), **o que os
+autores dizem** (livro e capítulo), **como o projeto implementa** (com links para o código),
+**padrões adotados e por quê**, **desvios conscientes** e **como o build verifica**.
+
+| Documento | Aulas | Autores |
+| --- | --- | --- |
+| `00-visao-geral.md` — as quatro camadas, o fluxo real, o diagrama | 01, 02, 07 | Martin, *Clean Architecture* caps. 1–2, 21, 22 |
+| `01-entidades.md` — `User`, `Role`, `Address`, `PasswordResetToken`, VOs, `Guard` | 02, 03 | Martin cap. 20; *Clean Code* caps. 6–7 |
+| `02-casos-de-uso.md` — os 9 casos de uso como cenário principal + extensões, as portas | 02, 03, 07 | Cockburn; Martin caps. 11 e 20 |
+| `03-adaptadores.md` — controllers, gateways de dados e de serviço, presenters, unidade de trabalho | 02, 05, 06, 07 | Martin caps. 22–23; Freeman caps. 1 e 7 |
+| `04-frameworks-drivers.md` — os módulos, o Main, o schema Flyway | 02, 06 | Martin caps. 17, 26, 30–32; Date; Machado |
+| `05-principios.md` — SOLID e princípios de componentes → código → regra | 01, 06, 07 | *Agile PPP*; Martin caps. 7–14; *Clean Coder* |
+| `06-testes.md` — a pirâmide, o gate de 100%, as convenções | 03, 04, 06 | *Clean Code* cap. 9; *Clean Coder* cap. 8; Martin cap. 28 |
+
+Os `package-info.java` das camadas e dos subpacotes principais resumem o papel de cada um (aula e
+conceito do autor) e apontam para o documento correspondente — a documentação fica perto do código,
+e o detalhe, num lugar só.
+
+### O que foi entregue nesta etapa
+
+| Decisão | Conceito que a sustenta |
+| --- | --- |
+| **Gateways de serviço no adaptador** (`PasswordResetMailGateway`, `TokenGateway`), consumindo `IMailSender` e `ITokenEncoder` de `adapter/service` | O gateway é o tradutor (Aulas 02 e 05); *Adapter* (Freeman, cap. 7); DIP — o gateway consome o serviço por interface (Aula 06) |
+| **Infraestrutura só transporta e codifica**: `SmtpMailSender` e `JwtTokenEncoder`, sem import do domínio | CCP (Martin, cap. 13): o texto do e-mail muda com a política de conta, não com o transporte |
+| **Portas técnicas sem gateway**, com critério explícito — havendo tradução, há gateway | *Clean Code*: uma camada que só repassa não faz nada; a Aula 06 continua atendida, porque o caso de uso só conhece interfaces |
+| **"Esqueci minha senha" aceito na requisição e processado em fila** (`ForgotPasswordConfig`) | A resposta idêntica é regra de aplicação (Etapa 3), e o tempo de resposta também é resposta. Concorrência é detalhe de entrega e fica na borda (Martin, cap. 32) |
+| **E-mail só depois do commit** (`MailOutbox`, no controller) | O que não se desfaz fica fora da unidade de trabalho; demarcar o que vem depois do commit é orquestração, o papel do controller (Aula 05) |
+| **SMTP com timeouts; JWT em HS256 fixo** | Um detalhe não pode travar o sistema nem mudar de comportamento sozinho com a configuração (Martin, cap. 17: a fronteira protege do que muda) |
+| **Documentação por camada** (`docs/arquitetura/`) e `package-info` com resumo e link | A documentação fica perto do código e diz *por quê*; o detalhe, num lugar só |
+| **Regras de build novas** | Uma decisão que não quebra o build quando violada é só intenção (o mesmo raciocínio desde a Etapa 1) |
+
+### De → para
+
+| Antes (até a Etapa 13) | Agora |
+| --- | --- |
+| `mail/smtp/SmtpMailGateway` implementa `IMailGateway` e monta o texto | `adapter/gateway/PasswordResetMailGateway` implementa `IMailGateway` e monta o texto; `mail/smtp/SmtpMailSender` implementa `IMailSender` e só transporta |
+| `token/jwt/JwtTokenIssuer` implementa `ITokenIssuer` (recebe `User`) e `IAccessTokenReader` | `adapter/gateway/TokenGateway` implementa `ITokenIssuer` (`User` → `TokenClaimsData`); `token/jwt/JwtTokenEncoder` implementa `ITokenEncoder` e `IAccessTokenReader`, sem import do domínio |
+| `AuthController.create(..., ITokenIssuer, ..., IMailGateway, ...)` | `AuthController.create(..., ITokenEncoder, ..., IMailSender, ...)` — gateways criados por operação; e-mail entregue depois do commit |
+| `forgot-password` processado dentro da requisição | aceito (202) e processado na fila `forgotPasswordExecutor` |
+| `SmtpMailGatewayTest`, `JwtTokenIssuerTest` | `SmtpMailSenderTest`, `JwtTokenEncoderTest`, `ServiceGatewaysTest` (novo), `SmtpTimeoutIT` (novo) |
+
+As portas do núcleo (`IMailGateway`, `ITokenIssuer`) e os casos de uso não mudaram.
+
+### Regras de build
+
+| Regra | Onde | Protege |
+| --- | --- | --- |
+| Tudo em `adapter.datasource` **e** `adapter.service` é interface com prefixo `I`; seus subpacotes `data` só têm records com sufixo `Data` | `ArchitectureTest` (regras existentes, generalizadas — continuam 14) | o mesmo formato para origens de dados e serviços |
+| `infraestrutura_so_conhece_portas_tecnicas`: nenhuma classe de `infrastructure` **depende** de porta de `application.gateway`, exceto `IPasswordEncoder`, `ISecureTokenGenerator` e `IUnitOfWork` | `InfrastructureModulesTest` | o gateway como tradutor. Proíbe depender, não só implementar: uma lambda num `@Bean` não é classe para o ArchUnit, mas o tipo de retorno do método é uma dependência |
+| `transporte_nao_conhece_o_dominio`: `mail` e `token` não dependem de `domain` | `InfrastructureModulesTest` (16 regras no total) | a infraestrutura só transporta e codifica o que o gateway traduziu |
+
+As regras foram conferidas ao contrário: uma classe temporária em `infrastructure/main` devolvendo
+um `IMailGateway` por lambda e outra em `mail/smtp` recebendo um `Email` fizeram falhar exatamente as
+duas regras visadas — a primeira passaria na versão anterior da regra, que só olhava `implement`.
+Removidas as classes, o build voltou a passar.
+
+### Revisão de código da etapa
+
+Antes de fechar, o diff da etapa passou por uma revisão focada em falhas reais. Os treze achados
+foram corrigidos:
+
+| Achado | Correção |
+| --- | --- |
+| **O tempo de resposta do "esqueci minha senha" revelava quem tem conta.** Só o e-mail cadastrado gerava token, gravava e falava com o SMTP; o desconhecido voltava na hora. A resposta era idêntica no corpo, não na latência. | A requisição valida a sintaxe e entrega o pedido a uma fila (2 threads, 100 lugares, excedente descartado com aviso); o processamento acontece fora dela. O `AuthApiIT` prende o envio numa trava de 10 s e exige a resposta antes de 5 s. |
+| **SMTP sem limite de espera.** O Jakarta Mail espera para sempre por padrão; um servidor que descarta pacotes prenderia threads e a conexão do banco. | `connectiontimeout`, `timeout` e `writetimeout` de 5 s em `application.yml`, conferidos pelo `SmtpTimeoutIT` na configuração que a aplicação montou. |
+| **E-mail enviado antes do commit.** Se o commit falhasse, o usuário receberia um token que não existe, e a transação ficava aberta durante o envio. | `MailOutbox` no controller: o caso de uso pede, a caixa guarda, o controller entrega depois de `unitOfWork.execute`. Testes: nada sai durante a transação, e nada sai se o commit falha. |
+| **A regra de portas técnicas não pegava lambda, e nada impedia `mail`/`token` de voltar a importar o domínio.** | Regra trocada de `implement` para `dependOn`; regra nova `transporte_nao_conhece_o_dominio`. |
+| **O escopo marcava ✅ "associar o tipo ao usuário"**, mas o enunciado pede a associação a usuários existentes, e o tipo só é escolhido no cadastro. | Linha dividida: distinção ✅, associação a usuários existentes 🔄 parcial; README alinhado. |
+| **A Etapa 14 não tinha a subseção "O que foi entregue nesta etapa"**, exigida pelo `CLAUDE.md`. | Esta subseção, com o conceito de cada decisão. |
+| **"HMAC-SHA256" era falso**: o jjwt escolhe o algoritmo pelo tamanho do segredo (HS384 na execução do Newman). | `signWith(key, Jwts.SIG.HS256)`; teste com segredo longo exige HS256 no cabeçalho. |
+| O índice de `docs/arquitetura/` listava aulas diferentes das que os documentos resumem. | Coluna alinhada à seção 1 de cada documento. |
+| O log de falha do SMTP perdeu o contexto ("Falha ao enviar e-mail"). | O log traz o assunto — qual mensagem falhou —, ainda sem o destinatário. |
+| "Ele vale por 1 minutos"; validade fracionária virava "0 minutos". | `describe(validity)`: singular e plural, e segundos quando não é minuto inteiro. |
+| Teste de assunto duplicado, um deles comparando a constante com ela mesma. | Um teste só, com o texto literal. |
+| Caso de teste ainda chamado "emissor" para o `ITokenEncoder`. | "codificador de token". |
+| A ordenação dos papéis no token não tinha teste. | `deveOrdenarOsPapeis`. |
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `mvn clean verify` | **458 testes unitários** e **91 de integração** — BUILD SUCCESS; cobertura unitária **1065/1065 linhas, 232/232 ramos, 449/449 métodos** |
+| Pilha do Compose + coleção Postman (`npx newman@6`) | 52 requests, 108 asserções, nenhuma falha; a busca no Mailpit repete até o e-mail chegar |
+| E-mail no Mailpit | assunto e corpo **idênticos** aos da Etapa 13 (o texto mudou de lugar, não de conteúdo): "Redefinição de senha", "Ele vale por 30 minutos" |
+| Token de acesso | mesmos claims de antes — `sub`, `login`, `roles`, `iat`, `exp` —, agora montados pelo `TokenGateway`; algoritmo `HS256` |
+| Documentação | todo link relativo de `docs/arquitetura/` aponta para arquivo existente; toda classe do projeto citada existe no código |
+
+Nenhum status nem corpo de resposta HTTP mudou, e por isso os prints da Etapa 12 continuam valendo.
+
+---
+
 ## Decisões Técnicas (registro consolidado)
 
+- **Gateway onde há tradução; a infraestrutura só transporta:** e-mail e token passam por gateways
+  do adaptador (`PasswordResetMailGateway`, `TokenGateway`) que consomem serviços por interface
+  (`IMailSender`, `ITokenEncoder`); só as portas técnicas (`IPasswordEncoder`,
+  `ISecureTokenGenerator`, `IUnitOfWork`) são implementadas direto pela infraestrutura — regra
+  verificada por ArchUnit. Cada camada documentada em `docs/arquitetura/`. Etapa 14.
+- **"Esqueci minha senha" com o mesmo tempo de resposta para qualquer e-mail:** a requisição só
+  valida e enfileira; o processamento acontece em fila própria, e o e-mail sai depois do commit
+  (`MailOutbox`). SMTP com timeouts; JWT em HS256 fixo. Etapa 14.
 - **Infraestrutura em módulos substituíveis:** o pacote diz o papel, o subpacote a tecnologia;
   nenhum módulo conhece outro, só o Main os liga; sem ciclos; cada biblioteca confinada ao seu
   módulo — tudo verificado por ArchUnit. Etapa 13.
@@ -1721,19 +1962,22 @@ Nenhum comportamento HTTP mudou, e por isso os prints da Etapa 12 continuam vale
 - **Clean Architecture:** quatro camadas concêntricas (Entidades, Casos de Uso, Adaptadores
   de Interface, Frameworks & Drivers) com dependência sempre para dentro, verificada por
   ArchUnit. Detalhado na Visão Geral e na Etapa 11.
-- **Entidades validam os próprios invariantes:** fábrica `create(...)` e setters validados;
+- **Entidades validam os próprios invariantes:** fábricas `create(...)` e `restore(...)` e setters validados;
   nenhuma instância inválida existe no sistema. Etapa 2.
 - **Um caso de uso por ação,** com `create(...)`/`run(...)`, dependendo apenas de interfaces
   de gateway. Regras de negócio na entidade; regras de aplicação no caso de uso. Etapa 3.
-- **Controller como orquestrador:** recebe a origem de dados por interface, instancia
-  gateway e caso de uso, delega ao presenter. Etapa 4.
+- **Controller como orquestrador:** recebe origens de dados e serviços por interface, instancia
+  gateways e caso de uso a cada operação, envolve o `run` na unidade de trabalho e delega ao
+  presenter. Etapas 4 e 14.
 - **JPA confinado à infraestrutura,** com entidades JPA separadas das de domínio;
   relacionamentos, cascade e auditoria declarativos. Etapa 5.
-- **Identificadores UUID gerados pelo banco,** para impedir enumeração de recursos. Etapa 5.
+- **Identificadores UUID,** para impedir enumeração de recursos: gerados na aplicação pelo
+  Hibernate (`@GeneratedValue(strategy = UUID)`), com `DEFAULT gen_random_uuid()` no banco para
+  inserção direta por SQL, como a seed. Etapas 5 e 6.
 - **Schema versionado com Flyway** (`ddl-auto: validate`). Etapa 6.
 - **Autenticação stateless com JWT** e senha em BCrypt; **autorização por posse** para evitar
   IDOR; autocadastro não concede `ROLE_ADMIN`. Etapa 7.
-- **Padrão de erros ProblemDetail (RFC 7807).** Etapa 8.
+- **Padrão de erros ProblemDetail (RFC 9457, sucessora da 7807).** Etapa 8.
 - **Versionamento de API por path** (`/api/v1/...`). Etapa 7.
 - **HATEOAS** nas respostas REST; **Actuator** para monitoramento. Etapa 7.
 - **Sem Lombok nem geração de código no núcleo.** Etapa 1.
@@ -1762,6 +2006,17 @@ Nenhum comportamento HTTP mudou, e por isso os prints da Etapa 12 continuam vale
 
 - COCKBURN, A. *Writing Effective Use Cases*. Addison-Wesley, 2000.
 - FREEMAN, E.; ROBSON, E. *Use a Cabeça! Padrões de Projeto (Head First Design Patterns)*.
+  O *Adapter* (cap. 7) é o papel de cada gateway do adaptador — converter a interface que o caso de
+  uso espera na que a infraestrutura oferece —, e o *Strategy* (cap. 1), a troca de origens de dados
+  e serviços por composição, atrás de uma interface.
+
+**Material do curso**
+
+- FIAP. Pós-Tech Arquitetura e Desenvolvimento Java — Fase 2, Aulas 01 a 07 (Clean Architecture:
+  fundamentos, camadas, entidades e casos de uso, Clean Code e testes, adaptadores, princípios e
+  revisão). Apostilas de uso exclusivo do curso: citadas por aula e página, sem transcrição; a
+  correlação com o projeto está em `docs/arquitetura/` e na Etapa 14.
+- FIAP. Tech Challenge — Fase 2 (enunciado). Requisitos funcionais, técnicos e entregáveis da fase.
 
 **Banco de dados**
 

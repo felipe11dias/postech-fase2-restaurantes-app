@@ -4,14 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import com.postech.restaurantes.domain.vo.Email;
-import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -19,25 +16,25 @@ import org.springframework.mail.MailSendException;
 import org.springframework.mail.MailSender;
 import org.springframework.mail.SimpleMailMessage;
 
-class SmtpMailGatewayTest {
+/** Só o transporte: o que a mensagem diz é testado no gateway do adaptador. */
+class SmtpMailSenderTest {
 
     private final MailSender mailSender = mock(MailSender.class);
     private final MailProperties properties = new MailProperties("no-reply@restaurantes.postech");
-    private final SmtpMailGateway gateway = new SmtpMailGateway(mailSender, properties);
+    private final SmtpMailSender sender = new SmtpMailSender(mailSender, properties);
 
     @Test
-    @DisplayName("A mensagem vai para o e-mail do usuário, com o token em claro e a validade")
-    void deveEnviarOTokenEmClaro() {
-        gateway.sendPasswordReset(Email.of("joao.silva@email.com"), "token-em-claro", Duration.ofMinutes(45));
+    @DisplayName("A mensagem sai do remetente configurado, com destinatário, assunto e corpo recebidos")
+    void deveEnviarAMensagemRecebida() {
+        sender.send("joao.silva@email.com", "Assunto", "Corpo da mensagem");
 
         ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
         verify(mailSender).send(captor.capture());
         SimpleMailMessage mensagem = captor.getValue();
         assertEquals("no-reply@restaurantes.postech", mensagem.getFrom());
         assertArrayEquals(new String[] {"joao.silva@email.com"}, mensagem.getTo());
-        assertEquals(SmtpMailGateway.SUBJECT, mensagem.getSubject());
-        assertTrue(mensagem.getText().contains("token-em-claro"));
-        assertTrue(mensagem.getText().contains("45 minutos"), "a validade é a que o caso de uso informou");
+        assertEquals("Assunto", mensagem.getSubject());
+        assertEquals("Corpo da mensagem", mensagem.getText());
     }
 
     @Test
@@ -45,7 +42,7 @@ class SmtpMailGatewayTest {
     void naoDevePropagarFalhaDeTransporte() {
         doThrow(new MailSendException("SMTP fora do ar")).when(mailSender).send(any(SimpleMailMessage.class));
 
-        assertDoesNotThrow(() -> gateway.sendPasswordReset(Email.of("joao.silva@email.com"), "token", Duration.ofMinutes(30)));
+        assertDoesNotThrow(() -> sender.send("joao.silva@email.com", "Assunto", "Corpo"));
         verify(mailSender).send(any(SimpleMailMessage.class));
     }
 

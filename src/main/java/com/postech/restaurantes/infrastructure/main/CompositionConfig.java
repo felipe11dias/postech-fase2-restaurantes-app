@@ -5,10 +5,10 @@ import com.postech.restaurantes.adapter.controller.UserController;
 import com.postech.restaurantes.adapter.datasource.IPasswordResetTokenDataSource;
 import com.postech.restaurantes.adapter.datasource.IRoleDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
-import com.postech.restaurantes.application.gateway.IMailGateway;
+import com.postech.restaurantes.adapter.service.IMailSender;
+import com.postech.restaurantes.adapter.service.ITokenEncoder;
 import com.postech.restaurantes.application.gateway.IPasswordEncoder;
 import com.postech.restaurantes.application.gateway.ISecureTokenGenerator;
-import com.postech.restaurantes.application.gateway.ITokenIssuer;
 import com.postech.restaurantes.application.gateway.IUnitOfWork;
 import com.postech.restaurantes.infrastructure.persistence.jpa.audit.AuthenticatedAuditorAware;
 import com.postech.restaurantes.infrastructure.web.security.AuthenticatedActor;
@@ -53,10 +53,10 @@ public class CompositionConfig {
     @Bean
     public AuthController authController(IUserDataSource userDataSource,
                                          IPasswordResetTokenDataSource tokenDataSource,
-                                         IPasswordEncoder passwordEncoder, ITokenIssuer tokenIssuer,
-                                         ISecureTokenGenerator tokenGenerator, IMailGateway mailGateway,
+                                         IPasswordEncoder passwordEncoder, ITokenEncoder tokenEncoder,
+                                         ISecureTokenGenerator tokenGenerator, IMailSender mailSender,
                                          PasswordResetProperties passwordReset, Clock clock, IUnitOfWork unitOfWork) {
-        return AuthController.create(userDataSource, tokenDataSource, passwordEncoder, tokenIssuer, tokenGenerator,
-                mailGateway, passwordReset.tokenValidity(), clock, unitOfWork);
+        return AuthController.create(userDataSource, tokenDataSource, passwordEncoder, tokenEncoder, tokenGenerator,
+                mailSender, passwordReset.tokenValidity(), clock, unitOfWork);
     }
 }

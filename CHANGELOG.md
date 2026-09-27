@@ -273,3 +273,34 @@
   Exclusão do JaCoCo generalizada para `**/infrastructure/**/*Config.class`.
 - `mvn clean verify`: 441 testes unitários e 89 de integração; cobertura unitária 100% (1022
   linhas, 226 ramos). Newman: 52 requests, 108 asserções, nenhuma falha.
+
+## Etapa 14 — Revisão de conformidade e documentação da arquitetura
+- Revisão do relatório e da arquitetura contra as referências (Martin, Cockburn, Freeman, Date,
+  Machado) e as Aulas 01 a 07 da Fase 2.
+- Gateways de serviço no adaptador (Aulas 02, 05 e 06: o gateway traduz, a infraestrutura
+  transporta): `adapter/service` com `IMailSender`, `ITokenEncoder` e `TokenClaimsData`;
+  `PasswordResetMailGateway` (monta assunto e corpo do e-mail) e `TokenGateway` (`User` → claims)
+  em `adapter/gateway`; `SmtpMailGateway` → `SmtpMailSender` (só transporte) e `JwtTokenIssuer` →
+  `JwtTokenEncoder` (só codificação, sem import do domínio). `AuthController` recebe os serviços e
+  cria os gateways a cada operação.
+- ArchUnit: regras de prefixo `I` e de records `*Data` estendidas a `adapter.service`; regras novas
+  `infraestrutura_so_conhece_portas_tecnicas` (a infraestrutura só depende de `IPasswordEncoder`,
+  `ISecureTokenGenerator` e `IUnitOfWork` — pega também lambda num `@Bean`) e
+  `transporte_nao_conhece_o_dominio` (`mail` e `token` sem `domain`), conferidas com violações
+  propositais.
+- `docs/arquitetura/`: índice e um documento por parte da Clean Architecture (visão geral,
+  entidades, casos de uso, adaptadores, frameworks & drivers, princípios, testes), cada um com o que
+  a aula ensina, o que os autores dizem, como o projeto implementa, padrões, desvios conscientes e
+  verificação no build. `package-info` das camadas e subpacotes principais resumidos com o link.
+- Relatório: abertura, seção de escopo do Tech Challenge (restaurante, cardápio e CRUD de tipos
+  pendentes), Visão Geral com o fluxo e o diagrama reais, Etapas 1, 3 e 4 alinhadas ao código,
+  RFC 9457, geração do UUID, aulas e Freeman nas referências, seção da Etapa 14.
+- Correções da revisão de código: "esqueci minha senha" aceito na requisição e processado na fila
+  `forgotPasswordExecutor` (mesmo tempo de resposta exista ou não o e-mail); e-mail entregue só
+  depois do commit (`MailOutbox`); timeouts de 5 s no SMTP (`SmtpTimeoutIT`); JWT em HS256 fixo;
+  validade do e-mail com singular/plural e segundos; log de falha do SMTP com o assunto; escopo do
+  relatório com a associação de tipo a usuários existentes como parcial; subseção "O que foi
+  entregue" da etapa; índice de `docs/arquitetura/` alinhado; testes de ordenação dos papéis e de
+  resposta sem esperar o envio; busca no Mailpit da coleção com nova tentativa.
+- `mvn clean verify`: 458 testes unitários e 91 de integração; cobertura unitária 100% (1065
+  linhas, 232 ramos). Newman: 52 requests, 108 asserções, nenhuma falha; e-mail no Mailpit idêntico.

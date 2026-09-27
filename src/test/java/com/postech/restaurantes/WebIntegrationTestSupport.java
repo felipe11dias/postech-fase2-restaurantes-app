@@ -1,10 +1,15 @@
 package com.postech.restaurantes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.postech.restaurantes.infrastructure.web.api.auth.ForgotPasswordConfig;
+import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.ThreadPoolExecutor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -13,6 +18,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 /**
@@ -31,6 +37,31 @@ public abstract class WebIntegrationTestSupport {
 
     @Autowired
     protected TestRestTemplate rest;
+
+    @Autowired
+    @Qualifier(ForgotPasswordConfig.EXECUTOR)
+    private ThreadPoolTaskExecutor forgotPasswordExecutor;
+
+    /**
+     * O "esqueci minha senha" é processado fora da requisição: o 202 volta antes de o token ser
+     * gravado e de o e-mail sair. Antes de conferir o efeito — ou de afirmar que não houve —, o
+     * teste espera a fila esvaziar. Falha se ela não esvaziar em 10 segundos.
+     */
+    protected void aguardarProcessamentoEmSegundoPlano() {
+        ThreadPoolExecutor fila = forgotPasswordExecutor.getThreadPoolExecutor();
+        long limite = System.nanoTime() + Duration.ofSeconds(10).toNanos();
+        while (fila.getCompletedTaskCount() < fila.getTaskCount()) {
+            if (System.nanoTime() > limite) {
+                fail("a fila do esqueci minha senha não esvaziou em 10 segundos");
+            }
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                fail("interrompido esperando a fila do esqueci minha senha");
+            }
+        }
+    }
 
     /** Faz login pela API e devolve o token; falha o teste se o login não for aceito. */
     protected String autenticar(String login, String senha) {

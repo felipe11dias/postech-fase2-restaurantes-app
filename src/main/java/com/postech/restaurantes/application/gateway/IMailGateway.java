@@ -16,7 +16,7 @@ public interface IMailGateway {
      * registra e segue. O "esqueci minha senha" só envia quando o e-mail existe; se uma falha
      * de envio chegasse ao chamador, a resposta passaria a diferir entre e-mail cadastrado e
      * desconhecido, e o endpoint revelaria quem tem conta. A obrigação é declarada aqui, na
-     * porta, e honrada pela infraestrutura.
+     * porta; o gateway do adaptador a repassa ao serviço de envio, e a infraestrutura a honra.
      */
     void sendPasswordReset(Email to, String rawToken, Duration validity);
 }

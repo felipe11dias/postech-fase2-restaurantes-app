@@ -6,12 +6,16 @@ import static com.postech.restaurantes.adapter.AdapterFixtures.TOKEN_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.USER_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.USER_ID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -22,13 +26,13 @@ import com.postech.restaurantes.adapter.datasource.IUserDataSource;
 import com.postech.restaurantes.adapter.datasource.data.PasswordResetTokenData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
 import com.postech.restaurantes.adapter.presenter.view.AuthView;
+import com.postech.restaurantes.adapter.service.IMailSender;
+import com.postech.restaurantes.adapter.service.ITokenEncoder;
 import com.postech.restaurantes.application.dto.auth.CredentialsDTO;
 import com.postech.restaurantes.application.dto.auth.IssuedToken;
 import com.postech.restaurantes.application.dto.auth.ResetPasswordDTO;
-import com.postech.restaurantes.application.gateway.IMailGateway;
 import com.postech.restaurantes.application.gateway.IPasswordEncoder;
 import com.postech.restaurantes.application.gateway.ISecureTokenGenerator;
-import com.postech.restaurantes.application.gateway.ITokenIssuer;
 import com.postech.restaurantes.application.gateway.IUnitOfWork;
 import com.postech.restaurantes.domain.exception.InvalidCredentialsException;
 import com.postech.restaurantes.domain.vo.Email;
@@ -37,6 +41,8 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,9 +61,9 @@ class AuthControllerTest {
     private IUserDataSource userDataSource;
     private IPasswordResetTokenDataSource tokenDataSource;
     private IPasswordEncoder passwordEncoder;
-    private ITokenIssuer tokenIssuer;
+    private ITokenEncoder tokenEncoder;
     private ISecureTokenGenerator tokenGenerator;
-    private IMailGateway mailGateway;
+    private IMailSender mailSender;
     private CountingUnitOfWork unitOfWork;
     private AuthController controller;
 
@@ -66,16 +72,16 @@ class AuthControllerTest {
         userDataSource = mock(IUserDataSource.class);
         tokenDataSource = mock(IPasswordResetTokenDataSource.class);
         passwordEncoder = mock(IPasswordEncoder.class);
-        tokenIssuer = mock(ITokenIssuer.class);
+        tokenEncoder = mock(ITokenEncoder.class);
         tokenGenerator = mock(ISecureTokenGenerator.class);
-        mailGateway = mock(IMailGateway.class);
+        mailSender = mock(IMailSender.class);
         unitOfWork = new CountingUnitOfWork();
-        controller = create(userDataSource, tokenDataSource, passwordEncoder, tokenIssuer, tokenGenerator, mailGateway,
+        controller = create(userDataSource, tokenDataSource, passwordEncoder, tokenEncoder, tokenGenerator, mailSender,
                 VALIDITY, CLOCK, unitOfWork);
     }
 
     private static AuthController create(IUserDataSource u, IPasswordResetTokenDataSource t, IPasswordEncoder p,
-                                         ITokenIssuer i, ISecureTokenGenerator g, IMailGateway m, Duration d,
+                                         ITokenEncoder i, ISecureTokenGenerator g, IMailSender m, Duration d,
                                          Clock c, IUnitOfWork w) {
         return AuthController.create(u, t, p, i, g, m, d, c, w);
     }
@@ -83,23 +89,23 @@ class AuthControllerTest {
     static Stream<Arguments> dependenciasNulas() {
         return Stream.of(
                 Arguments.of("origem de usuário", (Function<AuthControllerTest, AuthController>) t ->
-                        create(null, t.tokenDataSource, t.passwordEncoder, t.tokenIssuer, t.tokenGenerator, t.mailGateway, VALIDITY, CLOCK, t.unitOfWork)),
+                        create(null, t.tokenDataSource, t.passwordEncoder, t.tokenEncoder, t.tokenGenerator, t.mailSender, VALIDITY, CLOCK, t.unitOfWork)),
                 Arguments.of("origem de token", (Function<AuthControllerTest, AuthController>) t ->
-                        create(t.userDataSource, null, t.passwordEncoder, t.tokenIssuer, t.tokenGenerator, t.mailGateway, VALIDITY, CLOCK, t.unitOfWork)),
+                        create(t.userDataSource, null, t.passwordEncoder, t.tokenEncoder, t.tokenGenerator, t.mailSender, VALIDITY, CLOCK, t.unitOfWork)),
                 Arguments.of("encoder", (Function<AuthControllerTest, AuthController>) t ->
-                        create(t.userDataSource, t.tokenDataSource, null, t.tokenIssuer, t.tokenGenerator, t.mailGateway, VALIDITY, CLOCK, t.unitOfWork)),
-                Arguments.of("emissor", (Function<AuthControllerTest, AuthController>) t ->
-                        create(t.userDataSource, t.tokenDataSource, t.passwordEncoder, null, t.tokenGenerator, t.mailGateway, VALIDITY, CLOCK, t.unitOfWork)),
+                        create(t.userDataSource, t.tokenDataSource, null, t.tokenEncoder, t.tokenGenerator, t.mailSender, VALIDITY, CLOCK, t.unitOfWork)),
+                Arguments.of("codificador de token", (Function<AuthControllerTest, AuthController>) t ->
+                        create(t.userDataSource, t.tokenDataSource, t.passwordEncoder, null, t.tokenGenerator, t.mailSender, VALIDITY, CLOCK, t.unitOfWork)),
                 Arguments.of("gerador", (Function<AuthControllerTest, AuthController>) t ->
-                        create(t.userDataSource, t.tokenDataSource, t.passwordEncoder, t.tokenIssuer, null, t.mailGateway, VALIDITY, CLOCK, t.unitOfWork)),
+                        create(t.userDataSource, t.tokenDataSource, t.passwordEncoder, t.tokenEncoder, null, t.mailSender, VALIDITY, CLOCK, t.unitOfWork)),
                 Arguments.of("e-mail", (Function<AuthControllerTest, AuthController>) t ->
-                        create(t.userDataSource, t.tokenDataSource, t.passwordEncoder, t.tokenIssuer, t.tokenGenerator, null, VALIDITY, CLOCK, t.unitOfWork)),
+                        create(t.userDataSource, t.tokenDataSource, t.passwordEncoder, t.tokenEncoder, t.tokenGenerator, null, VALIDITY, CLOCK, t.unitOfWork)),
                 Arguments.of("validade", (Function<AuthControllerTest, AuthController>) t ->
-                        create(t.userDataSource, t.tokenDataSource, t.passwordEncoder, t.tokenIssuer, t.tokenGenerator, t.mailGateway, null, CLOCK, t.unitOfWork)),
+                        create(t.userDataSource, t.tokenDataSource, t.passwordEncoder, t.tokenEncoder, t.tokenGenerator, t.mailSender, null, CLOCK, t.unitOfWork)),
                 Arguments.of("relógio", (Function<AuthControllerTest, AuthController>) t ->
-                        create(t.userDataSource, t.tokenDataSource, t.passwordEncoder, t.tokenIssuer, t.tokenGenerator, t.mailGateway, VALIDITY, null, t.unitOfWork)),
+                        create(t.userDataSource, t.tokenDataSource, t.passwordEncoder, t.tokenEncoder, t.tokenGenerator, t.mailSender, VALIDITY, null, t.unitOfWork)),
                 Arguments.of("unidade de trabalho", (Function<AuthControllerTest, AuthController>) t ->
-                        create(t.userDataSource, t.tokenDataSource, t.passwordEncoder, t.tokenIssuer, t.tokenGenerator, t.mailGateway, VALIDITY, CLOCK, null)));
+                        create(t.userDataSource, t.tokenDataSource, t.passwordEncoder, t.tokenEncoder, t.tokenGenerator, t.mailSender, VALIDITY, CLOCK, null)));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -114,7 +120,7 @@ class AuthControllerTest {
     void deveAutenticar() {
         when(userDataSource.findByLogin("joao.silva")).thenReturn(Optional.of(USER_DATA));
         when(passwordEncoder.matches("senha", HASH)).thenReturn(true);
-        when(tokenIssuer.issue(any())).thenReturn(new IssuedToken("jwt", NOW.plusHours(1)));
+        when(tokenEncoder.encode(any())).thenReturn(new IssuedToken("jwt", NOW.plusHours(1)));
 
         AuthView view = controller.login(new CredentialsDTO("joao.silva", "senha"));
 
@@ -147,8 +153,55 @@ class AuthControllerTest {
         assertNull(captor.getValue().id());
         assertEquals("hash-do-token", captor.getValue().tokenHash());
         assertEquals(NOW.plus(VALIDITY), captor.getValue().expiresAt());
-        verify(mailGateway).sendPasswordReset(Email.of("joao.silva@email.com"), "token-em-claro", VALIDITY);
+        verify(mailSender).send(eq("joao.silva@email.com"), eq("Redefinição de senha"),
+                argThat(corpo -> corpo.contains("token-em-claro") && corpo.contains("30 minutos")));
         assertEquals(1, unitOfWork.executions());
+    }
+
+    @Test
+    @DisplayName("Esqueci minha senha: o e-mail só sai depois que a unidade de trabalho confirma")
+    void deveEnviarOEmailSoDepoisDoCommit() {
+        prepararRecuperacao();
+        AtomicBoolean enviadoDentroDaTransacao = new AtomicBoolean();
+        IUnitOfWork registraEnvio = new IUnitOfWork() {
+            @Override
+            public <T> T execute(Supplier<T> work) {
+                T resultado = work.get();
+                enviadoDentroDaTransacao.set(!mockingDetails(mailSender).getInvocations().isEmpty());
+                return resultado;
+            }
+        };
+
+        create(userDataSource, tokenDataSource, passwordEncoder, tokenEncoder, tokenGenerator, mailSender,
+                VALIDITY, CLOCK, registraEnvio).forgotPassword("joao.silva@email.com");
+
+        assertFalse(enviadoDentroDaTransacao.get(), "nada sai enquanto a transação está aberta");
+        verify(mailSender).send(eq("joao.silva@email.com"), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Esqueci minha senha: se o commit falha, nenhum e-mail com token inexistente é enviado")
+    void naoDeveEnviarOEmailQuandoOCommitFalha() {
+        prepararRecuperacao();
+        IUnitOfWork commitFalha = new IUnitOfWork() {
+            @Override
+            public <T> T execute(Supplier<T> work) {
+                work.get();
+                throw new IllegalStateException("commit falhou");
+            }
+        };
+        AuthController comCommitFalho = create(userDataSource, tokenDataSource, passwordEncoder, tokenEncoder,
+                tokenGenerator, mailSender, VALIDITY, CLOCK, commitFalha);
+
+        assertThrows(IllegalStateException.class, () -> comCommitFalho.forgotPassword("joao.silva@email.com"));
+        verifyNoInteractions(mailSender);
+    }
+
+    private void prepararRecuperacao() {
+        when(userDataSource.findByEmail("joao.silva@email.com")).thenReturn(Optional.of(USER_DATA));
+        when(tokenGenerator.generate()).thenReturn("token-em-claro");
+        when(tokenGenerator.hash("token-em-claro")).thenReturn("hash-do-token");
+        when(tokenDataSource.insert(any())).thenReturn(TOKEN_DATA);
     }
 
     @Test
@@ -158,7 +211,7 @@ class AuthControllerTest {
 
         controller.forgotPassword("ninguem@email.com");
 
-        verifyNoInteractions(tokenDataSource, mailGateway);
+        verifyNoInteractions(tokenDataSource, mailSender);
     }
 
     @Test

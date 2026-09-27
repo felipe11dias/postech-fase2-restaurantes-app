@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
@@ -11,10 +12,13 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.postech.restaurantes.WebIntegrationTestSupport;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,6 +50,7 @@ class AuthApiIT extends WebIntegrationTestSupport {
 
     @BeforeEach
     void limparMock() {
+        aguardarProcessamentoEmSegundoPlano();
         reset(mailSender);
     }
 
@@ -89,7 +94,34 @@ class AuthApiIT extends WebIntegrationTestSupport {
                 corpo(Map.of("email", "ninguem." + UUID.randomUUID() + "@email.com")), Void.class);
 
         assertEquals(HttpStatus.ACCEPTED, resposta.getStatusCode());
+        aguardarProcessamentoEmSegundoPlano();
         verifyNoInteractions(mailSender);
+    }
+
+    /**
+     * Só o e-mail cadastrado fala com o servidor de e-mail. Se a resposta esperasse o envio, o tempo
+     * dela diria quem tem conta tão bem quanto um 404. Aqui o envio fica preso até o teste soltá-lo:
+     * se a requisição o esperasse, levaria os 10 segundos da trava.
+     */
+    @Test
+    @DisplayName("A resposta não espera o envio: um servidor de e-mail lento não torna o e-mail cadastrado mais demorado")
+    void naoDeveEsperarOEnvioParaResponder() throws InterruptedException {
+        CountDownLatch soltarEnvio = new CountDownLatch(1);
+        doAnswer(invocacao -> {
+            soltarEnvio.await(10, TimeUnit.SECONDS);
+            return null;
+        }).when(mailSender).send(any(SimpleMailMessage.class));
+
+        long inicio = System.nanoTime();
+        ResponseEntity<Void> resposta = rest.postForEntity(FORGOT,
+                corpo(Map.of("email", "cliente.demo@email.com")), Void.class);
+        Duration tempo = Duration.ofNanos(System.nanoTime() - inicio);
+        soltarEnvio.countDown();
+
+        assertEquals(HttpStatus.ACCEPTED, resposta.getStatusCode());
+        assertTrue(tempo.compareTo(Duration.ofSeconds(5)) < 0, "a resposta esperou o envio: " + tempo);
+        aguardarProcessamentoEmSegundoPlano();
+        verify(mailSender).send(any(SimpleMailMessage.class));
     }
 
     /**
@@ -109,6 +141,8 @@ class AuthApiIT extends WebIntegrationTestSupport {
 
         assertEquals(HttpStatus.ACCEPTED, cadastrado.getStatusCode());
         assertEquals(desconhecido.getStatusCode(), cadastrado.getStatusCode());
+        aguardarProcessamentoEmSegundoPlano();
+        verify(mailSender).send(any(SimpleMailMessage.class));
     }
 
     @Test
@@ -193,6 +227,7 @@ class AuthApiIT extends WebIntegrationTestSupport {
 
     /** O token em claro só existe no corpo do e-mail: o banco guarda apenas o hash. */
     private String tokenEnviado() {
+        aguardarProcessamentoEmSegundoPlano();
         ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
         verify(mailSender).send(captor.capture());
         return captor.getValue().getText().lines()

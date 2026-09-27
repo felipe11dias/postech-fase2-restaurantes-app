@@ -1460,17 +1460,43 @@
           "name": "36 Mailpit: localiza o e-mail de redefinição",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// O esqueci minha senha é processado em segundo plano (202 = aceito para processamento): numa",
+                  "// nova tentativa, espera um pouco antes de procurar o e-mail de novo.",
+                  "if (Number(pm.collectionVariables.get(\"tentativasMailpit\") || 0) > 0) {",
+                  "    setTimeout(() => {}, 300);",
+                  "}"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                  "const mensagens = pm.response.json().messages;",
-                  "pm.test(\"Chegou exatamente um e-mail de redefinição\", () => {",
-                  "    pm.expect(mensagens).to.have.lengthOf(1);",
-                  "    pm.expect(mensagens[0].Subject).to.eql(\"Redefinição de senha\");",
-                  "});",
-                  "pm.collectionVariables.set(\"mailpitMessageId\", mensagens[0].ID);"
+                  "const mensagens = pm.response.code === 200 ? (pm.response.json().messages || []) : [];",
+                  "const tentativas = Number(pm.collectionVariables.get(\"tentativasMailpit\") || 0);",
+                  "if (mensagens.length === 0 && tentativas < 20) {",
+                  "    // Ainda não chegou: repete esta mesma requisição (até 20 vezes, ~6 s).",
+                  "    pm.collectionVariables.set(\"tentativasMailpit\", tentativas + 1);",
+                  "    postman.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "    pm.collectionVariables.unset(\"tentativasMailpit\");",
+                  "    pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "    pm.test(\"Chegou exatamente um e-mail de redefinição\", () => {",
+                  "        pm.expect(mensagens).to.have.lengthOf(1);",
+                  "        pm.expect(mensagens[0].Subject).to.eql(\"Redefinição de senha\");",
+                  "    });",
+                  "    if (mensagens.length === 1) {",
+                  "        pm.collectionVariables.set(\"mailpitMessageId\", mensagens[0].ID);",
+                  "    } else {",
+                  "        console.error(\"e-mail de redefinição não encontrado no Mailpit: execução interrompida\");",
+                  "        postman.setNextRequest(null);",
+                  "    }",
+                  "}"
                 ]
               }
             }

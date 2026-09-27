@@ -1,9 +1,8 @@
 package com.postech.restaurantes.infrastructure.token.jwt;
 
+import com.postech.restaurantes.adapter.service.ITokenEncoder;
+import com.postech.restaurantes.adapter.service.data.TokenClaimsData;
 import com.postech.restaurantes.application.dto.auth.IssuedToken;
-import com.postech.restaurantes.application.gateway.ITokenIssuer;
-import com.postech.restaurantes.domain.entity.user.Role;
-import com.postech.restaurantes.domain.entity.user.User;
 import com.postech.restaurantes.infrastructure.web.security.AuthenticatedUser;
 import com.postech.restaurantes.infrastructure.web.security.IAccessTokenReader;
 import io.jsonwebtoken.Claims;
@@ -25,8 +24,11 @@ import javax.crypto.SecretKey;
 import org.springframework.stereotype.Component;
 
 /**
- * Implementação de {@link ITokenIssuer} (emitir, para o login) e de {@link IAccessTokenReader}
- * (ler, para a cadeia HTTP) com JWT assinado em HMAC-SHA256.
+ * Implementação de {@link ITokenEncoder} (emitir, para o login) e de {@link IAccessTokenReader}
+ * (ler, para a cadeia HTTP) com JWT assinado em HMAC-SHA256. O algoritmo é fixado na emissão:
+ * deixado ao jjwt, ele seria escolhido pelo tamanho do segredo (HS384 ou HS512 com o segredo de 48
+ * bytes que o README sugere) e mudaria sozinho a cada troca de segredo. Não conhece o domínio:
+ * recebe os dados do portador já traduzidos pelo gateway do adaptador.
  *
  * <p>Emite e lê o <em>mesmo</em> formato de token, e é o único lugar do sistema que sabe que
  * o token de acesso é um JWT — para o núcleo ele é apenas um texto opaco com uma expiração.
@@ -34,7 +36,7 @@ import org.springframework.stereotype.Component;
  * expiração seja verificável em teste.
  */
 @Component
-public class JwtTokenIssuer implements ITokenIssuer, IAccessTokenReader {
+public class JwtTokenEncoder implements ITokenEncoder, IAccessTokenReader {
 
     private static final String BEARER_ROLES = "roles";
     private static final String BEARER_LOGIN = "login";
@@ -43,23 +45,23 @@ public class JwtTokenIssuer implements ITokenIssuer, IAccessTokenReader {
     private final java.time.Duration expiration;
     private final Clock clock;
 
-    public JwtTokenIssuer(JwtProperties properties, Clock clock) {
+    public JwtTokenEncoder(JwtProperties properties, Clock clock) {
         this.key = Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
         this.expiration = properties.expiration();
         this.clock = clock;
     }
 
     @Override
-    public IssuedToken issue(User user) {
+    public IssuedToken encode(TokenClaimsData claims) {
         Instant now = clock.instant();
         Instant expiresAt = now.plus(expiration);
         String token = Jwts.builder()
-                .subject(user.getId().toString())
-                .claim(BEARER_LOGIN, user.getLogin())
-                .claim(BEARER_ROLES, user.getRoles().stream().map(Role::getName).map(Enum::name).toList())
+                .subject(claims.subject().toString())
+                .claim(BEARER_LOGIN, claims.login())
+                .claim(BEARER_ROLES, claims.roles().stream().sorted().toList())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiresAt))
-                .signWith(key)
+                .signWith(key, Jwts.SIG.HS256)
                 .compact();
         return new IssuedToken(token, LocalDateTime.ofInstant(expiresAt, clock.getZone()));
     }
