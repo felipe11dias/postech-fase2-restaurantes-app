@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Restaurantes — Tech Challenge Fase 2",
-    "description": "Um request por caso de cada endpoint — sucesso e cada erro previsto —, na ordem em que rodam de cima a baixo.\n\nPré-requisito: a pilha do Docker Compose no ar (`docker compose up --build`), com a API em {{baseUrl}} e o Mailpit em {{mailpitUrl}}.\nOs scripts de teste guardam {{adminToken}}, {{token}}, {{userId}} e o token de redefinição lido no Mailpit; cada execução cria um usuário novo, então a coleção pode rodar várias vezes.\n\nLinha de comando: `npx newman run postman/Restaurantes.postman_collection.json`",
+    "description": "Um request por caso de cada endpoint — sucesso e cada erro previsto —, na ordem em que rodam de cima a baixo.\n\nPré-requisito: a pilha do Docker Compose no ar (`docker compose up --build`), com a API em {{baseUrl}} e o Mailpit em {{mailpitUrl}}.\nOs scripts de teste guardam {{adminToken}}, {{token}}, {{userId}} e o token de redefinição lido no Mailpit; cada execução cria um usuário novo, então a coleção pode rodar várias vezes.\n\nLinha de comando (versão validada): `npx newman@6 run postman/Restaurantes.postman_collection.json`",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -18,13 +18,18 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                  "const corpo = pm.response.json();",
-                  "pm.test(\"Token Bearer com expiração\", () => {",
-                  "    pm.expect(corpo.type).to.eql(\"Bearer\");",
-                  "    pm.expect(corpo.token.split(\".\")).to.have.lengthOf(3);",
-                  "    pm.expect(corpo).to.have.property(\"expiresAt\");",
-                  "});",
-                  "pm.collectionVariables.set(\"adminToken\", corpo.token);"
+                  "if (pm.response.code === 200) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.test(\"Token Bearer com expiração\", () => {",
+                  "        pm.expect(corpo.type).to.eql(\"Bearer\");",
+                  "        pm.expect(corpo.token.split(\".\")).to.have.lengthOf(3);",
+                  "        pm.expect(corpo).to.have.property(\"expiresAt\");",
+                  "    });",
+                  "    pm.collectionVariables.set(\"adminToken\", corpo.token);",
+                  "} else {",
+                  "    console.error(\"adminToken não foi obtido (status \" + pm.response.code + \"): execução interrompida\");",
+                  "    postman.setNextRequest(null);",
+                  "}"
                 ]
               }
             }
@@ -162,19 +167,24 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
-                  "const corpo = pm.response.json();",
-                  "pm.test(\"Location aponta para o cadastro criado\", () =>",
-                  "    pm.expect(pm.response.headers.get(\"Location\")).to.match(new RegExp(\"/api/v1/users/\" + corpo.id + \"$\")));",
-                  "pm.test(\"Papel de cliente e CEP normalizado\", () => {",
-                  "    pm.expect(corpo.roles[0].name).to.eql(\"ROLE_CUSTOMER\");",
-                  "    pm.expect(corpo.addresses[0].zipCode).to.eql(\"01001000\");",
-                  "    pm.expect(corpo._links).to.have.property(\"self\");",
-                  "});",
-                  "pm.test(\"A resposta não expõe senha nem hash\", () => {",
-                  "    pm.expect(pm.response.json()).to.not.have.property(\"password\");",
-                  "    pm.expect(pm.response.text()).to.not.include(\"$2a$\");",
-                  "});",
-                  "pm.collectionVariables.set(\"userId\", corpo.id);"
+                  "if (pm.response.code === 201) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.test(\"Location aponta para o cadastro criado\", () =>",
+                  "        pm.expect(pm.response.headers.get(\"Location\")).to.match(new RegExp(\"/api/v1/users/\" + corpo.id + \"$\")));",
+                  "    pm.test(\"Papel de cliente e CEP normalizado\", () => {",
+                  "        pm.expect(corpo.roles[0].name).to.eql(\"ROLE_CUSTOMER\");",
+                  "        pm.expect(corpo.addresses[0].zipCode).to.eql(\"01001000\");",
+                  "        pm.expect(corpo._links).to.have.property(\"self\");",
+                  "    });",
+                  "    pm.test(\"A resposta não expõe senha nem hash\", () => {",
+                  "        pm.expect(pm.response.json()).to.not.have.property(\"password\");",
+                  "        pm.expect(pm.response.text()).to.not.include(\"$2a$\");",
+                  "    });",
+                  "    pm.collectionVariables.set(\"userId\", corpo.id);",
+                  "} else {",
+                  "    console.error(\"userId não foi obtido (status \" + pm.response.code + \"): execução interrompida\");",
+                  "    postman.setNextRequest(null);",
+                  "}"
                 ]
               }
             }
@@ -200,7 +210,58 @@
           }
         },
         {
-          "name": "05 Login do novo usuário",
+          "name": "05 Autocadastro de um segundo cliente (alvo dos casos de acesso negado)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const sufixo = Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);",
+                  "pm.collectionVariables.set(\"outroLogin\", \"postman.outro.\" + sufixo);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.collectionVariables.set(\"outroUserId\", corpo.id);",
+                  "} else {",
+                  "    console.error(\"outroUserId não foi obtido (status \" + pm.response.code + \"): execução interrompida\");",
+                  "    postman.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users",
+            "description": "Os casos de 403 miram este cadastro descartável, nunca um usuário da seed: se a regra de posse regredir, o estrago fica nele.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Outro Cliente Postman\",\n  \"email\": \"{{outroLogin}}@email.com\",\n  \"login\": \"{{outroLogin}}\",\n  \"password\": \"senhaSegura123\",\n  \"roles\": [\n    \"ROLE_CUSTOMER\"\n  ],\n  \"addresses\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "06 Login do novo usuário",
           "event": [
             {
               "listen": "test",
@@ -208,13 +269,18 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                  "const corpo = pm.response.json();",
-                  "pm.test(\"Token Bearer com expiração\", () => {",
-                  "    pm.expect(corpo.type).to.eql(\"Bearer\");",
-                  "    pm.expect(corpo.token.split(\".\")).to.have.lengthOf(3);",
-                  "    pm.expect(corpo).to.have.property(\"expiresAt\");",
-                  "});",
-                  "pm.collectionVariables.set(\"token\", corpo.token);"
+                  "if (pm.response.code === 200) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.test(\"Token Bearer com expiração\", () => {",
+                  "        pm.expect(corpo.type).to.eql(\"Bearer\");",
+                  "        pm.expect(corpo.token.split(\".\")).to.have.lengthOf(3);",
+                  "        pm.expect(corpo).to.have.property(\"expiresAt\");",
+                  "    });",
+                  "    pm.collectionVariables.set(\"token\", corpo.token);",
+                  "} else {",
+                  "    console.error(\"token não foi obtido (status \" + pm.response.code + \"): execução interrompida\");",
+                  "    postman.setNextRequest(null);",
+                  "}"
                 ]
               }
             }
@@ -240,7 +306,7 @@
           }
         },
         {
-          "name": "06 Autocadastro com campos inválidos",
+          "name": "07 Autocadastro com campos inválidos",
           "event": [
             {
               "listen": "test",
@@ -287,7 +353,7 @@
           }
         },
         {
-          "name": "07 Autocadastro com papel inexistente",
+          "name": "08 Autocadastro com papel inexistente",
           "event": [
             {
               "listen": "test",
@@ -327,7 +393,7 @@
           }
         },
         {
-          "name": "08 Autocadastro pedindo ROLE_ADMIN",
+          "name": "09 Autocadastro pedindo ROLE_ADMIN",
           "event": [
             {
               "listen": "test",
@@ -367,7 +433,7 @@
           }
         },
         {
-          "name": "09 Autocadastro com e-mail já cadastrado",
+          "name": "10 Autocadastro com e-mail já cadastrado",
           "event": [
             {
               "listen": "test",
@@ -413,7 +479,7 @@
       "description": "Só o próprio usuário ou um administrador.",
       "item": [
         {
-          "name": "10 Consulta do próprio cadastro",
+          "name": "11 Consulta do próprio cadastro",
           "event": [
             {
               "listen": "test",
@@ -442,7 +508,7 @@
           }
         },
         {
-          "name": "11 Consulta sem token",
+          "name": "12 Consulta sem token",
           "event": [
             {
               "listen": "test",
@@ -468,7 +534,7 @@
           }
         },
         {
-          "name": "12 Consulta com id que não é UUID",
+          "name": "13 Consulta com id que não é UUID",
           "event": [
             {
               "listen": "test",
@@ -499,7 +565,7 @@
           }
         },
         {
-          "name": "13 Consulta do cadastro de outro usuário",
+          "name": "14 Consulta do cadastro de outro usuário",
           "event": [
             {
               "listen": "test",
@@ -526,11 +592,11 @@
                 "value": "Bearer {{token}}"
               }
             ],
-            "url": "{{baseUrl}}/api/v1/users/a0000000-0000-4000-8000-000000000002"
+            "url": "{{baseUrl}}/api/v1/users/{{outroUserId}}"
           }
         },
         {
-          "name": "14 Administrador consulta usuário inexistente",
+          "name": "15 Administrador consulta usuário inexistente",
           "event": [
             {
               "listen": "test",
@@ -567,7 +633,7 @@
       "description": "Paginada, com busca parcial por nome. Só administrador.",
       "item": [
         {
-          "name": "15 Administrador lista com busca e paginação",
+          "name": "16 Administrador lista com busca e paginação",
           "event": [
             {
               "listen": "test",
@@ -601,7 +667,7 @@
           }
         },
         {
-          "name": "16 Listagem com tamanho de página acima do limite",
+          "name": "17 Listagem com tamanho de página acima do limite",
           "event": [
             {
               "listen": "test",
@@ -632,7 +698,7 @@
           }
         },
         {
-          "name": "17 Listagem sem token",
+          "name": "18 Listagem sem token",
           "event": [
             {
               "listen": "test",
@@ -658,7 +724,7 @@
           }
         },
         {
-          "name": "18 Usuário comum tenta listar",
+          "name": "19 Usuário comum tenta listar",
           "event": [
             {
               "listen": "test",
@@ -695,7 +761,7 @@
       "description": "Substitui nome, e-mail, login e endereços. Não altera senha nem papéis.",
       "item": [
         {
-          "name": "19 Atualização do próprio cadastro",
+          "name": "20 Atualização do próprio cadastro",
           "event": [
             {
               "listen": "test",
@@ -742,7 +808,7 @@
           }
         },
         {
-          "name": "20 Atualização com campos inválidos",
+          "name": "21 Atualização com campos inválidos",
           "event": [
             {
               "listen": "test",
@@ -791,7 +857,7 @@
           }
         },
         {
-          "name": "21 Atualização sem token",
+          "name": "22 Atualização sem token",
           "event": [
             {
               "listen": "test",
@@ -831,7 +897,7 @@
           }
         },
         {
-          "name": "22 Atualização do cadastro de outro usuário",
+          "name": "23 Atualização do cadastro de outro usuário",
           "event": [
             {
               "listen": "test",
@@ -862,7 +928,7 @@
                 "value": "Bearer {{token}}"
               }
             ],
-            "url": "{{baseUrl}}/api/v1/users/a0000000-0000-4000-8000-000000000002",
+            "url": "{{baseUrl}}/api/v1/users/{{outroUserId}}",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"street\": \"Avenida Paulista\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
@@ -875,7 +941,7 @@
           }
         },
         {
-          "name": "23 Administrador atualiza usuário inexistente",
+          "name": "24 Administrador atualiza usuário inexistente",
           "event": [
             {
               "listen": "test",
@@ -919,7 +985,7 @@
           }
         },
         {
-          "name": "24 Atualização com e-mail de outro cadastro",
+          "name": "25 Atualização com e-mail de outro cadastro",
           "event": [
             {
               "listen": "test",
@@ -969,7 +1035,7 @@
       "description": "Exige a senha atual. Atualiza {{userPassword}} e {{token}}.",
       "item": [
         {
-          "name": "25 Troca com senha atual incorreta",
+          "name": "26 Troca com senha atual incorreta",
           "event": [
             {
               "listen": "test",
@@ -1013,7 +1079,7 @@
           }
         },
         {
-          "name": "26 Troca com campos ausentes",
+          "name": "27 Troca com campos ausentes",
           "event": [
             {
               "listen": "test",
@@ -1063,7 +1129,7 @@
           }
         },
         {
-          "name": "27 Troca sem token",
+          "name": "28 Troca sem token",
           "event": [
             {
               "listen": "test",
@@ -1103,7 +1169,7 @@
           }
         },
         {
-          "name": "28 Troca da senha de outro usuário",
+          "name": "29 Troca da senha de outro usuário",
           "event": [
             {
               "listen": "test",
@@ -1134,10 +1200,10 @@
                 "value": "Bearer {{token}}"
               }
             ],
-            "url": "{{baseUrl}}/api/v1/users/a0000000-0000-4000-8000-000000000002/password",
+            "url": "{{baseUrl}}/api/v1/users/{{outroUserId}}/password",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"currentPassword\": \"cliente12345\",\n  \"newPassword\": \"senhaNova456\",\n  \"confirmPassword\": \"senhaNova456\"\n}",
+              "raw": "{\n  \"currentPassword\": \"senhaSegura123\",\n  \"newPassword\": \"senhaNova456\",\n  \"confirmPassword\": \"senhaNova456\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1147,7 +1213,7 @@
           }
         },
         {
-          "name": "29 Administrador troca a senha de usuário inexistente",
+          "name": "30 Administrador troca a senha de usuário inexistente",
           "event": [
             {
               "listen": "test",
@@ -1191,7 +1257,7 @@
           }
         },
         {
-          "name": "30 Troca de senha",
+          "name": "31 Troca de senha",
           "event": [
             {
               "listen": "test",
@@ -1229,7 +1295,7 @@
           }
         },
         {
-          "name": "31 Login com a senha nova",
+          "name": "32 Login com a senha nova",
           "event": [
             {
               "listen": "test",
@@ -1237,13 +1303,18 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                  "const corpo = pm.response.json();",
-                  "pm.test(\"Token Bearer com expiração\", () => {",
-                  "    pm.expect(corpo.type).to.eql(\"Bearer\");",
-                  "    pm.expect(corpo.token.split(\".\")).to.have.lengthOf(3);",
-                  "    pm.expect(corpo).to.have.property(\"expiresAt\");",
-                  "});",
-                  "pm.collectionVariables.set(\"token\", corpo.token);"
+                  "if (pm.response.code === 200) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.test(\"Token Bearer com expiração\", () => {",
+                  "        pm.expect(corpo.type).to.eql(\"Bearer\");",
+                  "        pm.expect(corpo.token.split(\".\")).to.have.lengthOf(3);",
+                  "        pm.expect(corpo).to.have.property(\"expiresAt\");",
+                  "    });",
+                  "    pm.collectionVariables.set(\"token\", corpo.token);",
+                  "} else {",
+                  "    console.error(\"token não foi obtido (status \" + pm.response.code + \"): execução interrompida\");",
+                  "    postman.setNextRequest(null);",
+                  "}"
                 ]
               }
             }
@@ -1275,7 +1346,7 @@
       "description": "O token só existe no corpo do e-mail. As requisições ao Mailpit ({{mailpitUrl}}) fazem o que o usuário faria: abrir a caixa de entrada e copiar o token.",
       "item": [
         {
-          "name": "32 Esqueci minha senha",
+          "name": "33 Esqueci minha senha",
           "event": [
             {
               "listen": "test",
@@ -1308,7 +1379,7 @@
           }
         },
         {
-          "name": "33 Esqueci minha senha com e-mail desconhecido (mesma resposta)",
+          "name": "34 Esqueci minha senha com e-mail desconhecido (mesma resposta)",
           "event": [
             {
               "listen": "test",
@@ -1342,7 +1413,7 @@
           }
         },
         {
-          "name": "34 Esqueci minha senha com e-mail malformado",
+          "name": "35 Esqueci minha senha com e-mail malformado",
           "event": [
             {
               "listen": "test",
@@ -1386,7 +1457,7 @@
           }
         },
         {
-          "name": "35 Mailpit: localiza o e-mail de redefinição",
+          "name": "36 Mailpit: localiza o e-mail de redefinição",
           "event": [
             {
               "listen": "test",
@@ -1411,7 +1482,7 @@
           }
         },
         {
-          "name": "36 Mailpit: lê o token no corpo do e-mail",
+          "name": "37 Mailpit: lê o token no corpo do e-mail",
           "event": [
             {
               "listen": "test",
@@ -1433,7 +1504,7 @@
           }
         },
         {
-          "name": "37 Redefinição com confirmação divergente",
+          "name": "38 Redefinição com confirmação divergente",
           "event": [
             {
               "listen": "test",
@@ -1473,7 +1544,7 @@
           }
         },
         {
-          "name": "38 Redefinição com campos ausentes",
+          "name": "39 Redefinição com campos ausentes",
           "event": [
             {
               "listen": "test",
@@ -1519,7 +1590,7 @@
           }
         },
         {
-          "name": "39 Redefinição com token desconhecido",
+          "name": "40 Redefinição com token desconhecido",
           "event": [
             {
               "listen": "test",
@@ -1559,7 +1630,7 @@
           }
         },
         {
-          "name": "40 Redefinição de senha",
+          "name": "41 Redefinição de senha",
           "event": [
             {
               "listen": "test",
@@ -1593,7 +1664,7 @@
           }
         },
         {
-          "name": "41 Reuso do mesmo token",
+          "name": "42 Reuso do mesmo token",
           "event": [
             {
               "listen": "test",
@@ -1633,7 +1704,7 @@
           }
         },
         {
-          "name": "42 Login com a senha redefinida",
+          "name": "43 Login com a senha redefinida",
           "event": [
             {
               "listen": "test",
@@ -1641,13 +1712,18 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                  "const corpo = pm.response.json();",
-                  "pm.test(\"Token Bearer com expiração\", () => {",
-                  "    pm.expect(corpo.type).to.eql(\"Bearer\");",
-                  "    pm.expect(corpo.token.split(\".\")).to.have.lengthOf(3);",
-                  "    pm.expect(corpo).to.have.property(\"expiresAt\");",
-                  "});",
-                  "pm.collectionVariables.set(\"token\", corpo.token);"
+                  "if (pm.response.code === 200) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.test(\"Token Bearer com expiração\", () => {",
+                  "        pm.expect(corpo.type).to.eql(\"Bearer\");",
+                  "        pm.expect(corpo.token.split(\".\")).to.have.lengthOf(3);",
+                  "        pm.expect(corpo).to.have.property(\"expiresAt\");",
+                  "    });",
+                  "    pm.collectionVariables.set(\"token\", corpo.token);",
+                  "} else {",
+                  "    console.error(\"token não foi obtido (status \" + pm.response.code + \"): execução interrompida\");",
+                  "    postman.setNextRequest(null);",
+                  "}"
                 ]
               }
             }
@@ -1679,7 +1755,7 @@
       "description": "Remove também endereços e tokens de redefinição.",
       "item": [
         {
-          "name": "43 Exclusão sem token",
+          "name": "44 Exclusão sem token",
           "event": [
             {
               "listen": "test",
@@ -1705,7 +1781,7 @@
           }
         },
         {
-          "name": "44 Exclusão do cadastro de outro usuário",
+          "name": "45 Exclusão do cadastro de outro usuário",
           "event": [
             {
               "listen": "test",
@@ -1732,11 +1808,11 @@
                 "value": "Bearer {{token}}"
               }
             ],
-            "url": "{{baseUrl}}/api/v1/users/a0000000-0000-4000-8000-000000000002"
+            "url": "{{baseUrl}}/api/v1/users/{{outroUserId}}"
           }
         },
         {
-          "name": "45 Administrador exclui usuário inexistente",
+          "name": "46 Administrador exclui usuário inexistente",
           "event": [
             {
               "listen": "test",
@@ -1767,7 +1843,32 @@
           }
         },
         {
-          "name": "46 Exclusão do próprio cadastro",
+          "name": "47 Administrador exclui o cadastro de outro usuário",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{outroUserId}}",
+            "description": "O administrador pode o que o dono do token comum não pôde (caso anterior). Também remove o cadastro descartável criado para os casos de 403."
+          }
+        },
+        {
+          "name": "48 Exclusão do próprio cadastro",
           "event": [
             {
               "listen": "test",
@@ -1791,7 +1892,7 @@
           }
         },
         {
-          "name": "47 Consulta após a exclusão",
+          "name": "49 Consulta após a exclusão",
           "event": [
             {
               "listen": "test",
@@ -1828,7 +1929,7 @@
       "description": "Tratados pelo mesmo GlobalExceptionHandler, em qualquer endpoint.",
       "item": [
         {
-          "name": "48 Corpo JSON malformado",
+          "name": "50 Corpo JSON malformado",
           "event": [
             {
               "listen": "test",
@@ -1868,7 +1969,7 @@
           }
         },
         {
-          "name": "49 Método não suportado",
+          "name": "51 Método não suportado",
           "event": [
             {
               "listen": "test",
@@ -1894,7 +1995,7 @@
           }
         },
         {
-          "name": "50 Token malformado",
+          "name": "52 Token malformado",
           "event": [
             {
               "listen": "prerequest",
@@ -1962,6 +2063,14 @@
     },
     {
       "key": "userPassword",
+      "value": ""
+    },
+    {
+      "key": "outroLogin",
+      "value": ""
+    },
+    {
+      "key": "outroUserId",
       "value": ""
     },
     {

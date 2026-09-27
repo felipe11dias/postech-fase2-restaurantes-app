@@ -110,12 +110,23 @@ troque-a no `.env` (`APP_PORT`, `DB_PORT`, `MAIL_PORT`, `MAILPIT_UI_PORT`).
 ### Rodando a aplicação fora do Docker
 
 Para depurar na IDE, suba só os serviços de apoio e rode a aplicação com as variáveis do `.env`
-(os valores `localhost` do exemplo já apontam para eles):
+**carregadas no ambiente**. O Maven e a IDE **não** leem o `.env` — só o Compose lê. Sem carregá-lo,
+a aplicação usa os padrões (`localhost:5432`, `localhost:1025`) mesmo que você tenha trocado as
+portas no `.env`, e pode acabar ligada a outro PostgreSQL que esteja nessa porta.
 
 ```bash
 docker compose up -d db mailpit
-mvn spring-boot:run      # com JWT_SECRET definido no ambiente
+set -a; . ./.env; set +a          # bash / Git Bash: exporta todas as variáveis do .env
+mvn spring-boot:run
 ```
+
+```powershell
+docker compose up -d db mailpit
+Get-Content .env | Where-Object { $_ -match '^[A-Z_]+=' } | ForEach-Object { $k, $v = $_ -split '=', 2; Set-Item "env:$k" $v }
+mvn spring-boot:run
+```
+
+Na IDE, configure as mesmas variáveis na configuração de execução (ou use um plugin de `.env`).
 
 ## Variáveis de ambiente
 
@@ -191,19 +202,24 @@ A documentação completa, com exemplos de cada resposta, está no Swagger UI.
 ## Coleção Postman
 
 [`postman/Restaurantes.postman_collection.json`](postman/Restaurantes.postman_collection.json)
-(formato v2.1) tem **50 requests em 9 pastas**: um por caso de cada endpoint — o sucesso e cada
+(formato v2.1) tem **52 requests em 9 pastas**: um por caso de cada endpoint — o sucesso e cada
 erro previsto —, na ordem em que rodam de cima a baixo. Os scripts de teste conferem o status e
 o `type` de cada erro e guardam `{{adminToken}}`, `{{token}}` e `{{userId}}` para as requisições
-seguintes. A pasta de recuperação de senha lê o token **na caixa do Mailpit**, pela API dele,
-como o usuário faria. Cada execução cria um usuário novo, então a coleção pode rodar quantas
-vezes quiser contra o mesmo banco.
+seguintes; se um login ou cadastro essencial falhar, a execução para ali, com o motivo, em vez de
+seguir falhando em cascata. A pasta de recuperação de senha lê o token **na caixa do Mailpit**,
+pela API dele, como o usuário faria.
+
+A coleção cria os próprios usuários — um cliente e um segundo cadastro descartável, alvo dos
+casos de acesso negado — e os exclui ao fim. **Ela nunca altera os usuários da seed**: se a regra
+de posse regredir, o estrago fica no cadastro descartável. Por isso pode rodar quantas vezes
+quiser contra o mesmo banco.
 
 - **No Postman:** *Import* → escolha o arquivo → *Run collection*. As variáveis `baseUrl`
   (`http://localhost:8080`) e `mailpitUrl` (`http://localhost:8025`) ficam na própria coleção.
 - **Na linha de comando**, com a pilha no ar:
 
 ```bash
-npx newman run postman/Restaurantes.postman_collection.json
+npx newman@6 run postman/Restaurantes.postman_collection.json
 ```
 
 Se você mudou as portas no `.env`, sobrescreva as variáveis:
@@ -212,7 +228,16 @@ Se você mudou as portas no `.env`, sobrescreva as variáveis:
 Os **prints** de cada request estão em [`postman/prints/`](postman/prints/), numerados na ordem da
 coleção. Foram gerados a partir de uma única execução do Newman contra a pilha do Docker
 Compose: cada imagem mostra o request, a resposta e os testes daquela chamada (tokens JWT
-aparecem abreviados).
+aparecem abreviados). Para gerá-los de novo — por exemplo, depois de acrescentar requests —, com a
+pilha no ar:
+
+```bash
+npx newman@6 run postman/Restaurantes.postman_collection.json --reporters cli,json --reporter-json-export target/newman.json
+node postman/gerar-prints.js target/newman.json postman/Restaurantes.postman_collection.json postman/prints
+```
+
+O script usa o Chrome em modo headless; fora do Windows, aponte `CHROME_PATH` para o executável.
+Os prints antigos só são substituídos depois que todos os novos forem gerados.
 
 ## Testes
 

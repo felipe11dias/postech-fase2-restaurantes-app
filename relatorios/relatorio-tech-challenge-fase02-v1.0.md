@@ -37,9 +37,9 @@
 | 9   | Documentação Swagger                               | ✅     |
 | 10  | Execução com Docker Compose                        | ✅     |
 | 11  | Testes — unitários (100% cobertura) e de integração | ✅    |
-| 12  | Entregáveis (Postman, README)                      | ⏳     |
+| 12  | Entregáveis (Postman, README)                      | ✅     |
 
-**Progresso:** 11 de 12 etapas concluídas.
+**Progresso:** 12 de 12 etapas concluídas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -1552,6 +1552,47 @@ provoca (argumento nulo, falha de biblioteca), e é por isso que os dois comprom
 - **Prints** de cada request em `postman/prints/`, gerados a partir da mesma execução.
 - **README** com stack, pré-requisitos, execução com Docker Compose, variáveis de ambiente,
   fluxo de autenticação, tabela de endpoints, Swagger, uso da coleção e execução dos testes.
+
+### O que foi entregue nesta etapa
+
+| Componente | Decisão e conceito que a sustenta |
+| ---------- | --------------------------------- |
+| Coleção Postman — 52 requests em 9 pastas | Uma pasta por operação, e dentro dela o cenário principal de sucesso seguido de cada extensão de erro — a mesma organização de Cockburn que a especificação dos casos de uso seguiu. Os casos vêm do próprio catálogo `@ErrorResponse` da Etapa 9, o mesmo que a OpenAPI publica: coleção, documentação e handler descrevem os mesmos erros. Cada request confere o status e, nos erros, o `type` do `ProblemDetail` — o identificador em que o cliente se apoia (Etapa 8). |
+| Execução de cima a baixo, repetível | Cada execução cria os próprios usuários, com login e e-mail únicos, e os exclui ao fim: roda quantas vezes quiser contra o mesmo banco (o *R* de F.I.R.S.T., *Clean Code* cap. 9). Requisição **essencial** — login, cadastro — confere o status *antes* de ler o corpo e, se falhar, **interrompe** a execução com o motivo, em vez de gravar `undefined` como token e deixar dezenas de falhas sem relação aparente com a causa. |
+| Casos de acesso negado miram um cadastro descartável | Os `403` de consulta, atualização, troca de senha e exclusão usam um segundo cliente criado pela própria coleção, nunca um usuário da seed. Um teste de autorização existe para o dia em que a regra regredir — e nesse dia ele não pode ser o agente do dano (*The Clean Coder*: primeiro, não causar mal). O administrador exclui esse cadastro ao fim, o que também cobre o sucesso da exclusão administrativa. |
+| Recuperação de senha pelo Mailpit | O token só existe no e-mail (Etapa 7). A coleção faz o que o usuário faria: busca a mensagem na API do Mailpit e lê o token no corpo. Assim o fluxo completo — pedir, confirmação divergente, token desconhecido, redefinir, reusar, entrar com a senha nova — roda sem intervenção. |
+| Prints (`postman/prints/`, 52) | Gerados por `postman/gerar-prints.js` a partir **de uma execução do Newman**, como a especificação pede: cada imagem é o request, a resposta e os testes daquela chamada (tokens abreviados). O Chrome headless mede a altura real da página antes de fotografá-la. Os prints antigos só são substituídos depois que todos os novos forem gerados; request sem resposta vira um print que mostra a falha. O script está versionado para que restaurante e cardápio entrem na coleção e nos prints do mesmo jeito. |
+| README | Descreve o que **existe**: restaurante, cardápio e o CRUD do catálogo de tipos de usuário aparecem como pendentes, em vez de prometidos. Passo a passo com a geração do segredo JWT (`openssl` ou PowerShell, testados), usuários da seed, regras de acesso, endpoints, catálogo de erros, uso da coleção com a versão validada do Newman (`newman@6`) e testes. Para rodar fora do Docker, diz como **carregar** o `.env` — Maven e IDE não o leem, e sem isso uma porta trocada no `.env` levaria a aplicação a outro PostgreSQL. |
+
+**Revisão de código da etapa.** O diff passou por uma revisão focada em falhas reais, que apontou
+dez pontos, todos corrigidos antes de fechar:
+
+| Achado | Correção |
+| ------ | -------- |
+| Os `403` miravam `cliente.demo`, da seed, e a troca de senha enviava a senha real dele: com a regra de posse regredida, a coleção trocaria a senha e excluiria o usuário de demonstração. | Segundo cadastro descartável como alvo; a seed nunca é tocada. Conferido: depois de duas execuções, `cliente.demo` entra normalmente e nenhum cadastro da coleção sobra no banco. |
+| O gerador de prints apagava os prints antes de saber se o Chrome funcionava — com o caminho padrão (só Windows), apagaria os 50 e quebraria. | Confere o Chrome e os argumentos antes de tudo; gera numa pasta temporária e só então substitui. Conferido com `CHROME_PATH` inválido: recusa com mensagem, 50 prints antes e depois. |
+| O gerador quebrava em request sem resposta (`ECONNREFUSED`). | O print mostra "sem resposta" e o motivo (`connect ECONNREFUSED 127.0.0.1:1`). |
+| O README mandava rodar `mvn spring-boot:run` "com as variáveis do `.env`", que o Maven não lê. | Comandos para exportar o `.env` em bash e PowerShell, ambos conferidos. |
+| O relatório não tinha sido atualizado na etapa. | Esta seção, ✅ no Sumário de Progresso e contador 12/12. |
+| Login que falhasse gravava `"undefined"` como token, e tudo depois falhava em cascata. | Requisições essenciais interrompem a execução. Conferido com a API apontada para outro serviço: para no primeiro request, com `adminToken não foi obtido (status 405)`. Revelou ainda que o script lia o corpo antes do status — uma resposta que não fosse JSON o quebrava antes de ele poder parar. |
+| O mapa de pastas do gerador supunha exatamente dois níveis. | Percorre pastas em qualquer profundidade e aceita request na raiz. |
+| `npx newman` sem versão. | `newman@6` no README e na descrição da coleção. |
+| A pasta temporária do gerador nunca era removida. | Removida em `finally`, mesmo quando a geração falha. |
+| Nada dizia como gerar os prints de novo. | Comandos no README e no `CLAUDE.md`. |
+
+**Observado na execução.** Um `DELETE /api/v1/auth/login` **sem** token responde `401`, não `405`:
+só o `POST` das rotas de autenticação é público, e a segurança decide antes do roteamento — um
+anônimo não descobre quais métodos existem. O caso de `405` da coleção usa o token do
+administrador. E as exceções do próprio Spring MVC (405, 415, rota inexistente) saem com
+`type: about:blank` e título em inglês, como a Etapa 8 decidiu — válido pela RFC 9457, mas é o
+único ponto em que a API não fala português.
+
+**Verificação.** Com a pilha do Docker Compose no ar, `npx newman@6 run` executou os **52
+requests** com **108 asserções** e **nenhuma falha**, duas vezes seguidas; os prints são da
+segunda. A versão anterior da coleção também foi executada com a aplicação fora do Docker
+(`mvn spring-boot:run` contra o banco e o Mailpit do Compose), inclusive a recuperação de senha.
+Nenhuma classe Java mudou nesta etapa: o `mvn verify` da Etapa 11 continua valendo (422
+unitários, 89 de integração, cobertura unitária 100%).
 
 ---
 
