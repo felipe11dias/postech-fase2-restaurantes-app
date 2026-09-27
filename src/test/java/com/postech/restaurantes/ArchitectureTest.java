@@ -130,16 +130,16 @@ class ArchitectureTest {
                     .allowEmptyShould(true);
 
     @ArchTest
-    static final ArchRule origens_de_dados_sao_interfaces_com_prefixo_I =
-            classes().that().resideInAPackage("..adapter.datasource")
+    static final ArchRule origens_de_dados_e_servicos_sao_interfaces_com_prefixo_I =
+            classes().that().resideInAnyPackage("..adapter.datasource", "..adapter.service")
                     .and().doNotHaveSimpleName(PACKAGE_INFO)
                     .should().beInterfaces()
                     .andShould().haveSimpleNameStartingWith("I")
                     .allowEmptyShould(true);
 
     @ArchTest
-    static final ArchRule records_de_origem_de_dados_sao_records_com_sufixo_Data =
-            classes().that().resideInAPackage("..adapter.datasource.data")
+    static final ArchRule records_de_origem_de_dados_e_servicos_sao_records_com_sufixo_Data =
+            classes().that().resideInAnyPackage("..adapter.datasource.data", "..adapter.service.data")
                     .and().doNotHaveSimpleName(PACKAGE_INFO)
                     .should().beRecords()
                     .andShould().haveSimpleNameEndingWith("Data")

@@ -2,16 +2,18 @@ package com.postech.restaurantes.adapter.controller;
 
 import com.postech.restaurantes.adapter.datasource.IPasswordResetTokenDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
+import com.postech.restaurantes.adapter.gateway.PasswordResetMailGateway;
 import com.postech.restaurantes.adapter.gateway.PasswordResetTokenGateway;
+import com.postech.restaurantes.adapter.gateway.TokenGateway;
 import com.postech.restaurantes.adapter.gateway.UserGateway;
 import com.postech.restaurantes.adapter.presenter.AuthPresenter;
 import com.postech.restaurantes.adapter.presenter.view.AuthView;
+import com.postech.restaurantes.adapter.service.IMailSender;
+import com.postech.restaurantes.adapter.service.ITokenEncoder;
 import com.postech.restaurantes.application.dto.auth.CredentialsDTO;
 import com.postech.restaurantes.application.dto.auth.ResetPasswordDTO;
-import com.postech.restaurantes.application.gateway.IMailGateway;
 import com.postech.restaurantes.application.gateway.IPasswordEncoder;
 import com.postech.restaurantes.application.gateway.ISecureTokenGenerator;
-import com.postech.restaurantes.application.gateway.ITokenIssuer;
 import com.postech.restaurantes.application.gateway.IUnitOfWork;
 import com.postech.restaurantes.application.usecase.auth.AuthenticateUseCase;
 import com.postech.restaurantes.application.usecase.auth.ForgotPasswordUseCase;
@@ -21,53 +23,55 @@ import java.time.Clock;
 import java.time.Duration;
 
 /**
- * Controller de adaptação de autenticação e recuperação de senha. Os serviços técnicos
- * (hash, emissão de token, e-mail, geração de token seguro, relógio) chegam por interface e
- * são repassados aos casos de uso; as origens de dados viram gateways aqui.
+ * Controller de adaptação de autenticação e recuperação de senha. Recebe por interface as origens
+ * de dados e os serviços externos (e-mail, codificação do token) e monta com eles os gateways de
+ * cada operação — como a Aula 05 prescreve. As portas técnicas sem tradução (hash de senha,
+ * geração de token seguro, relógio, unidade de trabalho) são repassadas direto aos casos de uso.
  */
 public final class AuthController {
 
     private final IUserDataSource userDataSource;
     private final IPasswordResetTokenDataSource tokenDataSource;
     private final IPasswordEncoder passwordEncoder;
-    private final ITokenIssuer tokenIssuer;
+    private final ITokenEncoder tokenEncoder;
     private final ISecureTokenGenerator tokenGenerator;
-    private final IMailGateway mailGateway;
+    private final IMailSender mailSender;
     private final Duration resetTokenValidity;
     private final Clock clock;
     private final IUnitOfWork unitOfWork;
 
     private AuthController(IUserDataSource userDataSource, IPasswordResetTokenDataSource tokenDataSource,
-                           IPasswordEncoder passwordEncoder, ITokenIssuer tokenIssuer,
-                           ISecureTokenGenerator tokenGenerator, IMailGateway mailGateway,
+                           IPasswordEncoder passwordEncoder, ITokenEncoder tokenEncoder,
+                           ISecureTokenGenerator tokenGenerator, IMailSender mailSender,
                            Duration resetTokenValidity, Clock clock, IUnitOfWork unitOfWork) {
         this.userDataSource = Guard.requireNonNull(userDataSource, "Origem de dados de usuário inválida");
         this.tokenDataSource = Guard.requireNonNull(tokenDataSource, "Origem de dados de token inválida");
         this.passwordEncoder = Guard.requireNonNull(passwordEncoder, "Codificador de senha inválido");
-        this.tokenIssuer = Guard.requireNonNull(tokenIssuer, "Emissor de token inválido");
+        this.tokenEncoder = Guard.requireNonNull(tokenEncoder, "Codificador de token inválido");
         this.tokenGenerator = Guard.requireNonNull(tokenGenerator, "Gerador de token inválido");
-        this.mailGateway = Guard.requireNonNull(mailGateway, "Gateway de e-mail inválido");
+        this.mailSender = Guard.requireNonNull(mailSender, "Serviço de e-mail inválido");
         this.resetTokenValidity = Guard.requireNonNull(resetTokenValidity, "Validade do token inválida");
         this.clock = Guard.requireNonNull(clock, "Relógio inválido");
         this.unitOfWork = Guard.requireNonNull(unitOfWork, "Unidade de trabalho inválida");
     }
 
     public static AuthController create(IUserDataSource userDataSource, IPasswordResetTokenDataSource tokenDataSource,
-                                        IPasswordEncoder passwordEncoder, ITokenIssuer tokenIssuer,
-                                        ISecureTokenGenerator tokenGenerator, IMailGateway mailGateway,
+                                        IPasswordEncoder passwordEncoder, ITokenEncoder tokenEncoder,
+                                        ISecureTokenGenerator tokenGenerator, IMailSender mailSender,
                                         Duration resetTokenValidity, Clock clock, IUnitOfWork unitOfWork) {
-        return new AuthController(userDataSource, tokenDataSource, passwordEncoder, tokenIssuer, tokenGenerator,
-                mailGateway, resetTokenValidity, clock, unitOfWork);
+        return new AuthController(userDataSource, tokenDataSource, passwordEncoder, tokenEncoder, tokenGenerator,
+                mailSender, resetTokenValidity, clock, unitOfWork);
     }
 
     public AuthView login(CredentialsDTO credentials) {
-        var useCase = AuthenticateUseCase.create(userGateway(), passwordEncoder, tokenIssuer);
+        var useCase = AuthenticateUseCase.create(userGateway(), passwordEncoder,
+                TokenGateway.create(tokenEncoder));
         return AuthPresenter.toView(unitOfWork.execute(() -> useCase.run(credentials)));
     }
 
     public void forgotPassword(String email) {
-        var useCase = ForgotPasswordUseCase.create(userGateway(), tokenGateway(), tokenGenerator, mailGateway,
-                resetTokenValidity, clock);
+        var useCase = ForgotPasswordUseCase.create(userGateway(), tokenGateway(), tokenGenerator,
+                PasswordResetMailGateway.create(mailSender), resetTokenValidity, clock);
         unitOfWork.execute(() -> useCase.run(email));
     }
 

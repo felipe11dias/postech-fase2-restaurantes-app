@@ -8,6 +8,9 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
+import com.postech.restaurantes.application.gateway.IPasswordEncoder;
+import com.postech.restaurantes.application.gateway.ISecureTokenGenerator;
+import com.postech.restaurantes.application.gateway.IUnitOfWork;
 import com.postech.restaurantes.infrastructure.web.security.AuthenticatedUser;
 import com.postech.restaurantes.infrastructure.web.security.IAccessTokenReader;
 import com.tngtech.archunit.core.importer.ImportOption;
@@ -123,6 +126,24 @@ class InfrastructureModulesTest {
                     .should().dependOnClassesThat().resideInAnyPackage(
                             "org.springframework.web..", "org.springframework.hateoas..", "jakarta.servlet..",
                             "jakarta.validation..", "io.swagger..", "org.springdoc..");
+
+    // ---- Gateway é o tradutor, no adaptador (Aulas 02, 05, 06) --------------------------------
+
+    /**
+     * A infraestrutura só implementa diretamente as portas técnicas, em que não há tradução: hash
+     * de senha, geração de token seguro, unidade de trabalho. Toda outra porta do núcleo passa por
+     * um gateway em {@code adapter.gateway}, que traduz e consome a infraestrutura por interface
+     * ({@code adapter.datasource} ou {@code adapter.service}) — é onde mora o texto do e-mail e a
+     * escolha dos claims do token, e por isso trocar SMTP ou JWT não os reescreve.
+     */
+    @ArchTest
+    static final ArchRule infraestrutura_so_implementa_portas_tecnicas =
+            noClasses().that().resideInAPackage("..infrastructure..")
+                    .should().implement(resideInAPackage("..application.gateway..")
+                            .and(not(belongToAnyOf(IPasswordEncoder.class, ISecureTokenGenerator.class,
+                                    IUnitOfWork.class))))
+                    .because("porta com tradução é implementada por um gateway no adaptador, que o controller "
+                            + "instancia com o serviço externo recebido por interface");
 
     // ---- Configuração só declara ---------------------------------------------------------------
 
