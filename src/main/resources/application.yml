@@ -47,7 +47,11 @@ security:
 
 mail:
   from: ${MAIL_FROM:no-reply@restaurantes.postech}
-  reset-token-expiration-minutes: ${MAIL_RESET_TOKEN_EXPIRATION_MINUTES:30}
+
+# Política de autenticação, não de e-mail: o caso de uso calcula o vencimento com ela e a repassa
+# ao texto da mensagem.
+password-reset:
+  token-expiration-minutes: ${PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES:30}
 
 springdoc:
   swagger-ui:

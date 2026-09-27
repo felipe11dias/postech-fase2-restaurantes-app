@@ -147,7 +147,7 @@ class AuthControllerTest {
         assertNull(captor.getValue().id());
         assertEquals("hash-do-token", captor.getValue().tokenHash());
         assertEquals(NOW.plus(VALIDITY), captor.getValue().expiresAt());
-        verify(mailGateway).sendPasswordReset(Email.of("joao.silva@email.com"), "token-em-claro");
+        verify(mailGateway).sendPasswordReset(Email.of("joao.silva@email.com"), "token-em-claro", VALIDITY);
         assertEquals(1, unitOfWork.executions());
     }
 

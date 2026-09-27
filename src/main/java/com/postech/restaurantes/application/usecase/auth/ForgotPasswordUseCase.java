@@ -58,6 +58,6 @@ public final class ForgotPasswordUseCase {
         PasswordResetToken token = PasswordResetToken.create(
                 user.get().getId(), tokenGenerator.hash(rawToken), now.plus(tokenValidity), now);
         tokenGateway.insert(token);
-        mailGateway.sendPasswordReset(email, rawToken);
+        mailGateway.sendPasswordReset(email, rawToken, tokenValidity);
     }
 }

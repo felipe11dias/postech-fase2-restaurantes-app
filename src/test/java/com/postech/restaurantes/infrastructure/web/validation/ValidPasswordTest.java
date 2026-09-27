@@ -4,9 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.postech.restaurantes.infrastructure.web.auth.ResetPasswordRequest;
-import com.postech.restaurantes.infrastructure.web.user.ChangePasswordRequest;
-import com.postech.restaurantes.infrastructure.web.user.NewUserRequest;
+import com.postech.restaurantes.infrastructure.web.api.auth.ResetPasswordRequest;
+import com.postech.restaurantes.infrastructure.web.api.user.ChangePasswordRequest;
+import com.postech.restaurantes.infrastructure.web.api.user.NewUserRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
