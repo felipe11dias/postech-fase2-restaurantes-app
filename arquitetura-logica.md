@@ -45,3 +45,8 @@ graph TD
     REP --> DB
     MIG --> DB
 ```
+
+## Visualização Estática (PNG)
+
+![Diagrama de Arquitetura Lógica](docs/arquitetura-logica.png)
+
