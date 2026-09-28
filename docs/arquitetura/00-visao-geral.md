@@ -35,7 +35,7 @@
 | Entidades | [`domain`](../../src/main/java/com/postech/restaurantes/domain) | `User`, `Role`, `Address`, `PasswordResetToken`, VOs `Email` e `ZipCode`, exceções de negócio, `Guard` |
 | Casos de Uso | [`application`](../../src/main/java/com/postech/restaurantes/application) | 9 casos de uso (`create` + `run`), as portas (`I*Gateway`) e os DTOs de entrada |
 | Adaptadores de Interface | [`adapter`](../../src/main/java/com/postech/restaurantes/adapter) | controllers, gateways, interfaces de origem de dados e de serviços externos, presenters e views |
-| Frameworks & Drivers | [`infrastructure`](../../src/main/java/com/postech/restaurantes/infrastructure) | módulos `main`, `web`, `persistence/jpa`, `token/jwt`, `crypto`, `mail/smtp` — o único lugar com Spring |
+| Frameworks & Drivers | [`infrastructure`](../../src/main/java/com/postech/restaurantes/infrastructure) | módulos `main`, `api/rest/spring`, `persistence/jpa`, `token/jwt`, `crypto`, `mail/smtp` — o único lugar com Spring |
 
 Dentro de cada camada o código é agrupado por **agregado ou feature** (`user`, `auth`, `address`):
 uma feature nova, como restaurante ou cardápio, ganha o seu subpacote em cada camada.
@@ -45,7 +45,7 @@ uma feature nova, como restaurante ou cardápio, ganha o seu subpacote em cada c
 ```
 POST /api/v1/users
    │
-[UserRestController.register]            infrastructure/web/api/user  — valida a sintaxe (Bean Validation)
+[UserRestController.register]            api/rest/spring/controller   — valida a sintaxe (Bean Validation)
    │  NewUserRequest.toDTO()  →  NewUserDTO
    ▼
 [UserController.register]                 adapter/controller           — o "maestro"
@@ -65,7 +65,7 @@ POST /api/v1/users
    ▼  (volta)
 [UserPresenter.toView(user)]               adapter/presenter            — o que pode sair (sem senha)
    ▼
-[UserModelAssembler / UserResponse]        infrastructure/web/api/user  — JSON + links HATEOAS, 201 + Location
+[UserModelAssembler / UserResponse]        api/rest/spring/assembler, dto/response — JSON + links HATEOAS, 201 + Location
 ```
 
 Um erro em qualquer ponto é uma exceção de domínio que sobe até o
@@ -75,7 +75,7 @@ interna sabe que HTTP existe.
 ```mermaid
 flowchart LR
     subgraph infra["Frameworks & Drivers (infrastructure)"]
-        REST["web/api<br/>@RestController"]
+        REST["api/rest/spring<br/>@RestController"]
         JPA["persistence/jpa<br/>UserDataSourceJpa"]
         SMTP["mail/smtp<br/>SmtpMailSender"]
         JWT["token/jwt<br/>JwtTokenEncoder"]

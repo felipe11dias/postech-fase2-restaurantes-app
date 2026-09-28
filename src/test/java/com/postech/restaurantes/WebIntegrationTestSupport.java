@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.postech.restaurantes.infrastructure.web.api.auth.ForgotPasswordConfig;
+import com.postech.restaurantes.infrastructure.api.rest.spring.config.ForgotPasswordConfig;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ThreadPoolExecutor;

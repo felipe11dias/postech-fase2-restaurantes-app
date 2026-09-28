@@ -61,15 +61,16 @@ se ele rompe a integridade entre a arquitetura aplicada e os conceitos; se rompe
   princípio de "abstração sobre implementação" da Aula 06 é atendido — o caso de uso depende de
   interface —, mas sem o gateway intermediário, porque não há tradução a fazer. Detalhes em
   [Adaptadores](03-adaptadores.md#5-desvios-conscientes).
-- A exceção de dependência entre módulos de infraestrutura: o módulo `token` conhece, de `web`,
+- A exceção de dependência entre módulos de infraestrutura: o módulo `token` conhece, da `api`,
   exatamente `IAccessTokenReader` e `AuthenticatedUser` — a porta que implementa e o tipo que ela
   devolve. É a inversão de dependência aplicada dentro da borda, e a regra do build admite essas
   duas classes e nenhuma outra.
 
 ## 6. Como o build verifica
 
-Os princípios não ficam só no texto: **37 regras ArchUnit** os fazem quebrar o build quando
-violados — 14 no `ArchitectureTest` (regra de dependência e nomenclatura), 16 no
-`InfrastructureModulesTest` (módulos, ciclos, bibliotecas, portas técnicas, transporte sem domínio) e 7 no
+Os princípios não ficam só no texto: **44 regras ArchUnit** os fazem quebrar o build quando
+violados — 14 no `ArchitectureTest` (regra de dependência e nomenclatura), 23 no
+`InfrastructureModulesTest` (módulos, ciclos, bibliotecas, portas técnicas, transporte sem domínio,
+organização MVC da API) e 7 no
 `TestConventionsTest` (convenções da suíte). Cada regra foi conferida ao contrário, com uma violação
 proposital, na etapa em que foi criada.

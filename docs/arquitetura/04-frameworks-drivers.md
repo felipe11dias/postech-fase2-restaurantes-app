@@ -40,7 +40,7 @@ tecnologia. Trocar uma tecnologia é apagar um subpacote e criar outro ao lado.
 | Módulo | Implementa | Tecnologia | Para trocar |
 |---|---|---|---|
 | [`main`](../../src/main/java/com/postech/restaurantes/infrastructure/main) | a composição (Main, cap. 26): `CompositionConfig`, `PasswordResetProperties` | Spring (`@Configuration`) | — é o único que conhece todos |
-| [`web`](../../src/main/java/com/postech/restaurantes/infrastructure/web) | entrega HTTP: `api/<feature>` (`@RestController`, `*Request`/`*Response`, assembler HATEOAS), `error` (ProblemDetail), `doc` (OpenAPI), `validation`, `security` | Spring MVC, Spring Security, springdoc, Bean Validation | outro canal (gRPC, CLI) chama os mesmos controllers de adaptação |
+| [`api/rest/spring`](../../src/main/java/com/postech/restaurantes/infrastructure/api/rest/spring) | entrega HTTP, organizada como MVC: `controller` (`@RestController`), `dto/request` e `dto/response`, `assembler` (HATEOAS), `route` (caminhos), `config`, `exception` (ProblemDetail), `doc` (OpenAPI), `validation`, `security` | Spring MVC, Spring Security, Spring HATEOAS, springdoc, Bean Validation | `api/rest/<outra>` ou outro canal (`api/graphql/...`) chamando os mesmos controllers de adaptação |
 | [`persistence/jpa`](../../src/main/java/com/postech/restaurantes/infrastructure/persistence/jpa) | `I*DataSource` (`UserDataSourceJpa`, …) e `IUnitOfWork` (`TransactionalUnitOfWork`); `audit` (colunas de auditoria) | JPA/Hibernate, Spring Data, PostgreSQL | `persistence/jdbc` com as mesmas interfaces; o schema continua do Flyway |
 | [`token/jwt`](../../src/main/java/com/postech/restaurantes/infrastructure/token/jwt) | `ITokenEncoder` e `IAccessTokenReader` (`JwtTokenEncoder`, HS256 fixo) | jjwt | `token/<outro>` implementando as duas interfaces |
 | [`crypto`](../../src/main/java/com/postech/restaurantes/infrastructure/crypto) | `IPasswordEncoder` (`BCryptPasswordAdapter`), `ISecureTokenGenerator` (`SecureRandomTokenGenerator`) | spring-security-crypto, JDK | nova classe (ex.: Argon2) implementando a porta |
@@ -52,7 +52,7 @@ separados dos DTOs dos casos de uso. Nenhuma anotação atravessa para dentro �
 "facilidade" que a Aula 06 (p. 8) alerta não é pago.
 
 **Quando um módulo precisa de outro**, ele declara a interface e o `main` liga as pontas: o autor
-da auditoria (persistência) vem de `web/security/AuthenticatedActor` por um `Supplier` ligado na
+da auditoria (persistência) vem de `api/rest/spring/security/AuthenticatedActor` por um `Supplier` ligado na
 `CompositionConfig`; o filtro HTTP lê o token pela porta `IAccessTokenReader`, que ele mesmo
 declara e o módulo JWT implementa.
 
@@ -78,7 +78,9 @@ imagens de versão fixa e portas só em `127.0.0.1`.
 |---|---|---|
 | Plugin por módulo (Martin cap. 17) | um subpacote por tecnologia | trocar uma tecnologia não toca em outra |
 | Main / raiz de composição (cap. 26) | `infrastructure/main` | só um lugar conhece tudo; os demais são substituíveis |
-| Porta declarada pelo cliente dentro da borda (DIP) | `IAccessTokenReader` em `web/security` | a web não conhece JWT |
+| Porta declarada pelo cliente dentro da borda (DIP) | `IAccessTokenReader` em `api/rest/spring/security` | a API não conhece JWT |
+| MVC dentro do módulo de API (Etapa 15) | `controller`, `dto/request`, `dto/response`, `assembler`, `exception`… | o pacote diz o papel da classe; restaurante e cardápio entram nos mesmos pacotes |
+| Rotas em um lugar só | `route/ApiRoutes` | `@RequestMapping`, `SecurityConfig` e links HATEOAS leem o mesmo caminho, e `controller` ↔ `assembler` não formam ciclo |
 | Data mapper em duas camadas | `*JpaEntity` + gateway | domínio sem anotação; o mapeamento de banco muda sem mexer na entidade |
 | Busca paginada em duas consultas | `UserDataSourceJpa.search` | `join fetch` com paginação faria o Hibernate recortar a página em memória |
 
@@ -91,17 +93,24 @@ imagens de versão fixa e portas só em `127.0.0.1`.
 - O banco tem `DEFAULT gen_random_uuid()` nas chaves, mas o id de uma inserção pela aplicação é
   gerado pelo Hibernate (`@GeneratedValue(strategy = UUID)`); o default do banco serve à inserção
   direta por SQL, como a seed.
+- **A API é organizada por papel (MVC), e não por feature.** A *screaming architecture* (Martin,
+  cap. 21) pede que a estrutura grite o domínio — e grita em `domain`, `application` e `adapter`,
+  que seguem por agregado. Dentro de um detalhe (cap. 31: a web é um detalhe), a organização segue
+  a convenção do framework que o implementa: quem abre `api/rest/spring` procura controllers,
+  requests e responses, e o pacote diz onde estão. Decisão do autor na Etapa 15.
 - Erros do próprio Spring MVC (405, 415, rota inexistente) saem com `type: about:blank` e título em
   inglês — válido pela RFC 9457, mas é o único ponto em que a API não responde em português.
 
 ## 6. Como o build verifica
 
 [`InfrastructureModulesTest`](../../src/test/java/com/postech/restaurantes/InfrastructureModulesTest.java)
-(16 regras): nenhum ciclo entre pacotes; `persistence`, `crypto` e `mail` não conhecem outro
-módulo; `token` só conhece, de `web`, a porta que implementa; `web` não conhece implementações;
+(23 regras): nenhum ciclo entre pacotes; `persistence`, `crypto` e `mail` não conhecem outro
+módulo; `token` só conhece, da `api`, a porta que implementa; `api` não conhece implementações;
 cada biblioteca só no seu módulo (JPA em `persistence`, jjwt em `token.jwt`, Spring Mail em
-`mail.smtp`, Spring Security em `web`/`crypto`, Spring MVC/springdoc em `web`); `*Config` ⇔
-`@Configuration`; a infraestrutura só conhece, do núcleo, as portas técnicas; e `mail` e `token` não
-conhecem o `domain`.
+`mail.smtp`, Spring Security em `api`/`crypto`, Spring MVC/springdoc em `api`); `*Config` ⇔
+`@Configuration`; a infraestrutura só conhece, do núcleo, as portas técnicas; `mail` e `token` não
+conhecem o `domain`; e, na API, cada classe no pacote do seu papel (`@RestController` em
+`controller`, records `*Request`/`*Response` em `dto`, `@RestControllerAdvice` em `exception`,
+`*Assembler` em `assembler`).
 Testes de integração (Testcontainers, PostgreSQL real) provam os módulos juntos — ver
 [Testes](06-testes.md).

@@ -11,8 +11,8 @@ import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.sli
 import com.postech.restaurantes.application.gateway.IPasswordEncoder;
 import com.postech.restaurantes.application.gateway.ISecureTokenGenerator;
 import com.postech.restaurantes.application.gateway.IUnitOfWork;
-import com.postech.restaurantes.infrastructure.web.security.AuthenticatedUser;
-import com.postech.restaurantes.infrastructure.web.security.IAccessTokenReader;
+import com.postech.restaurantes.infrastructure.api.rest.spring.security.AuthenticatedUser;
+import com.postech.restaurantes.infrastructure.api.rest.spring.security.IAccessTokenReader;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -35,7 +35,8 @@ import com.tngtech.archunit.lang.ArchRule;
 class InfrastructureModulesTest {
 
     private static final String MAIN = "..infrastructure.main..";
-    private static final String WEB = "..infrastructure.web..";
+    private static final String API = "..infrastructure.api..";
+    private static final String API_SPRING = "..infrastructure.api.rest.spring";
     private static final String PERSISTENCE = "..infrastructure.persistence..";
     private static final String TOKEN = "..infrastructure.token..";
     private static final String CRYPTO = "..infrastructure.crypto..";
@@ -55,37 +56,37 @@ class InfrastructureModulesTest {
     @ArchTest
     static final ArchRule persistencia_nao_conhece_outros_modulos =
             noClasses().that().resideInAPackage(PERSISTENCE)
-                    .should().dependOnClassesThat().resideInAnyPackage(MAIN, WEB, TOKEN, CRYPTO, MAIL)
+                    .should().dependOnClassesThat().resideInAnyPackage(MAIN, API, TOKEN, CRYPTO, MAIL)
                     .because("trocar JPA não pode obrigar a mexer em segurança, token ou e-mail — o autor "
                             + "da auditoria chega pronto, ligado em main");
 
     @ArchTest
     static final ArchRule criptografia_nao_conhece_outros_modulos =
             noClasses().that().resideInAPackage(CRYPTO)
-                    .should().dependOnClassesThat().resideInAnyPackage(MAIN, WEB, PERSISTENCE, TOKEN, MAIL);
+                    .should().dependOnClassesThat().resideInAnyPackage(MAIN, API, PERSISTENCE, TOKEN, MAIL);
 
     @ArchTest
     static final ArchRule email_nao_conhece_outros_modulos =
             noClasses().that().resideInAPackage(MAIL)
-                    .should().dependOnClassesThat().resideInAnyPackage(MAIN, WEB, PERSISTENCE, TOKEN, CRYPTO)
+                    .should().dependOnClassesThat().resideInAnyPackage(MAIN, API, PERSISTENCE, TOKEN, CRYPTO)
                     .because("a validade do token chega pela porta IMailGateway, não por configuração alheia");
 
     /**
-     * O módulo de token implementa a porta que a web declarou para ler o Bearer — e só isso ele
+     * O módulo de token implementa a porta que a API declarou para ler o Bearer — e só isso ele
      * pode conhecer de lá: a interface e o tipo que ela devolve.
      */
     @ArchTest
     static final ArchRule token_so_conhece_a_porta_que_implementa =
             noClasses().that().resideInAPackage(TOKEN)
                     .should().dependOnClassesThat(resideInAnyPackage(MAIN, PERSISTENCE, CRYPTO, MAIL)
-                            .or(resideInAPackage(WEB).and(not(belongToAnyOf(IAccessTokenReader.class,
+                            .or(resideInAPackage(API).and(not(belongToAnyOf(IAccessTokenReader.class,
                                     AuthenticatedUser.class)))))
                     .because("trocar o formato do token é criar outro subpacote de token que implemente "
                             + "ITokenIssuer e IAccessTokenReader");
 
     @ArchTest
-    static final ArchRule web_nao_conhece_implementacoes =
-            noClasses().that().resideInAPackage(WEB)
+    static final ArchRule api_nao_conhece_implementacoes =
+            noClasses().that().resideInAPackage(API)
                     .should().dependOnClassesThat().resideInAnyPackage(MAIN, PERSISTENCE, TOKEN, CRYPTO, MAIL)
                     .because("a entrega HTTP fala com o núcleo pelos controllers de adaptação e com o "
                             + "formato do token pela porta que ela mesma declara");
@@ -110,8 +111,8 @@ class InfrastructureModulesTest {
                     .should().dependOnClassesThat().resideInAnyPackage("org.springframework.mail..", "jakarta.mail..");
 
     @ArchTest
-    static final ArchRule spring_security_so_na_web =
-            noClasses().that().resideOutsideOfPackages(WEB, CRYPTO)
+    static final ArchRule spring_security_so_na_api =
+            noClasses().that().resideOutsideOfPackages(API, CRYPTO)
                     .should().dependOnClassesThat().resideInAPackage("org.springframework.security..");
 
     @ArchTest
@@ -121,8 +122,8 @@ class InfrastructureModulesTest {
                             .and(not(resideInAPackage("org.springframework.security.crypto.."))));
 
     @ArchTest
-    static final ArchRule http_e_documentacao_so_na_web =
-            noClasses().that().resideOutsideOfPackage(WEB)
+    static final ArchRule http_e_documentacao_so_na_api =
+            noClasses().that().resideOutsideOfPackage(API)
                     .should().dependOnClassesThat().resideInAnyPackage(
                             "org.springframework.web..", "org.springframework.hateoas..", "jakarta.servlet..",
                             "jakarta.validation..", "io.swagger..", "org.springdoc..");
@@ -159,6 +160,58 @@ class InfrastructureModulesTest {
             noClasses().that().resideInAnyPackage("..infrastructure.mail..", "..infrastructure.token..")
                     .should().dependOnClassesThat().resideInAPackage("..domain..")
                     .because("a tradução do domínio para a mensagem e para os claims é do gateway no adaptador");
+
+    // ---- A API REST em Spring organizada como MVC (Etapa 15) ----------------------------------
+
+    /**
+     * Dentro do módulo, o pacote diz o papel da classe: quem procura um controller, um corpo de
+     * requisição ou o tratamento de erros sabe onde olhar, e restaurante e cardápio entram nos mesmos
+     * pacotes. As regras valem nos dois sentidos — o pacote só tem classes daquele papel, e a classe
+     * daquele papel só existe naquele pacote.
+     */
+    @ArchTest
+    static final ArchRule controllers_rest_ficam_em_controller =
+            classes().that().areAnnotatedWith("org.springframework.web.bind.annotation.RestController")
+                    .should().resideInAPackage(API_SPRING + ".controller")
+                    .andShould().haveSimpleNameEndingWith("RestController");
+
+    @ArchTest
+    static final ArchRule pacote_controller_so_tem_controllers_rest =
+            classes().that().resideInAPackage(API_SPRING + ".controller")
+                    .and().doNotHaveSimpleName("package-info")
+                    .should().beAnnotatedWith("org.springframework.web.bind.annotation.RestController");
+
+    @ArchTest
+    static final ArchRule dto_request_so_tem_records_Request =
+            classes().that().resideInAPackage(API_SPRING + ".dto.request")
+                    .and().doNotHaveSimpleName("package-info")
+                    .should().beRecords()
+                    .andShould().haveSimpleNameEndingWith("Request");
+
+    @ArchTest
+    static final ArchRule dto_response_so_tem_records_Response =
+            classes().that().resideInAPackage(API_SPRING + ".dto.response")
+                    .and().doNotHaveSimpleName("package-info")
+                    .should().beRecords()
+                    .andShould().haveSimpleNameEndingWith("Response");
+
+    @ArchTest
+    static final ArchRule corpos_http_ficam_em_dto =
+            classes().that().resideInAPackage(API)
+                    .and().areRecords()
+                    .and().haveNameMatching(".*(Request|Response)")
+                    .should().resideInAnyPackage(API_SPRING + ".dto.request", API_SPRING + ".dto.response");
+
+    @ArchTest
+    static final ArchRule tratamento_de_erros_fica_em_exception =
+            classes().that().areAnnotatedWith("org.springframework.web.bind.annotation.RestControllerAdvice")
+                    .should().resideInAPackage(API_SPRING + ".exception");
+
+    @ArchTest
+    static final ArchRule pacote_assembler_so_tem_assemblers =
+            classes().that().resideInAPackage(API_SPRING + ".assembler")
+                    .and().doNotHaveSimpleName("package-info")
+                    .should().haveSimpleNameEndingWith("Assembler");
 
     // ---- Configuração só declara ---------------------------------------------------------------
 
