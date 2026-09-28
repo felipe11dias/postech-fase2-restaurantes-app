@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (14 até aqui) e cada etapa
+Architecture**. O projeto está sendo entregue **etapa por etapa** (15 até aqui) e cada etapa
 tem três saídas obrigatórias: código + testes, entrada no `CHANGELOG.md`, e atualização do
 relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v1.0.md` (marcar a etapa
 como ✅ no Sumário de Progresso, atualizar o contador e acrescentar a subseção
@@ -67,7 +67,7 @@ cada teste cria seus próprios dados com marca única em vez de depender de esta
 ## Arquitetura — a regra de dependência é verificada em build
 
 `src/test/java/.../ArchitectureTest.java` (ArchUnit, 14 regras) falha o build se violada — e o
-`InfrastructureModulesTest` (16 regras, Etapas 13 e 14) faz o mesmo *dentro* da infraestrutura:
+`InfrastructureModulesTest` (23 regras, Etapas 13 a 15) faz o mesmo *dentro* da infraestrutura:
 
 ```
 domain          → só JDK. Nenhum import de outro pacote do projeto nem de biblioteca.
@@ -96,9 +96,16 @@ tecnologia. Trocar uma tecnologia = apagar um subpacote e criar outro ao lado.
 ```
 infrastructure/
   main/                composição (Main): CompositionConfig, PasswordResetProperties
-  web/                 entrega HTTP (Spring MVC)
-    api/<feature>/     @RestController, *Request/*Response, assembler HATEOAS
-    error/ doc/ validation/
+  api/rest/spring/     entrega HTTP: API REST em Spring, organizada como MVC (Etapa 15)
+    controller/        @RestController (*RestController)
+    dto/request/       records *Request (Bean Validation sintática, toDTO())
+    dto/response/      records *Response
+    assembler/         assemblers HATEOAS (*Assembler)
+    route/             ApiRoutes — caminhos base (/api/v1/users, /api/v1/auth)
+    config/            ForgotPasswordConfig (fila do "esqueci minha senha")
+    exception/         GlobalExceptionHandler, ProblemDetailFactory, ProblemType
+    doc/               OpenApiConfig, ApiDocumentation, @ErrorResponse, customizers
+    validation/        @ValidPassword
     security/          SecurityConfig, BearerTokenAuthenticationFilter, 401, AuthenticatedUser,
                        UserSecurity, AuthenticatedActor, IAccessTokenReader (porta do módulo)
   persistence/jpa/     PersistenceConfig, TransactionalUnitOfWork; audit/; um subpacote por agregado
@@ -112,13 +119,13 @@ Regras (verificadas pelo `InfrastructureModulesTest`):
   fica no pacote do agregado — o endereço está em `persistence/jpa/user`.
 - **Nenhum módulo conhece outro módulo-irmão; só `main` liga as pontas.** Quando um módulo precisa
   de algo de outro, ele declara a interface (ou recebe um `Supplier`) e o `main` liga. Ex.: o autor
-  da auditoria vem de `web/security/AuthenticatedActor` para `persistence/jpa/audit` via
+  da auditoria vem de `api/rest/spring/security/AuthenticatedActor` para `persistence/jpa/audit` via
   `CompositionConfig`. Única exceção prevista: `token` implementa `IAccessTokenReader` e devolve
-  `AuthenticatedUser`, as duas classes de `web/security` que ele pode conhecer.
+  `AuthenticatedUser`, as duas classes de `api/rest/spring/security` que ele pode conhecer.
 - **Cada biblioteca só no seu módulo:** JPA/Hibernate/Spring Data/transação em `persistence` (e
   `main`, para ligar o `AuditorAware`); jjwt em `token.jwt`; Spring Mail em `mail.smtp`; Spring
-  Security em `web` (e `spring-security-crypto` em `crypto`); Spring MVC, HATEOAS, Servlet, Bean
-  Validation e springdoc em `web`.
+  Security em `api` (e `spring-security-crypto` em `crypto`); Spring MVC, HATEOAS, Servlet, Bean
+  Validation e springdoc em `api`.
 - **A infraestrutura só conhece, do núcleo, as portas técnicas** (`IPasswordEncoder`,
   `ISecureTokenGenerator`, `IUnitOfWork`) — regra `infraestrutura_so_conhece_portas_tecnicas`. A
   regra proíbe *depender*, não só implementar: uma lambda num `@Bean` escaparia de `implement(...)`.
@@ -137,7 +144,7 @@ Regras (verificadas pelo `InfrastructureModulesTest`):
 
 ### Como as camadas se encaixam (fluxo de uma requisição)
 
-`@RestController` (infrastructure/web/api) → `UserController` (adapter/controller) → cria
+`@RestController` (infrastructure/api/rest/spring/controller) → `UserController` (adapter/controller) → cria
 `UserGateway(IUserDataSource)` (adapter/gateway) e `XxxUseCase.create(gateway, ...)` →
 `useCase.run(dto)` → entidades de `domain` → `gateway` traduz entidade ↔ record da origem de
 dados → `UserDataSourceJpa` (infrastructure/persistence/jpa) → `JpaRepository` → volta →
@@ -196,9 +203,28 @@ Pontos que só ficam claros lendo várias camadas:
 - Leitura traz o agregado inteiro (hash inclusive), porque o gateway reconstrói com `restore`;
   quem esconde a senha é o presenter, por ausência de campo na view — não projeção no SQL.
 
+### API REST organizada como MVC (Etapa 15, já implementada)
+
+- A API mora em `infrastructure/api/rest/spring`: papel (`api`), estilo (`rest`) e tecnologia
+  (`spring`), como os outros módulos. Dentro dele, **um pacote por papel da classe**, não por
+  feature: `controller`, `dto/request`, `dto/response`, `assembler`, `route`, `config`,
+  `exception`, `doc`, `security`, `validation`. Feature nova na API (restaurante, cardápio) =
+  classes novas **nesses mesmos pacotes**; nenhum subpacote por feature aqui. A *screaming
+  architecture* continua valendo em `domain`, `application` e `adapter` (desvio consciente
+  registrado no relatório e em `docs/arquitetura/04-frameworks-drivers.md`).
+- Verificado pelo `InfrastructureModulesTest`: `@RestController` só em `controller` e com sufixo
+  `RestController` (e `controller` só tem isso); `dto/request` só records `*Request`,
+  `dto/response` só records `*Response`, e todo record `*Request`/`*Response` da API mora lá;
+  `@RestControllerAdvice` só em `exception`; `assembler` só `*Assembler`.
+- **Caminhos base ficam em `route/ApiRoutes`**, nunca no controller: `@RequestMapping`,
+  `SecurityConfig` e os links do assembler leem de lá. O assembler monta links com
+  `BasicLinkBuilder.linkToCurrentMapping().slash(ApiRoutes.X)` — se usasse
+  `linkTo(XRestController.class)`, `controller` e `assembler` formariam ciclo (o controller usa o
+  assembler) e `nenhum_ciclo_entre_pacotes` quebraria o build.
+
 ### Web e segurança (Etapa 7, já implementada)
 
-- `infrastructure/web/api/<feature>`: `@RestController` fino + DTOs `*Request`/`*Response` +
+- `controller` + `dto/request`/`dto/response` + `assembler`: `@RestController` fino, DTOs e
   assembler HATEOAS. Bean Validation só aqui, e só **sintática** (`@NotBlank`, `@Email`,
   `@Size`); consistência e comparação de campos ("as senhas conferem") ficam no domínio/caso de
   uso. Conversão por `toDTO()` no próprio record; papel vem como `String` e passa por
@@ -235,7 +261,7 @@ Pontos que só ficam claros lendo várias camadas:
   sem eles o Jakarta Mail espera para sempre.
 - **O "esqueci minha senha" responde no mesmo tempo, exista ou não o e-mail.** O
   `AuthRestController` só valida a sintaxe e entrega o pedido à fila `forgotPasswordExecutor`
-  (`web/api/auth/ForgotPasswordConfig`: 2 threads, fila de 100, excedente descartado com aviso); o
+  (`api/rest/spring/config/ForgotPasswordConfig`: 2 threads, fila de 100, excedente descartado com aviso); o
   processamento — busca, gravação do token, e-mail — acontece fora da requisição. Esperar o envio
   ou a gravação faria a latência revelar quem tem conta. Endpoint novo com a mesma natureza
   (resposta que não pode revelar existência) segue o mesmo desenho.
@@ -248,7 +274,7 @@ Pontos que só ficam claros lendo várias camadas:
 
 ### Tratamento de erros (Etapa 8, já implementada)
 
-- `infrastructure/web/error/GlobalExceptionHandler` é o **único** lugar que traduz exceção em
+- `infrastructure/api/rest/spring/exception/GlobalExceptionHandler` é o **único** lugar que traduz exceção em
   status. Controllers não capturam nada; o núcleo não sabe que HTTP existe. Toda resposta de
   erro é `ProblemDetail` montado pela `ProblemDetailFactory` (com `timestamp` do `Clock` da
   aplicação); o 401 da cadeia de segurança sai pelo `ProblemDetailAuthenticationEntryPoint`, no mesmo formato.
@@ -279,9 +305,9 @@ Pontos que só ficam claros lendo várias camadas:
   `@ResponseStatus` também, só para o springdoc; senão ele documenta 200.
 - Todo `*Request` tem `@Schema(example = …)` válido em cada campo: o IT monta o corpo só com os
   exemplos do documento e exige que a API o aceite.
-- Constantes compartilhadas entre `config` e controllers ficam em `web/doc/ApiDocumentation`,
-  não na `OpenApiConfig` — a `SecurityConfig` já depende dos controllers, e o contrário criaria
-  ciclo entre pacotes.
+- Constantes compartilhadas ficam em classes que não dependem de ninguém: nomes do OpenAPI em
+  `doc/ApiDocumentation` (não na `OpenApiConfig`), caminhos em `route/ApiRoutes` (não nos
+  controllers). Assim quem compartilha depende delas, e nenhuma depende de volta — sem ciclo.
 
 ### Execução com Docker Compose (Etapa 10, já implementada)
 
@@ -349,7 +375,7 @@ Pontos que só ficam claros lendo várias camadas:
   (porta em `application/gateway`); casos de uso não sabem que transação existe. A implementação
   (`TransactionTemplate`) fica em `infrastructure`.
 - Exceções de negócio estendem `domain/exception/DomainException`; a tradução para HTTP é
-  do handler em `infrastructure/web`.
+  do handler em `infrastructure/api/rest/spring/exception`.
 - Ao verificar "nenhum elemento nulo" em coleções use `stream().noneMatch(Objects::isNull)`
   — `contains(null)` lança NPE em `Set.of`/`List.of`.
 
@@ -388,7 +414,7 @@ Pontos que só ficam claros lendo várias camadas:
 - Mensagem de commit: **Conventional Commits em português** —
   `tipo(escopo opcional): descrição no imperativo`. Tipos: `feat`, `fix`, `test`, `docs`,
   `refactor`, `chore`, `build`, `ci`. Escopos usuais: `domain`, `application`, `adapter`,
-  `infra`, `persistence`, `security`, `web`. Ex.: `feat(domain): adiciona entidades e VOs`,
+  `infra`, `persistence`, `security`, `api`. Ex.: `feat(domain): adiciona entidades e VOs`,
   `chore: configura projeto e estrutura de pacotes`, `docs: atualiza relatório da etapa 2`.
 - Branches: `main` é a base; **uma branch por etapa** (`etapa-NN-<tema>`, ex.:
   `etapa-01-setup`, `etapa-02-entidades`), cada uma virando um MR. Como cada etapa depende

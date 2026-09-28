@@ -304,3 +304,18 @@
   resposta sem esperar o envio; busca no Mailpit da coleção com nova tentativa.
 - `mvn clean verify`: 458 testes unitários e 91 de integração; cobertura unitária 100% (1065
   linhas, 232 ramos). Newman: 52 requests, 108 asserções, nenhuma falha; e-mail no Mailpit idêntico.
+
+## Etapa 15 — API REST em api/rest/spring, organizada como MVC
+- `infrastructure/web` → `infrastructure/api/rest/spring` (papel, estilo e tecnologia, como os demais
+  módulos), organizada por papel da classe: `controller`, `dto/request`, `dto/response`, `assembler`,
+  `route`, `config`, `exception` (antes `error`), `doc`, `security`, `validation`. 53 classes movidas
+  com `git mv`.
+- `route/ApiRoutes` com os caminhos base: `@RequestMapping`, `SecurityConfig` e o assembler leem
+  daqui. O assembler monta links com `BasicLinkBuilder.linkToCurrentMapping()`, sem depender do
+  controller (evita o ciclo `controller` ↔ `assembler`).
+- `UserWebMappingTest` dividido em `UserDtoMappingTest` e `UserModelAssemblerTest`.
+- `InfrastructureModulesTest`: regras de `web` renomeadas para `api` e 7 regras novas de organização
+  MVC (controllers, records `*Request`/`*Response`, `@RestControllerAdvice`, assemblers), conferidas
+  com violações propositais — 23 regras.
+- `mvn clean verify`: 465 testes unitários e 91 de integração; cobertura unitária 100% (1066
+  linhas, 232 ramos). Newman: 52 requests, 108 asserções, nenhuma falha.

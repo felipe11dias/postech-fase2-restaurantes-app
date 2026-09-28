@@ -19,7 +19,7 @@
 > A Visão Geral e as tabelas de referência descrevem o código **como ele está**; a seção de cada
 > etapa diz o que ela entregou, qual conceito sustenta cada decisão e o resultado real do build —
 > com os nomes de classes e pacotes da época (a Etapa 13 traz a correspondência para a
-> infraestrutura, e a Etapa 14, para os gateways de serviço).
+> infraestrutura, a Etapa 14, para os gateways de serviço, e a Etapa 15, para a API REST).
 >
 > A correlação detalhada entre o que as aulas da Fase 2 ensinam, o que os autores de referência
 > dizem e como o projeto implementa cada camada está em [`docs/arquitetura/`](../docs/arquitetura/README.md).
@@ -44,8 +44,9 @@
 | 12  | Entregáveis (Postman, README)                      | ✅     |
 | 13  | Infraestrutura em módulos substituíveis            | ✅     |
 | 14  | Revisão de conformidade e documentação da arquitetura | ✅  |
+| 15  | API REST em `api/rest/spring`, organizada como MVC | ✅  |
 
-**Progresso:** 14 de 14 etapas concluídas. As etapas cobrem a base do sistema; restaurante,
+**Progresso:** 15 de 15 etapas concluídas. As etapas cobrem a base do sistema; restaurante,
 cardápio, o CRUD de tipos de usuário e a troca do tipo de um usuário já cadastrado estão
 pendentes (ver "Escopo do Tech Challenge Fase 2 e estado").
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
@@ -130,7 +131,7 @@ A escolha se justifica por três razões:
 | **Entidades** (Entities)       | `domain/entity`, `domain/vo`, `domain/exception`                                        | Objetos de negócio com seus invariantes. Criados por fábrica estática `create(...)` (novo) ou `restore(...)` (já existente), ambas validando os dados. VOs de valor (`Email`, `ZipCode`). Exceções de domínio. **Nenhuma dependência além do JDK.**                                    |
 | **Casos de Uso** (Use Cases)   | `application/usecase`, `application/gateway`, `application/dto`                         | Uma classe por ação que o sistema oferece, com `create(gateways...)` e `run(dto)`. Orquestram as entidades e requisitam dados pelas **interfaces de gateway**, declaradas aqui porque é o caso de uso quem define o que precisa.        |
 | **Adaptadores de Interface**   | `adapter/controller`, `adapter/gateway`, `adapter/datasource`, `adapter/service`, `adapter/presenter` | **Controllers** coordenam: a cada operação instanciam os gateways com as origens de dados e os serviços recebidos, instanciam o caso de uso, executam-no numa unidade de trabalho e entregam o resultado ao presenter. **Gateways** implementam as interfaces do núcleo e traduzem entidade ↔ mundo externo, dependendo apenas de interfaces: de origem de dados (`I*DataSource`) ou de serviço externo (`IMailSender`, `ITokenEncoder`). **Presenters** preparam a saída para o cliente. |
-| **Frameworks & Drivers**       | `infrastructure/main`, `infrastructure/web`, `infrastructure/persistence/jpa`, `infrastructure/token/jwt`, `infrastructure/crypto`, `infrastructure/mail/smtp` | Os detalhes, cada um como módulo substituível (Etapa 13): `@RestController`, DTOs HTTP, HATEOAS, handler de erros e Spring Security; entidades JPA, `JpaRepository` e a implementação da origem de dados; JWT; BCrypt; SMTP; e a composição que liga tudo. **Só aqui existe Spring.**        |
+| **Frameworks & Drivers**       | `infrastructure/main`, `infrastructure/api/rest/spring`, `infrastructure/persistence/jpa`, `infrastructure/token/jwt`, `infrastructure/crypto`, `infrastructure/mail/smtp` | Os detalhes, cada um como módulo substituível (Etapa 13): `@RestController`, DTOs HTTP, HATEOAS, handler de erros e Spring Security; entidades JPA, `JpaRepository` e a implementação da origem de dados; JWT; BCrypt; SMTP; e a composição que liga tudo. **Só aqui existe Spring.**        |
 
 ```mermaid
 flowchart TB
@@ -152,7 +153,7 @@ flowchart TB
             SV[("IMailSender · ITokenEncoder")]
             P[Presenters]
         end
-        W["web: @RestController · DTOs v1 · HATEOAS"]
+        W["api/rest/spring: @RestController · DTOs v1 · HATEOAS"]
         J["persistence/jpa: @Entity · JpaRepository · *DataSourceJpa"]
         S["mail/smtp · token/jwt: SmtpMailSender · JwtTokenEncoder"]
         T["crypto · persistence/jpa: BCrypt · SecureRandom · TransactionTemplate"]
@@ -200,7 +201,7 @@ O cadastro de usuário (`POST /api/v1/users`), com os nomes reais das classes:
 Cliente HTTP
     │
     ▼
-[UserRestController.register]         infrastructure/web/api/user  — Bean Validation (só sintaxe)
+[UserRestController.register]         infrastructure/api/rest/spring/controller — Bean Validation (só sintaxe)
     │ NewUserRequest.toDTO() → NewUserDTO
     ▼
 [UserController.register]             adapter/controller           — o "maestro"
@@ -221,7 +222,7 @@ Cliente HTTP
 PostgreSQL ── volta ──►  [UserPresenter.toView(user)]  adapter/presenter — UserView, sem senha
                               │
                               ▼
-                        [UserModelAssembler]  infrastructure/web/api/user — UserResponse + links, 201 + Location
+                        [UserModelAssembler]  infrastructure/api/rest/spring/assembler — UserResponse + links, 201 + Location
 ```
 
 O "esqueci minha senha" percorre o mesmo caminho com um **serviço** no lugar da origem de dados:
@@ -305,9 +306,14 @@ src/main/java/com/postech/restaurantes/
 │
 └── infrastructure/                # FRAMEWORKS & DRIVERS — módulos substituíveis (Etapa 13)
     ├── main/                      # CompositionConfig (raiz de composição), PasswordResetProperties
-    ├── web/                       # entrega HTTP (Spring MVC)
-    │   ├── api/user/, api/auth/   # @RestController, Request/Response, UserModelAssembler
-    │   ├── error/                 # GlobalExceptionHandler, ProblemDetailFactory, ProblemType
+    ├── api/rest/spring/           # API REST em Spring, organizada como MVC (Etapa 15)
+    │   ├── controller/            # UserRestController, AuthRestController
+    │   ├── dto/request/           # NewUserRequest, LoginRequest, ... (records *Request)
+    │   ├── dto/response/          # UserResponse, AuthResponse, ... (records *Response)
+    │   ├── assembler/             # UserModelAssembler (links HATEOAS)
+    │   ├── route/                 # ApiRoutes (/api/v1/users, /api/v1/auth)
+    │   ├── config/                # ForgotPasswordConfig
+    │   ├── exception/             # GlobalExceptionHandler, ProblemDetailFactory, ProblemType
     │   ├── doc/                   # OpenApiConfig, ErrorResponse, customizers do springdoc
     │   ├── validation/            # @ValidPassword
     │   └── security/              # SecurityConfig, BearerTokenAuthenticationFilter, IAccessTokenReader, AuthenticatedActor, ...
@@ -319,9 +325,10 @@ src/main/java/com/postech/restaurantes/
     └── mail/smtp/                 # SmtpMailSender (IMailSender), MailProperties, MailConfig
 ```
 
-> A infraestrutura chegou à forma acima na **Etapa 13**, e os gateways de serviço
-> (`adapter/service`), na **Etapa 14**. As subseções "O que foi entregue" das etapas anteriores
-> registram os nomes e pacotes **da época**; as Etapas 13 e 14 trazem a correspondência.
+> A infraestrutura chegou à forma acima na **Etapa 13**, os gateways de serviço
+> (`adapter/service`), na **Etapa 14**, e a API em `api/rest/spring`, na **Etapa 15**. As subseções
+> "O que foi entregue" das etapas anteriores registram os nomes e pacotes **da época**; as Etapas
+> 13 a 15 trazem a correspondência.
 
 Cada pacote nasce com um `package-info.java` que documenta sua regra de dependência — o
 que faz a estrutura compilar vazia e deixa a intenção de cada camada registrada no código,
@@ -1941,8 +1948,99 @@ Nenhum status nem corpo de resposta HTTP mudou, e por isso os prints da Etapa 12
 
 ---
 
+## Etapa 15 — API REST em `api/rest/spring`, organizada como MVC
+
+A entrega HTTP morava em `infrastructure/web`, e as classes da API ficavam em `web/api/user` e
+`web/api/auth`. No mesmo pacote de feature conviviam `@RestController`, corpos de requisição e de
+resposta, o assembler HATEOAS e configuração. Isso tinha dois problemas:
+- o pacote não dizia que se trata de uma **API REST** nem que a tecnologia é **Spring**;
+- o papel de cada classe não se lia pelo pacote.
+
+Era também o único módulo da infraestrutura sem o subpacote de tecnologia que a Etapa 13
+estabeleceu (`persistence/jpa`, `token/jwt`, `mail/smtp`).
+
+### Estrutura
+
+```
+infrastructure/api/rest/spring/
+  controller/      UserRestController, AuthRestController
+  dto/request/     NewUserRequest, UpdateUserRequest, ChangePasswordRequest, AddressRequest,
+                   LoginRequest, ForgotPasswordRequest, ResetPasswordRequest
+  dto/response/    UserResponse, AddressResponse, RoleResponse, AuthResponse
+  assembler/       UserModelAssembler (links HATEOAS)
+  route/           ApiRoutes — /api/v1/users, /api/v1/auth
+  config/          ForgotPasswordConfig
+  exception/       GlobalExceptionHandler, ProblemDetailFactory, ProblemType
+  doc/             OpenApiConfig, ApiDocumentation, @ErrorResponse, customizers do springdoc
+  validation/      @ValidPassword
+  security/        SecurityConfig, BearerTokenAuthenticationFilter, AuthenticatedUser, IAccessTokenReader, ...
+```
+
+O caminho segue o padrão da Etapa 13: o pacote diz o papel (`api`), o subpacote o estilo (`rest`)
+e o seguinte a tecnologia (`spring`). Dentro do módulo, um pacote por **papel da classe**, como no
+MVC. Restaurante e cardápio entram nos mesmos pacotes.
+
+### O que foi entregue nesta etapa
+
+| Decisão | Conceito que a sustenta |
+| --- | --- |
+| **`api/rest/spring` no lugar de `web`**, com `security`, `exception`, `doc` e `validation` dentro | Plugin por módulo (Martin, cap. 17): o nome diz o papel e a tecnologia, e trocar a tecnologia é criar `api/rest/<outra>` ao lado. Tudo o que muda junto quando o Spring MVC é trocado fica junto (CCP, cap. 13) |
+| **Organização por papel (MVC) dentro do módulo** | A web é um detalhe (cap. 31); dentro de um detalhe, a organização segue a convenção do framework. A *screaming architecture* (cap. 21) continua onde está o domínio: `domain`, `application` e `adapter` seguem por agregado. Desvio consciente, registrado em `docs/arquitetura/04-frameworks-drivers.md` |
+| **Caminhos base em `route/ApiRoutes`**, fora dos controllers | Com controller e assembler em pacotes diferentes, `linkTo(UserRestController.class)` no assembler formaria um ciclo (o controller usa o assembler): ADP (cap. 14). O assembler passou a montar os links com `BasicLinkBuilder.linkToCurrentMapping().slash(ApiRoutes.USERS)`, que dá a mesma URL. De quebra, a `SecurityConfig` deixou de depender dos controllers, e as rotas estão num lugar só |
+| **`error` → `exception`** | Nome que diz o que o pacote trata: exceções traduzidas em ProblemDetail |
+| **Teste de mapeamento dividido** (`UserDtoMappingTest` e `UserModelAssemblerTest`) | Cada teste no pacote do que testa; o assembler agora confere a URL completa (`http://localhost/api/v1/users/{id}`) |
+| **Organização verificada no build** — 7 regras novas | Uma estrutura de pastas é só intenção; o que a sustenta é a regra que quebra o build |
+
+### Regras novas (`InfrastructureModulesTest`, agora 23)
+
+| Regra | Protege |
+| --- | --- |
+| `controllers_rest_ficam_em_controller` e `pacote_controller_so_tem_controllers_rest` | `@RestController` só em `controller`, com sufixo `RestController`, e nada mais ali |
+| `dto_request_so_tem_records_Request`, `dto_response_so_tem_records_Response` e `corpos_http_ficam_em_dto` | corpos HTTP são records com o sufixo do seu papel, e só nos pacotes de DTO |
+| `tratamento_de_erros_fica_em_exception` | `@RestControllerAdvice` só em `exception` — o único lugar que traduz exceção em status |
+| `pacote_assembler_so_tem_assemblers` | `assembler` só com `*Assembler` |
+
+As regras que falavam de `web` passaram a falar de `api`: `api_nao_conhece_implementacoes`,
+`spring_security_so_na_api` e `http_e_documentacao_so_na_api`.
+
+Conferência ao contrário: sete classes temporárias fizeram falhar exatamente as oito regras
+visadas. Uma delas foi o assembler voltando a referenciar o controller, que fez falhar
+`nenhum_ciclo_entre_pacotes`. Removidas as classes, o build voltou a passar.
+
+### De → para
+
+| Antes (Etapas 7 a 14) | Agora (`infrastructure/api/rest/spring/…`) |
+| --- | --- |
+| `web/api/{user,auth}/*RestController` | `controller/` |
+| `web/api/{user,auth}/*Request` | `dto/request/` |
+| `web/api/{user,auth}/*Response` | `dto/response/` |
+| `web/api/user/UserModelAssembler` | `assembler/` |
+| `web/api/auth/ForgotPasswordConfig` | `config/` |
+| `UserRestController.BASE_PATH`, `AuthRestController.BASE_PATH` | `route/ApiRoutes.USERS`, `ApiRoutes.AUTH` |
+| `web/error/*` | `exception/` |
+| `web/{doc,security,validation}/*` | `doc/`, `security/`, `validation/` |
+| `web/api/user/UserWebMappingTest` | `dto/UserDtoMappingTest` e `assembler/UserModelAssemblerTest` |
+| `infrastructure/web/*IT`, `WebFixtures` | `infrastructure/api/rest/spring/` |
+
+As 53 classes foram movidas com `git mv` (histórico preservado). Nenhuma URL, status ou corpo de
+resposta mudou.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `mvn clean verify` | **465 testes unitários** (458 + 7 regras novas) e **91 de integração** — BUILD SUCCESS; cobertura unitária **1066/1066 linhas, 232/232 ramos, 450/450 métodos** |
+| Pilha do Compose + coleção Postman (`npx newman@6`) | 52 requests, 108 asserções, nenhuma falha; links HATEOAS idênticos aos de antes |
+| Referências | nenhuma ocorrência de `infrastructure.web` ou `web/api` no código nem nos documentos do estado atual |
+
+---
+
 ## Decisões Técnicas (registro consolidado)
 
+- **API REST em `infrastructure/api/rest/spring`, organizada como MVC:** um pacote por papel da
+  classe (controller, dto/request, dto/response, assembler, exception…), caminhos em `route/ApiRoutes`,
+  organização verificada por ArchUnit. Por feature continuam `domain`, `application` e `adapter`.
+  Etapa 15.
 - **Gateway onde há tradução; a infraestrutura só transporta:** e-mail e token passam por gateways
   do adaptador (`PasswordResetMailGateway`, `TokenGateway`) que consomem serviços por interface
   (`IMailSender`, `ITokenEncoder`); só as portas técnicas (`IPasswordEncoder`,

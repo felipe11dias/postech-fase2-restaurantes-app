@@ -39,7 +39,7 @@ objetivos da arquitetura.
 | Casos de uso | `src/test/.../application` | Mockito nas portas `I*Gateway`, `Clock.fixed` para o tempo | parte dos unitários |
 | Adaptadores | `src/test/.../adapter` | mocks de `I*DataSource` e de `adapter/service`; controllers com casos de uso, gateways e presenters **reais** | parte dos unitários |
 | Infraestrutura com lógica | `src/test/.../infrastructure` | classes instanciadas direto, com `JpaRepository`, `SecurityContext`, `MailSender` mockados | parte dos unitários |
-| Arquitetura e convenções | `ArchitectureTest`, `InfrastructureModulesTest`, `TestConventionsTest` | ArchUnit | 37 regras |
+| Arquitetura e convenções | `ArchitectureTest`, `InfrastructureModulesTest`, `TestConventionsTest` | ArchUnit | 44 regras |
 | Integração | `*IT` | `@SpringBootTest`, PostgreSQL real (Testcontainers), Flyway, JWT ativo, HTTP de verdade; só o SMTP é substituído | 91 |
 | Aceitação manual/automatizada | `postman/` | coleção com um request por caso de cada endpoint, rodada com Newman | 52 requests |
 
@@ -77,7 +77,7 @@ void deveGravarOAutorDeCadaAlteracao() {
 
 | Padrão | Onde | Problema que resolve |
 |---|---|---|
-| Pirâmide (Clean Coder cap. 8) | 458 unitários × 91 integração × 52 requests | feedback rápido na base; confiança de ponta a ponta no topo |
+| Pirâmide (Clean Coder cap. 8) | 465 unitários × 91 integração × 52 requests | feedback rápido na base; confiança de ponta a ponta no topo |
 | Mock da porta, não da implementação | casos de uso e adaptadores | o teste depende só de interfaces estáveis (CA cap. 28) |
 | Controle em teste negativo | `JwtAuthenticationIT`: o mesmo formato de token com a chave certa responde 200 | a recusa é provada pelo motivo certo, não por um token malformado pelo teste |
 | Conferência ao contrário | cada regra ArchUnit com uma violação proposital | uma regra que nunca falha pode não estar verificando nada |
@@ -94,5 +94,5 @@ void deveGravarOAutorDeCadaAlteracao() {
 ## 6. Como o build verifica
 
 `mvn verify` falha se: algum teste falhar; a cobertura unitária de linhas ou ramos ficar abaixo de
-100%; qualquer uma das 37 regras ArchUnit for violada. `mvn test` roda só os unitários e as regras,
+100%; qualquer uma das 44 regras ArchUnit for violada. `mvn test` roda só os unitários e as regras,
 em segundos, sem Docker.
