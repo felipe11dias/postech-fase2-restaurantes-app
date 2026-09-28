@@ -31,7 +31,7 @@
       com o JDK. A regra é verificada em build pelo ArchUnit (ArchitectureTest).
     -->
     <dependencies>
-        <!-- Frameworks & Drivers: web -->
+        <!-- Frameworks & Drivers: API REST (infrastructure/api/rest/spring) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>

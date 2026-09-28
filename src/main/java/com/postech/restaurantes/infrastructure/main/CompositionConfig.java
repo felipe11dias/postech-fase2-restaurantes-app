@@ -11,7 +11,7 @@ import com.postech.restaurantes.application.gateway.IPasswordEncoder;
 import com.postech.restaurantes.application.gateway.ISecureTokenGenerator;
 import com.postech.restaurantes.application.gateway.IUnitOfWork;
 import com.postech.restaurantes.infrastructure.persistence.jpa.audit.AuthenticatedAuditorAware;
-import com.postech.restaurantes.infrastructure.web.security.AuthenticatedActor;
+import com.postech.restaurantes.infrastructure.api.rest.spring.security.AuthenticatedActor;
 import java.time.Clock;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;

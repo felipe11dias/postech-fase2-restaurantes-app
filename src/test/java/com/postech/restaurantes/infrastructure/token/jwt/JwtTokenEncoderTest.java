@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.postech.restaurantes.adapter.service.data.TokenClaimsData;
 import com.postech.restaurantes.application.dto.auth.IssuedToken;
-import com.postech.restaurantes.infrastructure.web.security.AuthenticatedUser;
+import com.postech.restaurantes.infrastructure.api.rest.spring.security.AuthenticatedUser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
