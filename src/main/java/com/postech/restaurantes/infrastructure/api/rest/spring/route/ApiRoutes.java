@@ -18,6 +18,8 @@ public final class ApiRoutes {
 
     public static final String AUTH = V1 + "/auth";
 
+    public static final String RESTAURANTS = V1 + "/restaurants";
+
     private ApiRoutes() {
     }
 }

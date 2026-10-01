@@ -1,5 +1,15 @@
 # Changelog — Restaurantes (Fase 2)
 
+## Etapa 16 — Módulo de Gestão de Restaurantes (Imagem 2)
+- Criação da tabela `restaurants` via Flyway migration `V3__create_restaurant_schema.sql` com chaves estrangeiras vinculadas a `users` e `addresses`.
+- Criação da entidade de domínio `Restaurant` com verificação estrita de invariantes (nome, dono com perfil `ROLE_OWNER` ou `ROLE_ADMIN`, endereço do dono e horários de funcionamento).
+- Casos de uso: `CreateRestaurantUseCase`, `FindRestaurantByIdUseCase`, `SearchRestaurantsUseCase`, `UpdateRestaurantUseCase` e `DeleteRestaurantUseCase`.
+- Adaptadores de interface: `RestaurantController`, `RestaurantGateway`, `RestaurantPresenter` e `RestaurantView`.
+- Infraestrutura: `RestaurantJpaEntity`, `SpringDataRestaurantRepository`, `RestaurantDataSourceJpa`, `RestaurantRestController` (`/api/v1/restaurants`), DTOs REST, HATEOAS `RestaurantModelAssembler`, documentação OpenAPI e registro em `CompositionConfig`.
+- Teste de integração de ciclo de vida completo `RestaurantLifecycleIT` com PostgreSQL via Testcontainers.
+- Testes unitários cobrindo 100% de linhas e ramos no JaCoCo.
+- Documentação acadêmica detalhada em `docs/relatorio-academico-modulo-restaurantes.md`.
+
 ## Etapa 1 — Setup do Projeto e Estrutura de Pacotes
 - Projeto Maven (Spring Boot 3.5.11, Java 21) com Spring Web, Validation, HATEOAS, Actuator,
   Data JPA, PostgreSQL, Flyway, Security, jjwt, Mail, springdoc; Testcontainers, ArchUnit,
