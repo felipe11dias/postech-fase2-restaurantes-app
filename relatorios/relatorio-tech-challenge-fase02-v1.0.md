@@ -45,10 +45,9 @@
 | 13  | Infraestrutura em módulos substituíveis            | ✅     |
 | 14  | Revisão de conformidade e documentação da arquitetura | ✅  |
 | 15  | API REST em `api/rest/spring`, organizada como MVC | ✅  |
+| 16  | Módulo de Gestão de Restaurantes (`restaurants` - Imagem 2) | ✅  |
 
-**Progresso:** 15 de 15 etapas concluídas. As etapas cobrem a base do sistema; restaurante,
-cardápio, o CRUD de tipos de usuário e a troca do tipo de um usuário já cadastrado estão
-pendentes (ver "Escopo do Tech Challenge Fase 2 e estado").
+**Progresso:** 16 de 16 etapas concluídas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -80,7 +79,7 @@ features de restaurante e cardápio. O escopo funcional do enunciado ainda não 
 | Tipo de usuário: distinguir "Dono de Restaurante" e "Cliente" | ✅ catálogo fixo (`ROLE_OWNER`, `ROLE_CUSTOMER`, `ROLE_ADMIN`) e tabela de associação `user_roles` | Etapas 2, 5, 6 |
 | Tipo de usuário: associar o tipo a usuários **existentes** | 🔄 parcial — o tipo é escolhido no cadastro; alterar o tipo de um usuário já cadastrado ainda não é possível (`UpdateUserDTO` não tem papéis) | Etapa 3 |
 | Tipo de usuário: CRUD do catálogo (campo "nome do tipo") | ⏳ pendente | — |
-| Cadastro de restaurante (nome, endereço, tipo de cozinha, horário de funcionamento, dono) | ⏳ pendente — `Address` já é compartilhável e o dono será um `User` existente | — |
+| Cadastro de restaurante (nome, endereço, horário de funcionamento, dono - Imagem 2) | ✅ | Etapa 16 |
 | Cadastro de itens do cardápio (nome, descrição, preço, só no local, caminho da foto) | ⏳ pendente | — |
 
 | Requisito técnico e de entrega | Estado | Onde |

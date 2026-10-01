@@ -59,4 +59,13 @@ public class CompositionConfig {
         return AuthController.create(userDataSource, tokenDataSource, passwordEncoder, tokenEncoder, tokenGenerator,
                 mailSender, passwordReset.tokenValidity(), clock, unitOfWork);
     }
+
+    @Bean
+    public com.postech.restaurantes.adapter.controller.RestaurantController restaurantController(
+            com.postech.restaurantes.adapter.datasource.IRestaurantDataSource restaurantDataSource,
+            IUserDataSource userDataSource,
+            IUnitOfWork unitOfWork) {
+        return com.postech.restaurantes.adapter.controller.RestaurantController.create(
+                restaurantDataSource, userDataSource, unitOfWork);
+    }
 }

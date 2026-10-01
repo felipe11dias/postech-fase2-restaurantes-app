@@ -47,6 +47,7 @@ public class SecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll()
                         .requestMatchers(HttpMethod.POST, ApiRoutes.AUTH + "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, ApiRoutes.USERS).permitAll()
+                        .requestMatchers(HttpMethod.GET, ApiRoutes.RESTAURANTS, ApiRoutes.RESTAURANTS + "/**").permitAll()
                         .requestMatchers(HttpMethod.GET, PUBLICOS_GET).permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
