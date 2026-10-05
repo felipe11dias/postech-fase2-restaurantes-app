@@ -329,3 +329,17 @@
   com violações propositais — 23 regras.
 - `mvn clean verify`: 465 testes unitários e 91 de integração; cobertura unitária 100% (1066
   linhas, 232 ramos). Newman: 52 requests, 108 asserções, nenhuma falha.
+
+## Relatório v2.0 — Modelo de Dados v2 (planejamento)
+- Documentos do novo modelo no projeto, como referência (fora de `db/migration`):
+  `docs/modelo-dados/postech-2-restaurantes.sql` e `.pdf`, com `docs/modelo-dados/README.md`
+  (escopo, divergências modelo → schema físico, observações sobre as tabelas de cardápio).
+- `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (a v1.0 fica como estava): histórico de
+  versões; seção da Etapa 16 (restaurantes), que faltava, com as pendências frente às convenções;
+  seção "Modelo de Dados v2 — adequação planejada" com o quadro atual × v2, diagrama ER, enums
+  (`courier_vehicle_type`, `courier_status`, `day_of_week`), divergências e política de migração;
+  Etapas 17 a 25 planejadas para `users`, `user_addresses`, `password_reset_tokens`, `owners`,
+  `clients`, `couriers`, `admins`, `restaurants` e `restaurant_office_hours`.
+- Ponto de atenção registrado no escopo: o modelo v2 fixa os tipos de usuário no schema, o que
+  conflita com o requisito de CRUD do catálogo de tipos.
+- Nenhuma mudança de código ou de migration.

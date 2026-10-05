@@ -5,9 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (15 até aqui) e cada etapa
-tem três saídas obrigatórias: código + testes, entrada no `CHANGELOG.md`, e atualização do
-relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v1.0.md` (marcar a etapa
+Architecture**. O projeto está sendo entregue **etapa por etapa** (16 até aqui; as Etapas 17
+a 25, de adequação ao Modelo de Dados v2 em `docs/modelo-dados/`, estão planejadas no
+relatório) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
+`CHANGELOG.md`, e atualização do relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (marcar a etapa
 como ✅ no Sumário de Progresso, atualizar o contador e acrescentar a subseção
 "O que foi entregue nesta etapa" com o resultado real do build). O relatório é a
 especificação: leia a seção da etapa antes de implementá-la e sincronize os exemplos de
