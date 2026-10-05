@@ -54,15 +54,15 @@
 | 17  | Reorganização dos pacotes do agregado de usuário   | ✅     |
 | 18  | Endereços via `user_addresses` e endereço próprio do restaurante | ✅ |
 | 19  | Token de redefinição único por usuário (`password_reset_tokens`) | ✅ |
-| 20  | Perfis de usuário no domínio (`owners`, `clients`, `couriers`, `admins`) | ⏳ |
+| 20  | Perfis de usuário no domínio (`owners`, `clients`, `couriers`, `admins`) | ✅ |
 | 21  | Usuário composto por perfis (papel derivado)       | ⏳     |
 | 22  | Perfis em usuário existente e status do entregador | ⏳     |
 | 23  | Restaurante alinhado ao modelo v2 e à regra de posse (`restaurants`) | ⏳ |
 | 24  | Horário de funcionamento por dia (`restaurant_office_hours`) | ⏳ |
 | 25  | Revisão de conformidade do modelo de dados v2      | ⏳     |
 
-**Progresso:** 19 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
-Dados v2 (seção "Modelo de Dados v2 — adequação planejada"); da 17 à 19 estão concluídas e as
+**Progresso:** 20 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
+Dados v2 (seção "Modelo de Dados v2 — adequação planejada"); da 17 à 20 estão concluídas e as
 demais, planejadas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
@@ -2569,12 +2569,59 @@ com os testes de domínio.
 | `ClientProfile` | `Cpf`, telefone, data de nascimento opcional e não futura (instante por parâmetro) |
 | `CourierProfile` | `Cpf`, telefone, tipo de veículo, status; CNH e placa obrigatórias se `requiresLicense()` e ausentes caso contrário |
 | `AdminProfile` | código de funcionário não vazio, departamento opcional, `superAdmin` |
-| `RoleName` | ganha `ROLE_COURIER`; `ROLE_CUSTOMER` passa a `ROLE_CLIENT`, o nome do modelo |
+| `RoleName` | ganha `ROLE_COURIER`; `ROLE_CUSTOMER` passa a `ROLE_CLIENT`, o nome do modelo — **movido para a Etapa 21** (ver "Ajuste do plano") |
 
 Cada perfil em pacote próprio (`domain/entity/owner`, `client`, `courier`, `admin`), com
 `create`/`restore`, setters que revalidam e `Guard`. **Conceito:** VOs que validam e normalizam
 (Etapa 2); vocabulário único — o nome do conceito no código é o do modelo (Martin, *Clean Code*,
 cap. 2: "use nomes do domínio do problema").
+
+### Estrutura
+
+```
+domain/vo/                Cpf, Cnpj, Phone, LicensePlate, DriverLicense      (novos)
+domain/entity/owner/      OwnerProfile
+domain/entity/client/     ClientProfile
+domain/entity/courier/    CourierProfile, CourierVehicleType, CourierStatus
+domain/entity/admin/      AdminProfile
+```
+
+Nenhuma outra camada mudou: os tipos existem e estão testados, e a Etapa 21 os liga ao `User`, à
+persistência e à API.
+
+### O que foi entregue nesta etapa
+
+| Decisão | Conceito que a sustenta |
+| --- | --- |
+| **VOs `Cpf` e `Cnpj` conferem os dígitos verificadores** e recusam sequências de um só caractere (que passam na conta) | VO que valida e normaliza na construção (Etapa 2): CPF ou CNPJ inválido nunca chega a existir no domínio |
+| **`Cnpj` aceita o formato alfanumérico** — as 12 primeiras posições com letras, verificadores numéricos —, emitido pela Receita desde julho de 2026 | Um algoritmo só (cada posição vale o código do caractere menos 48) atende o numérico e o alfanumérico; a coluna `varchar(14)` do modelo já comporta. Recusar o alfanumérico rejeitaria donos reais |
+| **VO `DriverLicense` para a CNH**, que o plano não listava | A coluna `driver_license_number` tem regra (11 dígitos, único) e não pode circular como `String` solta. Só o formato é conferido: os verificadores da CNH variam conforme a época de emissão, e a autenticidade é do órgão de trânsito |
+| **Perfis sem id próprio** | A chave primária de `owners`, `clients`, `couriers` e `admins` é a do usuário: o perfil é uma especialização, não outra coisa com identidade. Mantêm `create`/`restore` como as demais entidades |
+| **`ClientProfile`: "nascimento não futuro" vale em `create` e `changeBirthDate`, com o dia de hoje por parâmetro, e não em `restore`** | A entidade não consulta o relógio (Etapa 2); a regra depende do tempo, como em `PasswordResetToken.create(..., now)`, e o que já foi gravado não é revalidado contra outra data |
+| **`CourierProfile.changeVehicle` troca tipo, CNH e placa juntos**, validando tudo antes de mudar | CNH e placa existem por causa do veículo: separá-los permitiria um estado intermediário inválido (moto sem placa). Todo entregador novo começa `OFFLINE` |
+| **`CourierVehicleType.requiresLicense()`** carrega a regra que o modelo registra em `COMMENT ON COLUMN` | A regra mora no tipo que a define, não espalhada em `if`s pelos casos de uso |
+
+**Ajuste do plano.** As mudanças em `RoleName` — `ROLE_COURIER` e `ROLE_CUSTOMER` → `ROLE_CLIENT` —
+passaram para a Etapa 21. Hoje `RoleName` é o espelho do catálogo `roles` do banco (o
+`SchemaMigrationIT` confere que são os mesmos), e mudá-lo agora exigiria uma migration de papéis
+que a Etapa 21 apagaria logo depois, com `roles` e `user_roles`. Na 21 o papel passa a ser derivado
+do perfil, e o nome muda sem tocar em catálogo nenhum. Assim esta etapa fica de fato só no domínio.
+
+### Testes
+
+| Teste | O que prova |
+| --- | --- |
+| `CpfTest`, `CnpjTest` | máscara removida; verificadores certos aceitos (inclusive o zero), errados recusados; CNPJ alfanumérico em minúsculas aceito e guardado em maiúsculas; sequências repetidas e formato errado recusados |
+| `PhoneLicensePlateDriverLicenseTest` | telefone de 10 a 13 dígitos; placa antiga e Mercosul normalizadas; CNH com 11 dígitos |
+| `CourierEnumsTest` | os valores são exatamente os dos tipos do modelo; `from` sem diferenciar maiúsculas; desconhecido recusado; só moto e carro exigem documentação |
+| `OwnerProfileTest`, `ClientProfileTest`, `CourierProfileTest`, `AdminProfileTest` | cada invariante aceita o válido e recusa o inválido; trocas recusadas não alteram o estado |
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `mvn clean verify` | **662 testes unitários** e **101 de integração** — BUILD SUCCESS; cobertura unitária **1600/1600 linhas, 354/354 ramos, 666/666 métodos** |
+| Postman | não executado: nenhuma classe fora do domínio mudou, e nenhum endpoint usa os tipos novos ainda |
 
 ## Etapa 21 — Usuário composto por perfis (papel derivado)
 
@@ -2594,7 +2641,7 @@ ser consequência do perfil que o usuário tem.
 
 | Camada | Mudança |
 | --- | --- |
-| domain | `User` agrega os perfis (opcionais, ao menos um); `getRoles()` derivado; invariante de CPF igual entre cliente e entregador; saem `Role` e o pacote `role` (fica o `RoleName`, agora derivado) |
+| domain | `User` agrega os perfis (opcionais, ao menos um); `getRoles()` derivado; `RoleName` ganha `ROLE_COURIER` e `ROLE_CUSTOMER` passa a `ROLE_CLIENT` (movido da Etapa 20); invariante de CPF igual entre cliente e entregador; saem `Role` e o pacote `role` (fica o `RoleName`, agora derivado) |
 | application | `NewUserDTO` com blocos `client`, `owner`, `courier` (ao menos um); saem `IRoleGateway` e a resolução de papéis; autocadastro nunca cria `AdminProfile` (o perfil de admin vem da seed); `Create/UpdateRestaurantUseCase` passam a exigir **perfil de dono** — admin deixa de servir como dono |
 | adapter | `OwnerData`, `ClientData`, `CourierData`, `AdminData` dentro de `UserData`; saem `RoleGateway`, `IRoleDataSource`, `RoleData`; `UserView` com os perfis e os papéis derivados |
 | infrastructure | `persistence/jpa/user/{owner,client,courier,admin}` com `@OneToOne(mappedBy, cascade = ALL, orphanRemoval = true)` e `@MapsId`; enums mapeados como descrito em "Enums"; saem `RoleJpaEntity`, `SpringDataRoleRepository`, `RoleDataSourceJpa`; requests com os blocos de perfil; o JWT continua com os nomes de papel, agora derivados |

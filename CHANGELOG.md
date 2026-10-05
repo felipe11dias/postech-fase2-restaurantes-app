@@ -396,3 +396,17 @@
 - V5 verificada também sobre o volume do Compose com vários tokens do mesmo usuário.
 - `mvn clean verify`: 565 testes unitários e 101 de integração; cobertura unitária 100% (1445
   linhas, 294 ramos, 600 métodos). Newman: 67 requests, 126 asserções, nenhuma falha.
+
+## Etapa 20 — Perfis de usuário no domínio
+- VOs `Cpf` e `Cnpj` (verificadores conferidos; CNPJ também no formato alfanumérico da Receita, em
+  vigor desde julho de 2026), `Phone` (10 a 13 dígitos), `LicensePlate` (padrão antigo ou Mercosul)
+  e `DriverLicense` (CNH, 11 dígitos).
+- Enums do modelo de dados: `CourierVehicleType` (com `requiresLicense()`) e `CourierStatus`, ambos
+  com `from(String)`.
+- Entidades de perfil, sem id próprio (a identidade é a do usuário), em pacotes próprios:
+  `OwnerProfile`, `ClientProfile` (nascimento não futuro, com o dia por parâmetro), `CourierProfile`
+  (CNH e placa andam com o veículo; nasce `OFFLINE`) e `AdminProfile`.
+- Ajuste do plano: as mudanças em `RoleName` (`ROLE_COURIER`, `ROLE_CUSTOMER` → `ROLE_CLIENT`) foram
+  para a Etapa 21, junto com o fim do catálogo `roles`.
+- Só o domínio mudou. `mvn clean verify`: 662 testes unitários e 101 de integração; cobertura
+  unitária 100% (1600 linhas, 354 ramos, 666 métodos).
