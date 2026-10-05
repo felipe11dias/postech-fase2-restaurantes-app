@@ -44,6 +44,15 @@ class PasswordResetTokenDataSourceJpaTest {
     }
 
     @Test
+    @DisplayName("Busca pelo dono traduz o registro; ausência vira vazio")
+    void deveBuscarPeloDono() {
+        when(repository.findByUserId(USER_ID)).thenReturn(Optional.of(tokenEntity()));
+
+        assertEquals(TOKEN_ID, dataSource.findByUserId(USER_ID).orElseThrow().id());
+        assertTrue(dataSource.findByUserId(TOKEN_ID).isEmpty());
+    }
+
+    @Test
     @DisplayName("Inserção grava uma linha nova, sem id, e devolve o registro emitido")
     void deveInserir() {
         when(repository.save(any())).thenReturn(tokenEntity());
@@ -62,8 +71,8 @@ class PasswordResetTokenDataSourceJpaTest {
     }
 
     @Test
-    @DisplayName("Atualização grava apenas o consumo do token")
-    void deveAtualizarApenasOConsumo() {
+    @DisplayName("Atualização grava hash, validade e uso — o consumo e a reemissão —, mas não o dono")
+    void deveAtualizarOEstadoDoToken() {
         PasswordResetTokenJpaEntity existente = tokenEntity();
         when(repository.findById(TOKEN_ID)).thenReturn(Optional.of(existente));
         when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -72,8 +81,9 @@ class PasswordResetTokenDataSourceJpaTest {
                 new PasswordResetTokenData(TOKEN_ID, USER_ID, "outro-hash", NOW.plusYears(1), true));
 
         assertTrue(existente.isUsed());
-        assertEquals("hash-do-token", existente.getTokenHash());
-        assertEquals(NOW.plusMinutes(30), existente.getExpiresAt());
+        assertEquals("outro-hash", existente.getTokenHash());
+        assertEquals(NOW.plusYears(1), existente.getExpiresAt());
+        assertEquals(USER_ID, existente.getUserId());
         assertTrue(atualizado.used());
     }
 

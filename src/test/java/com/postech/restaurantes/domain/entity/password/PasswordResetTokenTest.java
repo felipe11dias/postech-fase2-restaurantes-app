@@ -117,6 +117,34 @@ class PasswordResetTokenTest {
     }
 
     @Test
+    @DisplayName("Reemitir troca hash e validade e devolve o token usado ao estado de utilizável")
+    void deveReemitirOToken() {
+        PasswordResetToken token = PasswordResetToken.restore(UUID.randomUUID(), USER_ID, "hash-antigo", FUTURO, true);
+        LocalDateTime depois = NOW.plusHours(1);
+
+        token.reissue("hash-novo", depois.plusMinutes(30), depois);
+
+        assertEquals("hash-novo", token.getTokenHash());
+        assertEquals(depois.plusMinutes(30), token.getExpiresAt());
+        assertFalse(token.isUsed());
+        assertTrue(token.isUsable(depois));
+    }
+
+    @Test
+    @DisplayName("Reemissão inválida — validade não futura, hash em branco ou sem instante — não altera o token")
+    void deveRecusarReemissaoInvalidaSemAlterarOToken() {
+        PasswordResetToken token = PasswordResetToken.restore(UUID.randomUUID(), USER_ID, "hash-antigo", FUTURO, true);
+
+        assertThrows(IllegalArgumentException.class, () -> token.reissue("hash-novo", NOW, NOW));
+        assertThrows(IllegalArgumentException.class, () -> token.reissue(" ", FUTURO, NOW));
+        assertThrows(IllegalArgumentException.class, () -> token.reissue("hash-novo", null, NOW));
+        assertThrows(IllegalArgumentException.class, () -> token.reissue("hash-novo", FUTURO, null));
+        assertEquals("hash-antigo", token.getTokenHash());
+        assertEquals(FUTURO, token.getExpiresAt());
+        assertTrue(token.isUsed());
+    }
+
+    @Test
     @DisplayName("Token expirado não é utilizável mesmo sem ter sido usado")
     void naoDeveSerUtilizavelQuandoExpirado() {
         PasswordResetToken token = PasswordResetToken.create(USER_ID, "hash", FUTURO, NOW);

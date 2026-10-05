@@ -8,13 +8,16 @@ import java.util.UUID;
  * Token de uso único para redefinição de senha. O domínio guarda apenas o hash do token; o
  * valor em claro só existe no e-mail enviado ao usuário. O instante de referência é sempre
  * recebido por parâmetro, mantendo a entidade independente de relógio.
+ *
+ * <p>Cada usuário tem um token só: um pedido novo <em>reemite</em> o existente ({@link #reissue}),
+ * e o hash anterior deixa de existir — o link do e-mail antigo para de funcionar.
  */
 public final class PasswordResetToken {
 
     private final UUID id;
     private final UUID userId;
-    private final String tokenHash;
-    private final LocalDateTime expiresAt;
+    private String tokenHash;
+    private LocalDateTime expiresAt;
     private boolean used;
 
     private PasswordResetToken(UUID id, UUID userId, String tokenHash, LocalDateTime expiresAt, boolean used) {
@@ -35,6 +38,20 @@ public final class PasswordResetToken {
 
     public static PasswordResetToken restore(UUID id, UUID userId, String tokenHash, LocalDateTime expiresAt, boolean used) {
         return new PasswordResetToken(Guard.requireNonNull(id, "Id do token inválido"), userId, tokenHash, expiresAt, used);
+    }
+
+    /**
+     * Reemite o token: hash e validade novos, e de novo sem uso. Tudo é validado antes de mudar
+     * qualquer campo — um pedido inválido não deixa o token pela metade.
+     */
+    public void reissue(String newTokenHash, LocalDateTime newExpiresAt, LocalDateTime now) {
+        Guard.requireNonNull(now, "Instante de referência inválido");
+        String hash = Guard.requireNonBlank(newTokenHash, "Hash do token inválido");
+        LocalDateTime expiration = Guard.requireNonNull(newExpiresAt, "Expiração do token inválida");
+        Guard.require(expiration.isAfter(now), "Expiração do token deve ser futura");
+        this.tokenHash = hash;
+        this.expiresAt = expiration;
+        this.used = false;
     }
 
     public boolean isExpired(LocalDateTime now) {

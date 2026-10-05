@@ -384,3 +384,15 @@
   restrição adiada chega como 409.
 - `mvn clean verify`: 560 testes unitários e 98 de integração; cobertura unitária 100% (1429
   linhas, 292 ramos, 597 métodos). Newman: 67 requests, 126 asserções, nenhuma falha.
+
+## Etapa 19 — Token de redefinição único por usuário
+- Migration `V5__one_reset_token_per_user.sql`: mantém só o token de validade mais distante de cada
+  usuário (empate pelo id), cria `UNIQUE (user_id)` e remove o índice simples, redundante.
+- Domínio: `PasswordResetToken.reissue(hash, validade, agora)` — hash e validade novos, uso zerado,
+  tudo validado antes de mudar.
+- Aplicação: `IPasswordResetTokenGateway.findByUserId`; `ForgotPasswordUseCase` reemite o token que
+  o usuário já tinha (o link anterior deixa de valer) e só insere quando não há nenhum.
+- Adaptadores e persistência: busca pelo dono; `update` passa a gravar hash, validade e uso.
+- V5 verificada também sobre o volume do Compose com vários tokens do mesmo usuário.
+- `mvn clean verify`: 565 testes unitários e 101 de integração; cobertura unitária 100% (1445
+  linhas, 294 ramos, 600 métodos). Newman: 67 requests, 126 asserções, nenhuma falha.

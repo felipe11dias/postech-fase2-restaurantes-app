@@ -3,6 +3,7 @@ package com.postech.restaurantes.infrastructure.persistence.jpa.user.password;
 import com.postech.restaurantes.adapter.datasource.IPasswordResetTokenDataSource;
 import com.postech.restaurantes.adapter.datasource.data.PasswordResetTokenData;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,12 @@ public class PasswordResetTokenDataSourceJpa implements IPasswordResetTokenDataS
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<PasswordResetTokenData> findByUserId(UUID userId) {
+        return tokens.findByUserId(userId).map(PasswordResetTokenDataSourceJpa::toData);
+    }
+
+    @Override
     @Transactional
     public PasswordResetTokenData insert(PasswordResetTokenData token) {
         PasswordResetTokenJpaEntity entity = new PasswordResetTokenJpaEntity();
@@ -34,14 +41,16 @@ public class PasswordResetTokenDataSourceJpa implements IPasswordResetTokenDataS
     }
 
     /**
-     * Só o consumo do token muda depois de emitido; hash, dono e validade são imutáveis por
-     * contrato, e por isso não são reescritos aqui.
+     * Grava o estado do token: o consumo (redefinição) ou hash, validade e uso novos (reemissão).
+     * O dono não muda — a coluna nem é atualizável.
      */
     @Override
     @Transactional
     public PasswordResetTokenData update(PasswordResetTokenData token) {
         PasswordResetTokenJpaEntity entity = tokens.findById(token.id())
                 .orElseThrow(() -> new IllegalStateException("Token inexistente para atualização: " + token.id()));
+        entity.setTokenHash(token.tokenHash());
+        entity.setExpiresAt(token.expiresAt());
         entity.setUsed(token.used());
         return toData(tokens.save(entity));
     }

@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (18 até aqui; as Etapas 19
+Architecture**. O projeto está sendo entregue **etapa por etapa** (19 até aqui; as Etapas 20
 a 25, de adequação ao Modelo de Dados v2 em `docs/modelo-dados/`, estão planejadas no
 relatório) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
 `CHANGELOG.md`, e atualização do relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (marcar a etapa
@@ -290,6 +290,12 @@ Pontos que só ficam claros lendo várias camadas:
 - **E-mail sai depois do commit.** O `AuthController` entrega ao caso de uso uma `MailOutbox`
   (adapter/controller) e só chama `deliver()` depois que `unitOfWork.execute` retorna: se o commit
   falhar, nenhum e-mail com token inexistente sai, e a transação não espera o servidor de e-mail.
+- **Um token de redefinição por usuário (Etapa 19, V5: `password_reset_tokens.user_id` único).** O
+  `ForgotPasswordUseCase` reemite o token existente (`PasswordResetToken.reissue`) em vez de inserir
+  outro: o link do e-mail anterior para de funcionar. A origem de dados grava hash, validade e uso no
+  `update`. Dois pedidos simultâneos para o mesmo e-mail: um vence, o outro viola a unicidade dentro
+  da fila e fica no log (ERROR), sem mudar a resposta 202. Em IT com dois pedidos, `reset(mailSender)`
+  entre eles: `tokenEnviado()` exige exatamente um envio.
 - O JWT é assinado em **HS256 fixo** (`signWith(key, Jwts.SIG.HS256)`); deixado ao jjwt, o algoritmo
   seria escolhido pelo tamanho do segredo.
 - `JwtTokenEncoder.read` (implementa `IAccessTokenReader`) exige `sub` e `login`; qualquer recusa devolve vazio, nunca exceção.

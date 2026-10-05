@@ -25,7 +25,7 @@ public class PasswordResetTokenJpaEntity {
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
-    @Column(name = "user_id", nullable = false, updatable = false)
+    @Column(name = "user_id", nullable = false, unique = true, updatable = false)
     private UUID userId;
 
     /** Só o hash: o valor em claro existe apenas no e-mail enviado ao usuário. */

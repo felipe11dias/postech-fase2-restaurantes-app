@@ -165,6 +165,29 @@ class AuthApiIT extends WebIntegrationTestSupport {
     }
 
     @Test
+    @DisplayName("Pedir de novo reemite o token: o do primeiro e-mail deixa de valer e o usuário segue com um só")
+    void deveInvalidarOTokenAnteriorAoPedirDeNovo() {
+        String login = "repete" + UUID.randomUUID().toString().substring(0, 8);
+        cadastrar(login);
+        rest.postForEntity(FORGOT, corpo(Map.of("email", login + "@email.com")), Void.class);
+        String primeiro = tokenEnviado();
+        reset(mailSender);
+        rest.postForEntity(FORGOT, corpo(Map.of("email", login + "@email.com")), Void.class);
+        String segundo = tokenEnviado();
+
+        ResponseEntity<JsonNode> comOPrimeiro = rest.postForEntity(RESET, corpo(Map.of("token", primeiro,
+                "newPassword", "senhaNova456", "confirmPassword", "senhaNova456")), JsonNode.class);
+        ResponseEntity<Void> comOSegundo = rest.postForEntity(RESET, corpo(Map.of("token", segundo,
+                "newPassword", "senhaNova456", "confirmPassword", "senhaNova456")), Void.class);
+
+        assertEquals(HttpStatus.BAD_REQUEST, comOPrimeiro.getStatusCode());
+        assertEquals("urn:restaurantes:problema:token-invalido", comOPrimeiro.getBody().get("type").asText());
+        assertEquals(HttpStatus.NO_CONTENT, comOSegundo.getStatusCode());
+        assertEquals(1, (int) jdbc.queryForObject("SELECT count(*) FROM password_reset_tokens t JOIN users u "
+                + "ON u.id = t.user_id WHERE u.login = ?", Integer.class, login));
+    }
+
+    @Test
     @DisplayName("O mesmo token não redefine a senha duas vezes")
     void deveRecusarTokenJaUsado() {
         String login = "reuso" + UUID.randomUUID().toString().substring(0, 8);

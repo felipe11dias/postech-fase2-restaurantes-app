@@ -48,7 +48,7 @@ Um caso de uso por **intenção do ator**, em subpacotes por feature:
 | Usuário — trocar a senha | `ChangePasswordUseCase` | confere a atual → confirmação → novo hash | senha atual errada, confirmação divergente (`InvalidPasswordException`) |
 | Administrador — listar cadastros | `SearchUsersUseCase` | busca paginada por nome | ordenação por propriedade não permitida cai no nome |
 | Usuário — entrar | [`AuthenticateUseCase`](../../src/main/java/com/postech/restaurantes/application/usecase/auth/AuthenticateUseCase.java) | login existe, senha confere → token | credencial inválida — **mesma mensagem e mesmo tempo** para login inexistente e senha errada |
-| Usuário — esqueceu a senha | [`ForgotPasswordUseCase`](../../src/main/java/com/postech/restaurantes/application/usecase/auth/ForgotPasswordUseCase.java) | gera token, grava só o hash, envia o valor em claro por e-mail | e-mail desconhecido: **mesma resposta**, nada é enviado |
+| Usuário — esqueceu a senha | [`ForgotPasswordUseCase`](../../src/main/java/com/postech/restaurantes/application/usecase/auth/ForgotPasswordUseCase.java) | gera token, grava só o hash (reemite o token que o usuário já tinha — o anterior deixa de valer), envia o valor em claro por e-mail | e-mail desconhecido: **mesma resposta**, nada é enviado |
 | Usuário — redefinir a senha | [`ResetPasswordUseCase`](../../src/main/java/com/postech/restaurantes/application/usecase/auth/ResetPasswordUseCase.java) | token válido → invalida o token → grava o novo hash | token desconhecido, vencido ou usado; confirmação divergente |
 
 **As portas** que os casos de uso declaram, em

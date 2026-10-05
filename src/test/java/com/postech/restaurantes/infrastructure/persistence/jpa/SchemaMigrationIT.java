@@ -40,13 +40,13 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     private IUserDataSource userDataSource;
 
     @Test
-    @DisplayName("As quatro migrations foram aplicadas com sucesso e ficaram registradas no histórico")
+    @DisplayName("As cinco migrations foram aplicadas com sucesso e ficaram registradas no histórico")
     void deveAplicarAsMigrations() {
         List<String> versoes = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = true AND version IS NOT NULL "
                         + "ORDER BY installed_rank", String.class);
 
-        assertEquals(List.of("1", "2", "3", "4"), versoes);
+        assertEquals(List.of("1", "2", "3", "4", "5"), versoes);
     }
 
     @Test

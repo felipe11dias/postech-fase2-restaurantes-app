@@ -95,6 +95,15 @@ class RoleAndTokenGatewaysTest {
         }
 
         @Test
+        @DisplayName("Busca pelo dono reconstrói o token; ausência vira Optional vazio")
+        void deveBuscarPeloDono() {
+            when(dataSource.findByUserId(USER_ID)).thenReturn(Optional.of(TOKEN_DATA));
+
+            assertEquals(TOKEN_ID, gateway.findByUserId(USER_ID).orElseThrow().getId());
+            assertTrue(gateway.findByUserId(TOKEN_ID).isEmpty());
+        }
+
+        @Test
         @DisplayName("Inserção envia o token novo sem id e devolve o registro reconstruído")
         void deveTraduzirNaInsercao() {
             PasswordResetToken novo = PasswordResetToken.create(USER_ID, "hash-do-token", NOW.plusMinutes(30), NOW);

@@ -53,7 +53,7 @@
 | 16  | Módulo de Gestão de Restaurantes (`restaurants` - Imagem 2) | ✅  |
 | 17  | Reorganização dos pacotes do agregado de usuário   | ✅     |
 | 18  | Endereços via `user_addresses` e endereço próprio do restaurante | ✅ |
-| 19  | Token de redefinição único por usuário (`password_reset_tokens`) | ⏳ |
+| 19  | Token de redefinição único por usuário (`password_reset_tokens`) | ✅ |
 | 20  | Perfis de usuário no domínio (`owners`, `clients`, `couriers`, `admins`) | ⏳ |
 | 21  | Usuário composto por perfis (papel derivado)       | ⏳     |
 | 22  | Perfis em usuário existente e status do entregador | ⏳     |
@@ -61,8 +61,8 @@
 | 24  | Horário de funcionamento por dia (`restaurant_office_hours`) | ⏳ |
 | 25  | Revisão de conformidade do modelo de dados v2      | ⏳     |
 
-**Progresso:** 18 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
-Dados v2 (seção "Modelo de Dados v2 — adequação planejada"); a 17 e a 18 estão concluídas e as
+**Progresso:** 19 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
+Dados v2 (seção "Modelo de Dados v2 — adequação planejada"); da 17 à 19 estão concluídas e as
 demais, planejadas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
@@ -2496,6 +2496,60 @@ no log — a resposta ao cliente continua 202 e idêntica (Etapa 14).
 **Testes:** reemissão com token usado, vencido e válido; o token antigo é recusado após a reemissão.
 **Conceito:** regra no banco e no núcleo dizendo a mesma coisa (Date); o "esqueci minha senha"
 continua sem revelar quem tem conta.
+
+### Estrutura
+
+```
+domain/entity/password/          PasswordResetToken.reissue(hash, validade, agora)
+application/gateway/             IPasswordResetTokenGateway.findByUserId
+application/usecase/auth/        ForgotPasswordUseCase — reemite ou cria
+adapter/datasource/, gateway/    findByUserId na origem de dados e no gateway
+infrastructure/persistence/jpa/user/password/
+                                 findByUserId no repositório; update grava hash, validade e uso
+db/migration/V5__one_reset_token_per_user.sql
+```
+
+### O que foi entregue nesta etapa
+
+| Decisão | Conceito que a sustenta |
+| --- | --- |
+| **Reemitir em vez de inserir**: `reissue` troca hash e validade e zera o uso | O token é do usuário, e ele tem um só (agregado com identidade estável). O pedido novo **invalida** o anterior — o hash antigo deixa de existir —, o que fecha uma janela que existia antes: vários links válidos ao mesmo tempo para a mesma conta |
+| **`reissue` valida tudo antes de mudar qualquer campo** | Entidade nunca inválida (Etapa 2): um pedido com validade no passado ou hash em branco não deixa o token pela metade |
+| **`update` da origem de dados grava hash, validade e uso** (antes, só o uso) | A reemissão muda o hash e a validade; o dono continua imutável (`updatable = false`) |
+| **V5 mantém o token de validade mais distante** de cada usuário, empate pelo id | Todos nascem com a mesma duração, então é o último emitido; critério determinístico, sem inventar dado. Os descartados só deixam de valer — token é efêmero |
+| **Índice `idx_reset_tokens_user_id` removido** | A restrição única tem índice próprio; manter os dois só custa escrita |
+| **Corrida entre dois pedidos simultâneos fica na fila** | Os dois podem não achar token e tentar inserir; a unicidade do banco decide, e a falha do perdedor vai para o log em ERROR dentro do `forgotPasswordExecutor`. A resposta ao cliente já foi o 202 idêntico (Etapa 14), então nada vaza |
+
+A redefinição concorrente com uma reemissão também foi considerada: se a redefinição com o token
+antigo grava depois da reemissão, ela devolve o hash antigo, já usado, e o link novo para de
+funcionar. O efeito é "peça outro e-mail" — o mesmo que o `ResetPasswordUseCase` já aceita para a
+falha entre invalidar o token e gravar a senha —, e nunca uma senha trocada com token reutilizável.
+
+### Verificação da migração com dados
+
+No volume do Compose, ainda na V4, um usuário tinha dez tokens (os da coleção Postman mais três
+inseridos para a verificação, um deles com validade futura). Aplicada a V5, ficou só o de validade
+mais distante; a restrição `uk_password_reset_tokens_user_id` foi criada e o índice antigo saiu. O
+token da verificação foi removido em seguida.
+
+### Testes novos e ajustados
+
+| Teste | O que prova |
+| --- | --- |
+| `PasswordResetTokenTest` | reemissão troca hash e validade e devolve o token ao uso; reemissão inválida não muda nada |
+| `ForgotPasswordUseCaseTest` | com token existente: `update` do mesmo token, nenhum `insert`, e-mail com o valor novo |
+| `RoleAndTokenGatewaysTest`, `PasswordResetTokenDataSourceJpaTest` | busca pelo dono; `update` grava hash, validade e uso, mas não o dono |
+| `PasswordResetTokenPersistenceIT` | o banco recusa o segundo token do mesmo usuário; reemissão na mesma linha, e o hash antigo deixa de achar o token; hash duplicado recusado também entre usuários diferentes |
+| `AuthApiIT` | dois pedidos: o token do primeiro e-mail é recusado (400 `token-invalido`), o do segundo redefine (204), e o usuário fica com um token só |
+| `SchemaMigrationIT` | cinco migrations aplicadas |
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `mvn clean verify` | **565 testes unitários** e **101 de integração** — BUILD SUCCESS; cobertura unitária **1445/1445 linhas, 294/294 ramos, 600/600 métodos** |
+| Pilha do Compose + coleção Postman (`npx newman@6`) | 67 requests, 126 asserções, nenhuma falha; nenhuma URL, status ou corpo mudou, por isso os prints não foram regenerados |
+| Tokens por usuário no banco do Compose depois da coleção | no máximo 1 |
 
 ## Etapa 20 — Perfis de usuário no domínio
 
