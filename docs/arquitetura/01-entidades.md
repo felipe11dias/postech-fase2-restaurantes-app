@@ -35,8 +35,8 @@
 | Elemento | Onde | Regra que carrega |
 |---|---|---|
 | [`User`](../../src/main/java/com/postech/restaurantes/domain/entity/user/User.java) | `domain/entity/user` | nome, e-mail e login válidos; **ao menos um papel**; endereços válidos; recebe o *hash* da senha, nunca a senha |
-| [`Role`](../../src/main/java/com/postech/restaurantes/domain/entity/user/Role.java) / [`RoleName`](../../src/main/java/com/postech/restaurantes/domain/entity/user/RoleName.java) | `domain/entity/user` | papel é um dos três reconhecidos (dono, cliente, administrador); igualdade pelo nome |
-| [`PasswordResetToken`](../../src/main/java/com/postech/restaurantes/domain/entity/user/PasswordResetToken.java) | `domain/entity/user` | vence no instante informado; usável só uma vez (`markUsed`); o **instante vem por parâmetro** — a entidade não consulta o relógio |
+| [`Role`](../../src/main/java/com/postech/restaurantes/domain/entity/role/Role.java) / [`RoleName`](../../src/main/java/com/postech/restaurantes/domain/entity/role/RoleName.java) | `domain/entity/role` | papel é um dos três reconhecidos (dono, cliente, administrador); igualdade pelo nome |
+| [`PasswordResetToken`](../../src/main/java/com/postech/restaurantes/domain/entity/password/PasswordResetToken.java) | `domain/entity/password` | vence no instante informado; usável só uma vez (`markUsed`); o **instante vem por parâmetro** — a entidade não consulta o relógio |
 | [`Address`](../../src/main/java/com/postech/restaurantes/domain/entity/address/Address.java) | `domain/entity/address` | campos obrigatórios, UF com 2 letras, CEP válido; pacote próprio porque o restaurante também terá endereço |
 | [`Email`](../../src/main/java/com/postech/restaurantes/domain/vo/Email.java), [`ZipCode`](../../src/main/java/com/postech/restaurantes/domain/vo/ZipCode.java) | `domain/vo` | *records* que validam e **normalizam** no construtor (e-mail em minúsculas, CEP só com dígitos) |
 | [`Guard`](../../src/main/java/com/postech/restaurantes/domain/Guard.java) | `domain` | `requireNonNull`, `requireNonBlank`, `require`, `trimToNull` — lançam `InvariantViolationException` |

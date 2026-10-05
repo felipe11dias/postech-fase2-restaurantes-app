@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (16 até aqui; as Etapas 17
+Architecture**. O projeto está sendo entregue **etapa por etapa** (17 até aqui; as Etapas 18
 a 25, de adequação ao Modelo de Dados v2 em `docs/modelo-dados/`, estão planejadas no
 relatório) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
 `CHANGELOG.md`, e atualização do relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (marcar a etapa
@@ -117,7 +117,10 @@ infrastructure/
 
 Regras (verificadas pelo `InfrastructureModulesTest`):
 - **Nenhum ciclo entre pacotes no projeto inteiro** (ADP). Entidade JPA de parte de um agregado
-  fica no pacote do agregado — o endereço está em `persistence/jpa/user`.
+  fica num subpacote do agregado, espelhando o domínio (`persistence/jpa/user/{address,role,password}`
+  ↔ `domain/entity/{address,role,password}`), e a dependência só vai do agregado para a parte:
+  a parte não referencia a raiz (o endereço é `@OneToMany` + `@JoinColumn` unidirecional do lado
+  do `UserJpaEntity`), senão os dois pacotes formam ciclo.
 - **Nenhum módulo conhece outro módulo-irmão; só `main` liga as pontas.** Quando um módulo precisa
   de algo de outro, ele declara a interface (ou recebe um `Supplier`) e o `main` liga. Ex.: o autor
   da auditoria vem de `api/rest/spring/security/AuthenticatedActor` para `persistence/jpa/audit` via

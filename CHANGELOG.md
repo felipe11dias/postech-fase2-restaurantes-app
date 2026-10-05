@@ -343,3 +343,20 @@
 - Ponto de atenção registrado no escopo: o modelo v2 fixa os tipos de usuário no schema, o que
   conflita com o requisito de CRUD do catálogo de tipos.
 - Nenhuma mudança de código ou de migration.
+
+## Etapa 17 — Reorganização dos pacotes do agregado de usuário
+- Domínio: `Role`/`RoleName` em `domain/entity/role` e `PasswordResetToken` em
+  `domain/entity/password`, com `package-info`; `user` passa a conter só `User`.
+- Persistência: `persistence/jpa/user/{address,role,password}` espelhando o domínio, cada um com
+  `package-info`. `AddressJpaEntity` deixa de referenciar `UserJpaEntity`: a associação vira
+  `@OneToMany` + `@JoinColumn(nullable = false, updatable = false)` unidirecional, sem o ciclo
+  `user` ↔ `user.address` que a regra `nenhum_ciclo_entre_pacotes` recusa (conferido ao contrário).
+- Imports do módulo de restaurantes ajustados aos pacotes novos.
+- Testes nos pacotes espelhados: `PasswordResetTokenTest`, `RoleTest`, `RoleNameTest` movidos;
+  `JpaEntitiesTest` e `RoleAndTokenDataSourcesJpaTest` divididos em um teste por classe.
+- Build destravado: `SchemaMigrationIT` e `OpenApiDocumentationIT` atualizados para V3 e os
+  endpoints de restaurante (falhavam desde a Etapa 16); testes unitários que faltavam no módulo de
+  restaurantes para voltar a 100% de ramos.
+- `docs/arquitetura/01`, `04`, `05` e `CLAUDE.md` com a organização nova.
+- `mvn clean verify`: 530 testes unitários e 92 de integração; cobertura unitária 100% (1346
+  linhas, 268 ramos, 560 métodos). Newman: 67 requests, 124 asserções, nenhuma falha.

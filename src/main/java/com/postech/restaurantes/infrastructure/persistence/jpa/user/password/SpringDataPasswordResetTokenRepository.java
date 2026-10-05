@@ -1,4 +1,4 @@
-package com.postech.restaurantes.infrastructure.persistence.jpa.user;
+package com.postech.restaurantes.infrastructure.persistence.jpa.user.password;
 
 import java.util.Optional;
 import java.util.UUID;

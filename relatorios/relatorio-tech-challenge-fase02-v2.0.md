@@ -51,7 +51,7 @@
 | 14  | Revisão de conformidade e documentação da arquitetura | ✅  |
 | 15  | API REST em `api/rest/spring`, organizada como MVC | ✅  |
 | 16  | Módulo de Gestão de Restaurantes (`restaurants` - Imagem 2) | ✅  |
-| 17  | Reorganização dos pacotes do agregado de usuário   | ⏳     |
+| 17  | Reorganização dos pacotes do agregado de usuário   | ✅     |
 | 18  | Endereços via `user_addresses` e endereço próprio do restaurante | ⏳ |
 | 19  | Token de redefinição único por usuário (`password_reset_tokens`) | ⏳ |
 | 20  | Perfis de usuário no domínio (`owners`, `clients`, `couriers`, `admins`) | ⏳ |
@@ -61,8 +61,9 @@
 | 24  | Horário de funcionamento por dia (`restaurant_office_hours`) | ⏳ |
 | 25  | Revisão de conformidade do modelo de dados v2      | ⏳     |
 
-**Progresso:** 16 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
-Dados v2 e estão planejadas na seção "Modelo de Dados v2 — adequação planejada".
+**Progresso:** 17 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
+Dados v2 (seção "Modelo de Dados v2 — adequação planejada"); a 17 está concluída e as demais,
+planejadas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -2311,6 +2312,49 @@ importam `domain.entity.user.RoleName`/`Role`.
 **Conceito:** *screaming architecture* (Martin, cap. 21) e ADP — os pacotes novos não podem
 formar ciclo com `user` (`nenhum_ciclo_entre_pacotes`).
 **Pronto quando:** build verde e nenhuma ocorrência de `domain.entity.user.Role`.
+
+### Estrutura
+
+```
+domain/entity/
+  user/        User
+  role/        Role, RoleName
+  password/    PasswordResetToken
+  address/     Address                       (já existia)
+infrastructure/persistence/jpa/user/
+  UserJpaEntity, SpringDataUserRepository, UserDataSourceJpa
+  address/     AddressJpaEntity
+  role/        RoleJpaEntity, SpringDataRoleRepository, RoleDataSourceJpa
+  password/    PasswordResetTokenJpaEntity, SpringDataPasswordResetTokenRepository,
+               PasswordResetTokenDataSourceJpa
+```
+
+A dependência vai sempre do agregado para a parte: `user` conhece `role`, `password` e `address`;
+nenhum deles conhece `user`. Os testes ficam no pacote espelhado de cada classe.
+
+### O que foi entregue nesta etapa
+
+| Decisão | Conceito que a sustenta |
+| --- | --- |
+| **Partes do agregado em pacotes próprios**, no domínio e na persistência, com `package-info` dizendo o papel de cada um | *Screaming architecture* (Martin, cap. 21): o pacote diz o que contém; e cada parte pode ser lida e testada sem abrir o agregado inteiro (CCP, cap. 13) |
+| **`AddressJpaEntity` sem referência ao usuário** (`@OneToMany` + `@JoinColumn(name = "user_id", nullable = false, updatable = false)` do lado do `UserJpaEntity`) | ADP (cap. 14). A reorganização, como estava, levava o endereço para `user/address` mantendo o `@ManyToOne` de volta para `UserJpaEntity`: os dois pacotes dependiam um do outro. O `package-info` antigo registrava por que o endereço ficava em `user` — era justamente esse ciclo. Tornar a associação unidirecional elimina o ciclo e prepara a Etapa 18, em que o endereço passa a ser compartilhado com o restaurante e não pode conhecer um dono só. `nullable = false` faz o Hibernate gravar o `user_id` já no `INSERT` (sem `UPDATE` posterior); o comportamento é conferido pelos ITs de ciclo de vida do usuário |
+| **Imports do módulo de restaurantes corrigidos** (`Create`/`UpdateRestaurantUseCase` e testes) | A refatoração e a Etapa 16 nasceram em paralelo; sem isso, nada compilava |
+| **Testes de persistência separados por classe** (`UserJpaEntityTest`, `AddressJpaEntityTest`, `RoleJpaEntityTest`, `RoleDataSourceJpaTest`, `PasswordResetTokenJpaEntityTest`, `PasswordResetTokenDataSourceJpaTest`, no lugar de `JpaEntitiesTest` e `RoleAndTokenDataSourcesJpaTest`) | Cada teste no pacote do que testa (Etapa 15); `git mv` onde o arquivo continua o mesmo, para preservar o histórico |
+| **Build destravado: ITs e cobertura da Etapa 16** | Ao rodar o `verify` completo, quatro ITs anteriores a esta etapa falhavam desde o merge do módulo de restaurantes: `SchemaMigrationIT` esperava só V1 e V2 e cinco tabelas; `OpenApiDocumentationIT` esperava nove endpoints e cinco protegidos. As expectativas passaram a incluir V3, `restaurants`, os cinco endpoints de restaurante e os três protegidos. A cobertura unitária estava em 1344/1346 linhas e 262/268 ramos; entraram os testes que faltavam (administrador como dono no cadastro e na atualização, ordenação decrescente na origem de dados, ordenação ausente e sem direção no `RestaurantRestController`). Nenhum código de produção mudou para isso |
+
+### Conferência ao contrário
+
+Com uma referência temporária de `AddressJpaEntity` para `UserJpaEntity` (o estado da
+reorganização antes desta etapa), `InfrastructureModulesTest.nenhum_ciclo_entre_pacotes` falhou
+com `Cycle detected: Slice infrastructure.persistence.jpa.user -> …`. Removida a referência, voltou a passar.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `mvn clean verify` | **530 testes unitários** e **92 de integração** — BUILD SUCCESS; cobertura unitária **1346/1346 linhas, 268/268 ramos, 560/560 métodos** |
+| Pilha do Compose + coleção Postman (`npx newman@6`) | 67 requests, 124 asserções, nenhuma falha; nenhuma URL, status ou corpo mudou, por isso os prints não foram regenerados |
+| Referências | nenhuma ocorrência de `domain.entity.user.Role`, `domain.entity.user.PasswordResetToken` nem de `persistence.jpa.user.{AddressJpaEntity,RoleJpaEntity,PasswordResetTokenJpaEntity}` no código |
 
 ## Etapa 18 — Endereços via `user_addresses` e endereço próprio do restaurante
 

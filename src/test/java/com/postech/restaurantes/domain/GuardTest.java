@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.postech.restaurantes.domain.entity.user.RoleName;
+import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.exception.InvariantViolationException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -1,4 +1,4 @@
-package com.postech.restaurantes.domain.entity.user;
+package com.postech.restaurantes.domain.entity.role;
 
 import com.postech.restaurantes.domain.Guard;
 import com.postech.restaurantes.domain.exception.InvariantViolationException;

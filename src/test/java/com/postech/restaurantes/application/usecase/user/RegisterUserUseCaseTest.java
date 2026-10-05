@@ -19,7 +19,7 @@ import com.postech.restaurantes.application.dto.user.NewUserDTO;
 import com.postech.restaurantes.application.gateway.IPasswordEncoder;
 import com.postech.restaurantes.application.gateway.IRoleGateway;
 import com.postech.restaurantes.application.gateway.IUserGateway;
-import com.postech.restaurantes.domain.entity.user.RoleName;
+import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.entity.user.User;
 import com.postech.restaurantes.domain.exception.DuplicateResourceException;
 import com.postech.restaurantes.domain.exception.ForbiddenOperationException;

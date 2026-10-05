@@ -2,8 +2,8 @@ package com.postech.restaurantes.application.usecase;
 
 import com.postech.restaurantes.application.dto.common.AddressDTO;
 import com.postech.restaurantes.domain.entity.address.Address;
-import com.postech.restaurantes.domain.entity.user.Role;
-import com.postech.restaurantes.domain.entity.user.RoleName;
+import com.postech.restaurantes.domain.entity.role.Role;
+import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.entity.user.User;
 import java.time.Clock;
 import java.time.Instant;

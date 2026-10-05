@@ -19,7 +19,7 @@ import com.postech.restaurantes.application.gateway.IMailGateway;
 import com.postech.restaurantes.application.gateway.IPasswordResetTokenGateway;
 import com.postech.restaurantes.application.gateway.ISecureTokenGenerator;
 import com.postech.restaurantes.application.gateway.IUserGateway;
-import com.postech.restaurantes.domain.entity.user.PasswordResetToken;
+import com.postech.restaurantes.domain.entity.password.PasswordResetToken;
 import com.postech.restaurantes.domain.vo.Email;
 import java.time.Duration;
 import java.util.Optional;

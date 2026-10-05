@@ -7,7 +7,7 @@ import com.postech.restaurantes.IntegrationTestSupport;
 import com.postech.restaurantes.adapter.datasource.IRoleDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
-import com.postech.restaurantes.domain.entity.user.RoleName;
+import com.postech.restaurantes.domain.entity.role.RoleName;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -35,23 +35,24 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     private IUserDataSource userDataSource;
 
     @Test
-    @DisplayName("As duas migrations foram aplicadas com sucesso e ficaram registradas no histórico")
+    @DisplayName("As três migrations foram aplicadas com sucesso e ficaram registradas no histórico")
     void deveAplicarAsMigrations() {
         List<String> versoes = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = true AND version IS NOT NULL "
                         + "ORDER BY installed_rank", String.class);
 
-        assertEquals(List.of("1", "2"), versoes);
+        assertEquals(List.of("1", "2", "3"), versoes);
     }
 
     @Test
-    @DisplayName("O schema tem exatamente as cinco tabelas do modelo")
+    @DisplayName("O schema tem exatamente as seis tabelas do modelo")
     void deveCriarAsTabelas() {
         List<String> tabelas = jdbc.queryForList(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' "
                         + "AND table_name <> 'flyway_schema_history' ORDER BY table_name", String.class);
 
-        assertEquals(List.of("addresses", "password_reset_tokens", "roles", "user_roles", "users"), tabelas);
+        assertEquals(List.of("addresses", "password_reset_tokens", "restaurants", "roles", "user_roles", "users"),
+                tabelas);
     }
 
     @Test

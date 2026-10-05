@@ -1,6 +1,8 @@
 package com.postech.restaurantes.domain.entity.user;
 
 import com.postech.restaurantes.domain.Guard;
+import com.postech.restaurantes.domain.entity.role.Role;
+import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.vo.Email;
 import java.time.LocalDateTime;
 import java.util.ArrayList;

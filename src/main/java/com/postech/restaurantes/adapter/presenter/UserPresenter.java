@@ -6,7 +6,7 @@ import com.postech.restaurantes.adapter.presenter.view.UserView;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.domain.Guard;
 import com.postech.restaurantes.domain.entity.address.Address;
-import com.postech.restaurantes.domain.entity.user.Role;
+import com.postech.restaurantes.domain.entity.role.Role;
 import com.postech.restaurantes.domain.entity.user.User;
 
 /**

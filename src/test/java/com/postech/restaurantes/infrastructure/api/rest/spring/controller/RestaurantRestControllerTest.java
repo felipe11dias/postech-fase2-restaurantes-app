@@ -2,6 +2,7 @@ package com.postech.restaurantes.infrastructure.api.rest.spring.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -9,7 +10,9 @@ import static org.mockito.Mockito.when;
 
 import com.postech.restaurantes.adapter.controller.RestaurantController;
 import com.postech.restaurantes.adapter.presenter.view.RestaurantView;
+import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
+import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.infrastructure.api.rest.spring.assembler.RestaurantModelAssembler;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.CreateRestaurantRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.UpdateRestaurantRequest;
@@ -106,5 +109,27 @@ class RestaurantRestControllerTest {
         restController.delete(restaurantId);
 
         verify(controller).delete(restaurantId);
+    }
+
+    @Test
+    @DisplayName("Sem o parâmetro de ordenação, a página vai sem ordenação pedida")
+    void deveAceitarBuscaSemOrdenacao() {
+        assertNull(RestaurantRestController.paginacao(0, 20, null).sortBy());
+        assertNull(RestaurantRestController.paginacao(0, 20, "   ").sortBy());
+    }
+
+    @Test
+    @DisplayName("Ordenação sem direção explícita é crescente")
+    void deveAssumirOrdemCrescente() {
+        PageRequest pedido = RestaurantRestController.paginacao(0, 20, "name");
+
+        assertEquals("name", pedido.sortBy());
+        assertEquals(SortDirection.ASC, pedido.direction());
+    }
+
+    @Test
+    @DisplayName("A direção informada é respeitada")
+    void deveLerADirecao() {
+        assertEquals(SortDirection.DESC, RestaurantRestController.paginacao(0, 20, "name,desc").direction());
     }
 }

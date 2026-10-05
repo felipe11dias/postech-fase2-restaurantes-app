@@ -1,4 +1,4 @@
-package com.postech.restaurantes.infrastructure.persistence.jpa.user;
+package com.postech.restaurantes.infrastructure.persistence.jpa.user.password;
 
 import com.postech.restaurantes.adapter.datasource.IPasswordResetTokenDataSource;
 import com.postech.restaurantes.adapter.datasource.data.PasswordResetTokenData;

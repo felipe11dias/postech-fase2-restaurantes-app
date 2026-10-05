@@ -1,7 +1,8 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa.user;
 
 import com.postech.restaurantes.infrastructure.persistence.jpa.audit.AuditableJpaEntity;
-import com.postech.restaurantes.infrastructure.persistence.jpa.user.AddressJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.user.address.AddressJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.user.role.RoleJpaEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -54,7 +55,13 @@ public class UserJpaEntity extends AuditableJpaEntity {
             inverseJoinColumns = @JoinColumn(name = "role_id"))
     private Set<RoleJpaEntity> roles = new LinkedHashSet<>();
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    /**
+     * Unidirecional: a chave estrangeira mora em {@code addresses}, mas só este lado a conhece
+     * (ver {@link AddressJpaEntity}). {@code nullable = false} faz o Hibernate gravar o
+     * {@code user_id} já no INSERT do endereço, em vez de inserir nulo e atualizar depois.
+     */
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false, updatable = false)
     private List<AddressJpaEntity> addresses = new ArrayList<>();
 
     public UUID getId() {
@@ -117,12 +124,6 @@ public class UserJpaEntity extends AuditableJpaEntity {
      */
     public void replaceAddresses(List<AddressJpaEntity> newAddresses) {
         addresses.clear();
-        newAddresses.forEach(this::addAddress);
-    }
-
-    /** Mantém os dois lados da associação coerentes: a FK mora no endereço. */
-    public void addAddress(AddressJpaEntity address) {
-        address.setUser(this);
-        addresses.add(address);
+        addresses.addAll(newAddresses);
     }
 }

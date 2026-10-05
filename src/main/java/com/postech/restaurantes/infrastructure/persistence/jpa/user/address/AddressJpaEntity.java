@@ -1,18 +1,20 @@
-package com.postech.restaurantes.infrastructure.persistence.jpa.user;
+package com.postech.restaurantes.infrastructure.persistence.jpa.user.address;
 
-import com.postech.restaurantes.infrastructure.persistence.jpa.user.UserJpaEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.util.UUID;
 
-/** Tabela {@code addresses}: parte do agregado de usuário, nunca acessada por conta própria. */
+/**
+ * Tabela {@code addresses}: parte do agregado de usuário, nunca acessada por conta própria.
+ *
+ * <p>Não conhece o dono. A chave estrangeira {@code user_id} é mapeada só do lado do
+ * {@code UserJpaEntity} (associação unidirecional): uma referência de volta faria este pacote e
+ * o do usuário dependerem um do outro, e a regra {@code nenhum_ciclo_entre_pacotes} quebraria.
+ */
 @Entity
 @Table(name = "addresses")
 public class AddressJpaEntity {
@@ -21,10 +23,6 @@ public class AddressJpaEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
-    private UserJpaEntity user;
 
     @Column(name = "street", nullable = false, length = 150)
     private String street;
@@ -54,14 +52,6 @@ public class AddressJpaEntity {
 
     public void setId(UUID id) {
         this.id = id;
-    }
-
-    public UserJpaEntity getUser() {
-        return user;
-    }
-
-    public void setUser(UserJpaEntity user) {
-        this.user = user;
     }
 
     public String getStreet() {

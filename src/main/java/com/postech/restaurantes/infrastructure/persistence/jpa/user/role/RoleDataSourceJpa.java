@@ -1,4 +1,4 @@
-package com.postech.restaurantes.infrastructure.persistence.jpa.user;
+package com.postech.restaurantes.infrastructure.persistence.jpa.user.role;
 
 import com.postech.restaurantes.adapter.datasource.IRoleDataSource;
 import com.postech.restaurantes.adapter.datasource.data.RoleData;

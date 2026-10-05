@@ -1,4 +1,4 @@
-package com.postech.restaurantes.domain.entity.user;
+package com.postech.restaurantes.domain.entity.role;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

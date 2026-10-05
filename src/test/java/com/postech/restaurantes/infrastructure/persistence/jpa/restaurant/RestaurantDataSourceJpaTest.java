@@ -21,8 +21,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 class RestaurantDataSourceJpaTest {
 
@@ -73,6 +75,20 @@ class RestaurantDataSourceJpaTest {
         PageResult<RestaurantData> result = dataSource.search("sabor", request);
 
         assertEquals(1, result.totalElements());
+    }
+
+    @Test
+    @DisplayName("Busca paginada em ordem decrescente repassa a direção ao banco")
+    void deveBuscarPaginadoEmOrdemDecrescente() {
+        PageRequest request = PageRequest.of(0, 10).withSort("name", SortDirection.DESC);
+        when(repository.findIdsByName(eq("sabor"), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(id)));
+        when(repository.findByIdIn(eq(List.of(id)), any())).thenReturn(List.of(entity));
+
+        dataSource.search("sabor", request);
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(repository).findIdsByName(eq("sabor"), captor.capture());
+        assertEquals(Sort.Direction.DESC, captor.getValue().getSort().getOrderFor("name").getDirection());
     }
 
     @Test

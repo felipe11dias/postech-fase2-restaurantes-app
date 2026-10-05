@@ -63,7 +63,7 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Os nove endpoints da especificação estão documentados, cada um sob a sua tag")
+    @DisplayName("Os quatorze endpoints da especificação estão documentados, cada um sob a sua tag")
     void deveDocumentarTodosOsEndpoints() {
         Set<String> documentados = new TreeSet<>();
         operacoes().forEach(op -> documentados.add(op.metodo() + " " + op.caminho() + " " + op.tag()));
@@ -77,7 +77,12 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
                 "GET /api/v1/users/{id} Usuários",
                 "PUT /api/v1/users/{id} Usuários",
                 "PATCH /api/v1/users/{id}/password Usuários",
-                "DELETE /api/v1/users/{id} Usuários")), documentados);
+                "DELETE /api/v1/users/{id} Usuários",
+                "POST /api/v1/restaurants Restaurantes",
+                "GET /api/v1/restaurants Restaurantes",
+                "GET /api/v1/restaurants/{id} Restaurantes",
+                "PUT /api/v1/restaurants/{id} Restaurantes",
+                "DELETE /api/v1/restaurants/{id} Restaurantes")), documentados);
     }
 
     /**
@@ -100,7 +105,7 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
         }
 
         assertTrue(divergencias.isEmpty(), String.join("\n", divergencias));
-        assertEquals(5, operacoes().stream().filter(Operacao::protegida).count());
+        assertEquals(8, operacoes().stream().filter(Operacao::protegida).count());
     }
 
     @Test

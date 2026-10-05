@@ -20,9 +20,9 @@ import com.postech.restaurantes.adapter.datasource.IPasswordResetTokenDataSource
 import com.postech.restaurantes.adapter.datasource.IRoleDataSource;
 import com.postech.restaurantes.adapter.datasource.data.PasswordResetTokenData;
 import com.postech.restaurantes.adapter.datasource.data.RoleData;
-import com.postech.restaurantes.domain.entity.user.PasswordResetToken;
-import com.postech.restaurantes.domain.entity.user.Role;
-import com.postech.restaurantes.domain.entity.user.RoleName;
+import com.postech.restaurantes.domain.entity.password.PasswordResetToken;
+import com.postech.restaurantes.domain.entity.role.Role;
+import com.postech.restaurantes.domain.entity.role.RoleName;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;

@@ -1,4 +1,4 @@
-package com.postech.restaurantes.infrastructure.persistence.jpa.user;
+package com.postech.restaurantes.infrastructure.persistence.jpa.user.role;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

@@ -4,7 +4,7 @@ import com.postech.restaurantes.adapter.datasource.IPasswordResetTokenDataSource
 import com.postech.restaurantes.adapter.datasource.data.PasswordResetTokenData;
 import com.postech.restaurantes.application.gateway.IPasswordResetTokenGateway;
 import com.postech.restaurantes.domain.Guard;
-import com.postech.restaurantes.domain.entity.user.PasswordResetToken;
+import com.postech.restaurantes.domain.entity.password.PasswordResetToken;
 import java.util.Optional;
 
 /** Tradutor entre {@link PasswordResetToken} e o record da origem de dados. */

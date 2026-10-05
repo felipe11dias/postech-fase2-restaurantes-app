@@ -26,6 +26,7 @@ import com.postech.restaurantes.adapter.datasource.data.UserData;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
+import com.postech.restaurantes.infrastructure.persistence.jpa.user.role.SpringDataRoleRepository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -217,7 +218,7 @@ class UserDataSourceJpaTest {
     }
 
     @Test
-    @DisplayName("Endereço gravado nasce sem id e com o dono religado")
+    @DisplayName("Endereço gravado nasce sem id")
     void deveMontarOsEnderecosDaInsercao() {
         when(roles.findAllById(any())).thenReturn(List.of(roleEntity()));
         when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -231,7 +232,6 @@ class UserDataSourceJpaTest {
         assertNull(gravado.getAddresses().get(0).getId());
         assertNull(gravado.getAddresses().get(0).getComplement());
         assertEquals("Rua A", gravado.getAddresses().get(0).getStreet());
-        assertSame(gravado, gravado.getAddresses().get(0).getUser());
     }
 
     @Test

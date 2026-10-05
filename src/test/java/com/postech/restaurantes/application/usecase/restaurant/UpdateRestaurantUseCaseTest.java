@@ -12,8 +12,8 @@ import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.application.gateway.IUserGateway;
 import com.postech.restaurantes.domain.entity.address.Address;
 import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
-import com.postech.restaurantes.domain.entity.user.Role;
-import com.postech.restaurantes.domain.entity.user.RoleName;
+import com.postech.restaurantes.domain.entity.role.Role;
+import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.entity.user.User;
 import com.postech.restaurantes.domain.exception.ForbiddenOperationException;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
@@ -65,6 +65,21 @@ class UpdateRestaurantUseCaseTest {
 
         assertEquals("Novo Nome", result.getName());
         verify(restaurantGateway).update(any());
+    }
+
+    @Test
+    @DisplayName("Aceita administrador como dono do restaurante")
+    void deveAtualizarQuandoDonoEhAdministrador() {
+        User admin = User.restore(userId, "Admin", "admin@x.com", "admin", "hash",
+                Set.of(Role.restore(UUID.randomUUID(), RoleName.ROLE_ADMIN)), owner.getAddresses(), null, null);
+        when(restaurantGateway.findById(restaurantId)).thenReturn(Optional.of(restaurant));
+        when(userGateway.findById(userId)).thenReturn(Optional.of(admin));
+        when(restaurantGateway.update(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, addressId, "Novo Nome", LocalTime.of(9, 0), LocalTime.of(23, 0));
+        Restaurant result = useCase.run(dto);
+
+        assertEquals("Novo Nome", result.getName());
     }
 
     @Test

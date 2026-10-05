@@ -1,7 +1,7 @@
 package com.postech.restaurantes.infrastructure.api.rest.spring.dto.request;
 
 import com.postech.restaurantes.application.dto.user.NewUserDTO;
-import com.postech.restaurantes.domain.entity.user.RoleName;
+import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.infrastructure.api.rest.spring.validation.ValidPassword;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;

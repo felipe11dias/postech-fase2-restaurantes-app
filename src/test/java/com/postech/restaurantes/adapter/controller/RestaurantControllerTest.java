@@ -20,7 +20,7 @@ import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.restaurant.CreateRestaurantDTO;
 import com.postech.restaurantes.application.dto.restaurant.UpdateRestaurantDTO;
 import com.postech.restaurantes.application.gateway.IUnitOfWork;
-import com.postech.restaurantes.domain.entity.user.RoleName;
+import com.postech.restaurantes.domain.entity.role.RoleName;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;

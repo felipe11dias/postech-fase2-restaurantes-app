@@ -24,7 +24,7 @@ import com.postech.restaurantes.application.dto.user.ChangePasswordDTO;
 import com.postech.restaurantes.application.dto.user.NewUserDTO;
 import com.postech.restaurantes.application.dto.user.UpdateUserDTO;
 import com.postech.restaurantes.application.gateway.IPasswordEncoder;
-import com.postech.restaurantes.domain.entity.user.RoleName;
+import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.exception.ForbiddenOperationException;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
 import java.util.List;
