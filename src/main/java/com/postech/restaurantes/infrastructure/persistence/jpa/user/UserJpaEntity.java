@@ -2,7 +2,10 @@ package com.postech.restaurantes.infrastructure.persistence.jpa.user;
 
 import com.postech.restaurantes.infrastructure.persistence.jpa.audit.AuditableJpaEntity;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.address.UserAddressJpaEntity;
-import com.postech.restaurantes.infrastructure.persistence.jpa.user.role.RoleJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.user.admin.AdminJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.user.client.ClientJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.user.courier.CourierJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.user.owner.OwnerJpaEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,23 +14,24 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrimaryKeyJoinColumn;
 import jakarta.persistence.Table;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
-import org.hibernate.annotations.Fetch;
-import org.hibernate.annotations.FetchMode;
 
 /**
  * Tabela {@code users}. É uma classe <strong>separada</strong> de
  * {@link com.postech.restaurantes.domain.entity.user.User}: anotar a entidade de domínio
  * acoplaria as regras de negócio ao ciclo de vida do Hibernate, e o ORM é um detalhe.
  * Aqui não há invariante nenhuma — só mapeamento.
+ *
+ * <p>Os perfis ({@code owners}, {@code clients}, {@code couriers}, {@code admins}) compartilham a
+ * chave primária do usuário. A associação é unidirecional, deste lado ({@code @PrimaryKeyJoinColumn}):
+ * o perfil não referencia o usuário, senão o pacote de cada perfil e o do usuário dependeriam um do
+ * outro. Por isso o id do perfil é atribuído pela origem de dados — o mesmo do usuário.
  */
 @Entity
 @Table(name = "users")
@@ -51,18 +55,21 @@ public class UserJpaEntity extends AuditableJpaEntity {
     @Column(name = "password", nullable = false, length = 100)
     private String password;
 
-    /**
-     * Fora do grafo de carga dos repositórios, de propósito: buscar os papéis (um Set) junto com os
-     * endereços (uma lista) na mesma consulta multiplica as linhas — papéis × endereços — e o
-     * Hibernate repete cada endereço na lista uma vez por papel. Com {@code SUBSELECT}, os papéis vêm
-     * numa consulta própria, uma só para todos os usuários carregados (inclusive os de uma página).
-     */
-    @ManyToMany(fetch = FetchType.LAZY)
-    @Fetch(FetchMode.SUBSELECT)
-    @JoinTable(name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id"))
-    private Set<RoleJpaEntity> roles = new LinkedHashSet<>();
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @PrimaryKeyJoinColumn
+    private OwnerJpaEntity owner;
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @PrimaryKeyJoinColumn
+    private ClientJpaEntity client;
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @PrimaryKeyJoinColumn
+    private CourierJpaEntity courier;
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @PrimaryKeyJoinColumn
+    private AdminJpaEntity admin;
 
     /**
      * Unidirecional: a chave estrangeira mora em {@code user_addresses}, mas só este lado a conhece
@@ -113,18 +120,41 @@ public class UserJpaEntity extends AuditableJpaEntity {
         this.password = password;
     }
 
-    public Set<RoleJpaEntity> getRoles() {
-        return roles;
+    public OwnerJpaEntity getOwner() {
+        return owner;
+    }
+
+    /** {@code null} remove o perfil: com {@code orphanRemoval}, a linha sai na descarga. */
+    public void setOwner(OwnerJpaEntity owner) {
+        this.owner = owner;
+    }
+
+    public ClientJpaEntity getClient() {
+        return client;
+    }
+
+    public void setClient(ClientJpaEntity client) {
+        this.client = client;
+    }
+
+    public CourierJpaEntity getCourier() {
+        return courier;
+    }
+
+    public void setCourier(CourierJpaEntity courier) {
+        this.courier = courier;
+    }
+
+    public AdminJpaEntity getAdmin() {
+        return admin;
+    }
+
+    public void setAdmin(AdminJpaEntity admin) {
+        this.admin = admin;
     }
 
     public List<UserAddressJpaEntity> getAddresses() {
         return addresses;
-    }
-
-    /** Troca o vínculo N:M inteiro, mantendo a mesma coleção gerenciada pelo Hibernate. */
-    public void replaceRoles(Set<RoleJpaEntity> newRoles) {
-        roles.clear();
-        roles.addAll(newRoles);
     }
 
     /**

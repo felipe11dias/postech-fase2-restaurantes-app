@@ -1,27 +1,13 @@
 package com.postech.restaurantes.domain.entity.role;
 
-import com.postech.restaurantes.domain.Guard;
-import com.postech.restaurantes.domain.exception.InvariantViolationException;
-
-/** Papéis de autorização reconhecidos pelo sistema. */
+/**
+ * Papéis de autorização reconhecidos pelo sistema. Não são escolhidos nem gravados: cada papel é
+ * consequência de um perfil do usuário (ver {@code UserProfiles#roles()}) — quem tem perfil de dono
+ * é {@link #ROLE_OWNER}, e assim por diante. Os nomes são os que vão no token de acesso.
+ */
 public enum RoleName {
     ROLE_OWNER,
-    ROLE_CUSTOMER,
-    ROLE_ADMIN;
-
-    /** Converte o nome textual, recusando valores desconhecidos com mensagem de domínio. */
-    public static RoleName from(String name) {
-        String normalized = Guard.requireNonBlank(name, "Papel inválido").toUpperCase();
-        for (RoleName candidate : values()) {
-            if (candidate.name().equals(normalized)) {
-                return candidate;
-            }
-        }
-        throw new InvariantViolationException("Papel inválido: " + name);
-    }
-
-    /** Papel que nunca pode ser obtido por autocadastro público. */
-    public boolean isPrivileged() {
-        return this == ROLE_ADMIN;
-    }
+    ROLE_CLIENT,
+    ROLE_COURIER,
+    ROLE_ADMIN
 }

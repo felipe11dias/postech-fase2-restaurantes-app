@@ -1,7 +1,6 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa.user;
 
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
-import com.postech.restaurantes.adapter.datasource.data.RoleData;
 import com.postech.restaurantes.adapter.datasource.data.UserAddressData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
 import com.postech.restaurantes.application.dto.common.PageRequest;
@@ -9,14 +8,9 @@ import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.infrastructure.persistence.jpa.address.AddressJpaMapping;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.address.UserAddressJpaEntity;
-import com.postech.restaurantes.infrastructure.persistence.jpa.user.role.RoleJpaEntity;
-import com.postech.restaurantes.infrastructure.persistence.jpa.user.role.SpringDataRoleRepository;
-import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -50,11 +44,9 @@ public class UserDataSourceJpa implements IUserDataSource {
     private static final String DEFAULT_SORT_PROPERTY = "name";
 
     private final SpringDataUserRepository users;
-    private final SpringDataRoleRepository roles;
 
-    public UserDataSourceJpa(SpringDataUserRepository users, SpringDataRoleRepository roles) {
+    public UserDataSourceJpa(SpringDataUserRepository users) {
         this.users = users;
-        this.roles = roles;
     }
 
     @Override
@@ -75,9 +67,22 @@ public class UserDataSourceJpa implements IUserDataSource {
         return users.findByEmail(email).map(UserDataSourceJpa::toData);
     }
 
+    /** O CPF pode estar no perfil de cliente ou no de entregador; o primeiro usuário achado basta. */
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<UserData> findByCpf(String cpf) {
+        return users.findByCpf(cpf).stream().findFirst().map(UserDataSourceJpa::toData);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<UserData> findByCnpj(String cnpj) {
+        return users.findByCnpj(cnpj).map(UserDataSourceJpa::toData);
+    }
+
     /**
      * Duas consultas: a primeira pagina os ids no banco, a segunda carrega os usuários da
-     * página com papéis e endereços. O hash da senha vem junto porque o registro é traduzido
+     * página com perfis e endereços. O hash da senha vem junto porque o registro é traduzido
      * para o agregado inteiro — quem decide o que sai para o cliente é o presenter, e a
      * {@code UserView} não tem campo de senha.
      */
@@ -104,7 +109,10 @@ public class UserDataSourceJpa implements IUserDataSource {
     public UserData insert(UserData user) {
         UserJpaEntity entity = new UserJpaEntity();
         apply(entity, user);
-        return toData(users.saveAndFlush(entity));
+        // O {@code save} emite o id do usuário; só então os perfis, que o usam como chave, entram.
+        UserJpaEntity gravado = users.save(entity);
+        ProfileJpaMapping.apply(gravado, user);
+        return toData(users.saveAndFlush(gravado));
     }
 
     /** Ver {@link #insert}: o {@code saveAndFlush} garante o {@code last_updated_at} novo na volta. */
@@ -114,6 +122,7 @@ public class UserDataSourceJpa implements IUserDataSource {
         UserJpaEntity entity = users.findById(user.id())
                 .orElseThrow(() -> new IllegalStateException("Usuário inexistente para atualização: " + user.id()));
         apply(entity, user);
+        ProfileJpaMapping.apply(entity, user);
         return toData(users.saveAndFlush(entity));
     }
 
@@ -124,7 +133,8 @@ public class UserDataSourceJpa implements IUserDataSource {
     }
 
     /**
-     * Copia o registro para a entidade gerenciada, resolvendo os papéis já persistidos.
+     * Copia o registro para a entidade gerenciada (os perfis, que dependem do id, à parte: ver
+     * {@link ProfileJpaMapping}).
      *
      * <p>As colunas de auditoria ficam de fora de propósito: quem as escreve é o listener do
      * Spring Data. Copiá-las do registro deixaria o núcleo definir "quando" — e no cadastro
@@ -135,17 +145,7 @@ public class UserDataSourceJpa implements IUserDataSource {
         entity.setEmail(data.email());
         entity.setLogin(data.login());
         entity.setPassword(data.passwordHash());
-        entity.replaceRoles(resolveRoles(data.roles()));
         entity.replaceAddresses(reconcile(entity.getAddresses(), data.addresses()));
-    }
-
-    /**
-     * Papéis são catálogo: o vínculo N:M aponta para as linhas que já existem em
-     * {@code roles}, nunca cria novas.
-     */
-    private Set<RoleJpaEntity> resolveRoles(Set<RoleData> wanted) {
-        Collection<UUID> ids = wanted.stream().map(RoleData::id).toList();
-        return new LinkedHashSet<>(roles.findAllById(ids));
     }
 
     /**
@@ -189,10 +189,9 @@ public class UserDataSourceJpa implements IUserDataSource {
 
     static UserData toData(UserJpaEntity entity) {
         return new UserData(entity.getId(), entity.getName(), entity.getEmail(), entity.getLogin(),
-                entity.getPassword(),
-                entity.getRoles().stream()
-                        .map(role -> new RoleData(role.getId(), role.getName()))
-                        .collect(Collectors.toCollection(LinkedHashSet::new)),
+                entity.getPassword(), ProfileJpaMapping.toData(entity.getOwner()),
+                ProfileJpaMapping.toData(entity.getClient()), ProfileJpaMapping.toData(entity.getCourier()),
+                ProfileJpaMapping.toData(entity.getAdmin()),
                 entity.getAddresses().stream().map(UserDataSourceJpa::toData).toList(),
                 entity.getCreatedAt(), entity.getLastUpdatedAt());
     }

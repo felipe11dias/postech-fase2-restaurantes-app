@@ -3,7 +3,6 @@ package com.postech.restaurantes.infrastructure.main;
 import com.postech.restaurantes.adapter.controller.AuthController;
 import com.postech.restaurantes.adapter.controller.UserController;
 import com.postech.restaurantes.adapter.datasource.IPasswordResetTokenDataSource;
-import com.postech.restaurantes.adapter.datasource.IRoleDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
 import com.postech.restaurantes.adapter.service.IMailSender;
 import com.postech.restaurantes.adapter.service.ITokenEncoder;
@@ -45,9 +44,9 @@ public class CompositionConfig {
     }
 
     @Bean
-    public UserController userController(IUserDataSource userDataSource, IRoleDataSource roleDataSource,
-                                         IPasswordEncoder passwordEncoder, IUnitOfWork unitOfWork) {
-        return UserController.create(userDataSource, roleDataSource, passwordEncoder, unitOfWork);
+    public UserController userController(IUserDataSource userDataSource, IPasswordEncoder passwordEncoder,
+                                         IUnitOfWork unitOfWork, Clock clock) {
+        return UserController.create(userDataSource, passwordEncoder, unitOfWork, clock);
     }
 
     @Bean

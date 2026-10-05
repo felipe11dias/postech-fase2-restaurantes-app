@@ -59,11 +59,12 @@ public class RestaurantRestController {
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
     @Operation(summary = "Cadastra um restaurante",
-            description = "Exige perfil de dono de restaurante (ROLE_OWNER) ou administrador (ROLE_ADMIN).")
+            description = "Exige papel de dono de restaurante (ROLE_OWNER) ou de administrador (ROLE_ADMIN).")
     @ApiResponse(responseCode = "201", description = "Restaurante criado")
     @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Campo inválido")
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
     @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Usuário sem perfil de dono/admin")
+    @ErrorResponse(type = ProblemType.FORBIDDEN_OPERATION, description = "O dono indicado não tem perfil de dono")
     @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Dono não encontrado")
     public ResponseEntity<EntityModel<RestaurantResponse>> create(@Valid @RequestBody CreateRestaurantRequest request) {
         RestaurantView criado = controller.create(request.toDTO());
@@ -101,11 +102,12 @@ public class RestaurantRestController {
     @PreAuthorize(DONO_OU_ADMIN)
     @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
     @Operation(summary = "Atualiza um restaurante",
-            description = "Exige perfil de dono de restaurante (ROLE_OWNER) ou administrador (ROLE_ADMIN).")
+            description = "Exige papel de dono de restaurante (ROLE_OWNER) ou de administrador (ROLE_ADMIN).")
     @ApiResponse(responseCode = "200", description = "Restaurante atualizado")
     @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Campo inválido")
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
     @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Usuário sem perfil de dono/admin")
+    @ErrorResponse(type = ProblemType.FORBIDDEN_OPERATION, description = "O dono indicado não tem perfil de dono")
     @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Restaurante ou dono não encontrado")
     public EntityModel<RestaurantResponse> update(
             @Parameter(description = "Id do restaurante") @PathVariable UUID id,
@@ -118,7 +120,7 @@ public class RestaurantRestController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
     @Operation(summary = "Exclui um restaurante",
-            description = "Exige perfil de dono de restaurante (ROLE_OWNER) ou administrador (ROLE_ADMIN).")
+            description = "Exige papel de dono de restaurante (ROLE_OWNER) ou de administrador (ROLE_ADMIN).")
     @ApiResponse(responseCode = "204", description = "Restaurante excluído")
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
     @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Usuário sem perfil de dono/admin")

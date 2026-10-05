@@ -1,13 +1,11 @@
 package com.postech.restaurantes.domain.entity.user;
 
 import com.postech.restaurantes.domain.Guard;
-import com.postech.restaurantes.domain.entity.role.Role;
 import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.vo.Email;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -19,8 +17,9 @@ import java.util.stream.Collectors;
  * {@link #restore} passam pela mesma validação, e cada setter revalida o campo que altera.
  *
  * <p>Invariantes: nome, login e hash de senha não vazios; e-mail válido e normalizado;
- * ao menos um papel; endereços válidos (a lista pode ser vazia) e, havendo endereços, exatamente
- * um deles é o padrão; endereço com id só se for um dos que o usuário já tem.
+ * ao menos um perfil (ver {@link UserProfiles}, que também dá os papéis); endereços válidos (a
+ * lista pode ser vazia) e, havendo endereços, exatamente um deles é o padrão; endereço com id só se
+ * for um dos que o usuário já tem.
  */
 public final class User {
 
@@ -29,7 +28,7 @@ public final class User {
     private Email email;
     private String login;
     private String passwordHash;
-    private final Set<Role> roles = new LinkedHashSet<>();
+    private UserProfiles profiles;
     private final List<UserAddress> addresses = new ArrayList<>();
     private final LocalDateTime createdAt;
     private final LocalDateTime lastUpdatedAt;
@@ -42,29 +41,29 @@ public final class User {
 
     /** Usuário novo, ainda sem id nem auditoria. */
     public static User create(String name, String email, String login, String passwordHash,
-                              Set<Role> roles, List<UserAddress> addresses) {
-        User user = fill(new User(null, null, null), name, email, login, passwordHash, roles);
+                              UserProfiles profiles, List<UserAddress> addresses) {
+        User user = fill(new User(null, null, null), name, email, login, passwordHash, profiles);
         user.replaceAddresses(addresses);
         return user;
     }
 
     /** Usuário reconstruído a partir da origem de dados, com id e auditoria conhecidos. */
     public static User restore(UUID id, String name, String email, String login, String passwordHash,
-                               Set<Role> roles, List<UserAddress> addresses,
+                               UserProfiles profiles, List<UserAddress> addresses,
                                LocalDateTime createdAt, LocalDateTime lastUpdatedAt) {
         User user = new User(Guard.requireNonNull(id, "Id do usuário inválido"), createdAt, lastUpdatedAt);
-        fill(user, name, email, login, passwordHash, roles);
+        fill(user, name, email, login, passwordHash, profiles);
         user.setAddresses(addresses);
         return user;
     }
 
     private static User fill(User user, String name, String email, String login, String passwordHash,
-                             Set<Role> roles) {
+                             UserProfiles profiles) {
         user.setName(name);
         user.setEmail(Email.of(email));
         user.setLogin(login);
         user.changePasswordHash(passwordHash);
-        user.replaceRoles(roles);
+        user.replaceProfiles(profiles);
         return user;
     }
 
@@ -85,11 +84,9 @@ public final class User {
         this.passwordHash = Guard.requireNonBlank(passwordHash, "Hash de senha inválido");
     }
 
-    public void replaceRoles(Set<Role> newRoles) {
-        Guard.require(newRoles != null && !newRoles.isEmpty(), "Usuário deve ter ao menos um papel");
-        Guard.require(newRoles.stream().noneMatch(Objects::isNull), "Papel inválido");
-        roles.clear();
-        roles.addAll(newRoles);
+    /** Troca o conjunto de perfis; as invariantes do conjunto são do próprio {@link UserProfiles}. */
+    public void replaceProfiles(UserProfiles newProfiles) {
+        this.profiles = Guard.requireNonNull(newProfiles, "Perfis do usuário inválidos");
     }
 
     /**
@@ -123,7 +120,7 @@ public final class User {
     }
 
     public boolean hasRole(RoleName roleName) {
-        return roles.stream().anyMatch(role -> role.getName() == roleName);
+        return getRoles().contains(roleName);
     }
 
     public boolean isAdmin() {
@@ -150,8 +147,13 @@ public final class User {
         return passwordHash;
     }
 
-    public Set<Role> getRoles() {
-        return Collections.unmodifiableSet(roles);
+    public UserProfiles getProfiles() {
+        return profiles;
+    }
+
+    /** Papéis derivados dos perfis. */
+    public Set<RoleName> getRoles() {
+        return profiles.roles();
     }
 
     public List<UserAddress> getAddresses() {

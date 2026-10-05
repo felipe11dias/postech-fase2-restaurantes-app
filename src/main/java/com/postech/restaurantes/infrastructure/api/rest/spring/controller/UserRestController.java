@@ -74,7 +74,8 @@ public class UserRestController {
     }
 
     /**
-     * Autocadastro público. Pedir {@code ROLE_ADMIN} aqui é recusado pelo caso de uso.
+     * Autocadastro público, com os perfis de dono, cliente e entregador. O de administrador não existe
+     * no pedido: não se obtém por autocadastro.
      *
      * <p>O {@code @ResponseStatus} não muda o comportamento — quem define o 201 é o
      * {@code ResponseEntity.created} —, mas sem ele o springdoc documentaria 200.
@@ -82,12 +83,13 @@ public class UserRestController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Autocadastro",
-            description = "Cria um usuário. Público. Pode pedir ROLE_OWNER e/ou ROLE_CUSTOMER; "
-                    + "ROLE_ADMIN é recusado. A resposta traz o header Location do recurso criado.")
+            description = "Cria um usuário. Público. Traz ao menos um perfil — dono (owner), cliente (client), "
+                    + "entregador (courier) —; os papéis (ROLE_OWNER, ROLE_CLIENT, ROLE_COURIER) saem dos perfis. "
+                    + "O perfil de administrador não se obtém por aqui. A resposta traz o header Location do recurso criado.")
     @ApiResponse(responseCode = "201", description = "Usuário criado")
-    @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Campo inválido, papel inexistente ou endereço inconsistente")
-    @ErrorResponse(type = ProblemType.FORBIDDEN_OPERATION, description = "Autocadastro pediu ROLE_ADMIN")
-    @ErrorResponse(type = ProblemType.DATA_CONFLICT, description = "E-mail ou login já cadastrado")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST,
+            description = "Campo inválido, nenhum perfil, documento inválido ou endereço inconsistente")
+    @ErrorResponse(type = ProblemType.DATA_CONFLICT, description = "E-mail, login, CPF ou CNPJ já cadastrado")
     public ResponseEntity<EntityModel<UserResponse>> register(@Valid @RequestBody NewUserRequest request) {
         UserView criado = controller.register(request.toDTO());
         EntityModel<UserResponse> corpo = assembler.toModel(criado);

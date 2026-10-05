@@ -1,6 +1,5 @@
 /**
- * Papéis de autorização: RoleName (os papéis reconhecidos pelo sistema) e Role (papel persistido,
- * com igualdade pelo nome). Usados pelo agregado de usuário e pelas regras de acesso dos casos de
- * uso; não conhecem o usuário.
+ * Papéis de autorização (RoleName). Não são gravados nem escolhidos: cada papel é derivado de um
+ * perfil do usuário (UserProfiles). Não conhece o usuário nem os perfis.
  */
 package com.postech.restaurantes.domain.entity.role;

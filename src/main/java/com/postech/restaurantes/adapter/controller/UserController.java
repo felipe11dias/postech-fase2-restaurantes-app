@@ -1,8 +1,6 @@
 package com.postech.restaurantes.adapter.controller;
 
-import com.postech.restaurantes.adapter.datasource.IRoleDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
-import com.postech.restaurantes.adapter.gateway.RoleGateway;
 import com.postech.restaurantes.adapter.gateway.UserGateway;
 import com.postech.restaurantes.adapter.presenter.UserPresenter;
 import com.postech.restaurantes.adapter.presenter.view.UserView;
@@ -20,6 +18,7 @@ import com.postech.restaurantes.application.usecase.user.RegisterUserUseCase;
 import com.postech.restaurantes.application.usecase.user.SearchUsersUseCase;
 import com.postech.restaurantes.application.usecase.user.UpdateUserUseCase;
 import com.postech.restaurantes.domain.Guard;
+import java.time.Clock;
 import java.util.UUID;
 
 /**
@@ -30,25 +29,25 @@ import java.util.UUID;
 public final class UserController {
 
     private final IUserDataSource userDataSource;
-    private final IRoleDataSource roleDataSource;
     private final IPasswordEncoder passwordEncoder;
     private final IUnitOfWork unitOfWork;
+    private final Clock clock;
 
-    private UserController(IUserDataSource userDataSource, IRoleDataSource roleDataSource,
-                           IPasswordEncoder passwordEncoder, IUnitOfWork unitOfWork) {
+    private UserController(IUserDataSource userDataSource, IPasswordEncoder passwordEncoder, IUnitOfWork unitOfWork,
+                           Clock clock) {
         this.userDataSource = Guard.requireNonNull(userDataSource, "Origem de dados de usuário inválida");
-        this.roleDataSource = Guard.requireNonNull(roleDataSource, "Origem de dados de papel inválida");
         this.passwordEncoder = Guard.requireNonNull(passwordEncoder, "Codificador de senha inválido");
         this.unitOfWork = Guard.requireNonNull(unitOfWork, "Unidade de trabalho inválida");
+        this.clock = Guard.requireNonNull(clock, "Relógio inválido");
     }
 
-    public static UserController create(IUserDataSource userDataSource, IRoleDataSource roleDataSource,
-                                        IPasswordEncoder passwordEncoder, IUnitOfWork unitOfWork) {
-        return new UserController(userDataSource, roleDataSource, passwordEncoder, unitOfWork);
+    public static UserController create(IUserDataSource userDataSource, IPasswordEncoder passwordEncoder,
+                                        IUnitOfWork unitOfWork, Clock clock) {
+        return new UserController(userDataSource, passwordEncoder, unitOfWork, clock);
     }
 
     public UserView register(NewUserDTO dto) {
-        var useCase = RegisterUserUseCase.create(userGateway(), RoleGateway.create(roleDataSource), passwordEncoder);
+        var useCase = RegisterUserUseCase.create(userGateway(), passwordEncoder, clock);
         return UserPresenter.toView(unitOfWork.execute(() -> useCase.run(dto)));
     }
 

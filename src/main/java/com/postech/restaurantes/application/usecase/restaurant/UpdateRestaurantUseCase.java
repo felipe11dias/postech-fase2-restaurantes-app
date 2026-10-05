@@ -35,8 +35,8 @@ public final class UpdateRestaurantUseCase {
         User user = userGateway.findById(dto.userId())
                 .orElseThrow(() -> new ResourceNotFoundException("Dono do restaurante não encontrado"));
 
-        if (!user.hasRole(RoleName.ROLE_OWNER) && !user.hasRole(RoleName.ROLE_ADMIN)) {
-            throw new ForbiddenOperationException("O usuário informado não possui papel de dono de restaurante");
+        if (!user.hasRole(RoleName.ROLE_OWNER)) {
+            throw new ForbiddenOperationException("O usuário informado não tem perfil de dono de restaurante");
         }
 
         existing.setUserId(dto.userId());

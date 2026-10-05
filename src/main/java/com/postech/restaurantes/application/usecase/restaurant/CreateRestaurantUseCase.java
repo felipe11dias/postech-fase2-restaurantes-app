@@ -13,8 +13,8 @@ import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
 /**
  * Caso de uso de criação de restaurante.
  *
- * <p>Regras de aplicação: o dono deve existir e possuir papel de dono de restaurante
- * ({@code ROLE_OWNER}) ou admin ({@code ROLE_ADMIN}). O endereço chega no pedido e é do
+ * <p>Regras de aplicação: o dono deve existir e ter perfil de dono de restaurante
+ * ({@code ROLE_OWNER}) — um administrador sem esse perfil não é dono. O endereço chega no pedido e é do
  * restaurante — não é escolhido entre os endereços do dono.
  */
 public final class CreateRestaurantUseCase {
@@ -36,8 +36,8 @@ public final class CreateRestaurantUseCase {
         User user = userGateway.findById(dto.userId())
                 .orElseThrow(() -> new ResourceNotFoundException("Dono do restaurante não encontrado"));
 
-        if (!user.hasRole(RoleName.ROLE_OWNER) && !user.hasRole(RoleName.ROLE_ADMIN)) {
-            throw new ForbiddenOperationException("O usuário informado não possui papel de dono de restaurante");
+        if (!user.hasRole(RoleName.ROLE_OWNER)) {
+            throw new ForbiddenOperationException("O usuário informado não tem perfil de dono de restaurante");
         }
 
         Restaurant restaurant = Restaurant.create(
