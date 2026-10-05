@@ -4,6 +4,8 @@ import static com.postech.restaurantes.infrastructure.persistence.jpa.Persistenc
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.HASH;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.NOW;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ROLE_ID;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.USER_ADDRESS_DATA;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.USER_ADDRESS_ID;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.USER_DATA;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.USER_ID;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.roleEntity;
@@ -22,10 +24,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.postech.restaurantes.adapter.datasource.data.AddressData;
+import com.postech.restaurantes.adapter.datasource.data.UserAddressData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
+import com.postech.restaurantes.infrastructure.persistence.jpa.user.address.UserAddressJpaEntity;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.role.SpringDataRoleRepository;
 import java.util.List;
 import java.util.Optional;
@@ -72,8 +76,11 @@ class UserDataSourceJpaTest {
         assertEquals(HASH, data.passwordHash());
         assertEquals(ROLE_ID, data.roles().iterator().next().id());
         assertEquals("ROLE_CUSTOMER", data.roles().iterator().next().name());
-        assertEquals(ADDRESS_ID, data.addresses().get(0).id());
-        assertEquals("01001000", data.addresses().get(0).zipCode());
+        assertEquals(USER_ADDRESS_ID, data.addresses().get(0).id());
+        assertEquals("Casa", data.addresses().get(0).label());
+        assertTrue(data.addresses().get(0).isDefault());
+        assertEquals(ADDRESS_ID, data.addresses().get(0).address().id());
+        assertEquals("01001000", data.addresses().get(0).address().zipCode());
         assertEquals(NOW.minusDays(1), data.createdAt());
         assertEquals(NOW, data.lastUpdatedAt());
     }
@@ -193,7 +200,7 @@ class UserDataSourceJpaTest {
         when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         UserData salvo = dataSource.insert(new UserData(null, "João Silva", "joao.silva@email.com", "joao.silva",
-                HASH, USER_DATA.roles(), USER_DATA.addresses(), NOW, NOW));
+                HASH, USER_DATA.roles(), List.of(), NOW, NOW));
 
         UserJpaEntity gravado = capturarGravado();
         assertNull(gravado.getId());
@@ -218,20 +225,58 @@ class UserDataSourceJpaTest {
     }
 
     @Test
-    @DisplayName("Endereço gravado nasce sem id")
+    @DisplayName("Vínculo e endereço de um usuário novo nascem sem id, com rótulo e padrão do registro")
     void deveMontarOsEnderecosDaInsercao() {
         when(roles.findAllById(any())).thenReturn(List.of(roleEntity()));
         when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         dataSource.insert(new UserData(null, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
-                USER_DATA.roles(), List.of(new AddressData(ADDRESS_ID, "Rua A", "1", null, "Centro", "São Paulo",
-                        "SP", "01001000")), NOW, NOW));
+                USER_DATA.roles(), List.of(new UserAddressData(null, "Trabalho", true,
+                        new AddressData(ADDRESS_ID, "Rua A", "1", null, "Centro", "São Paulo", "SP", "01001000"))),
+                NOW, NOW));
 
         UserJpaEntity gravado = capturarGravado();
         assertEquals(1, gravado.getAddresses().size());
         assertNull(gravado.getAddresses().get(0).getId());
-        assertNull(gravado.getAddresses().get(0).getComplement());
-        assertEquals("Rua A", gravado.getAddresses().get(0).getStreet());
+        assertEquals("Trabalho", gravado.getAddresses().get(0).getLabel());
+        assertTrue(gravado.getAddresses().get(0).isDefaultAddress());
+        assertNull(gravado.getAddresses().get(0).getAddress().getId());
+        assertNull(gravado.getAddresses().get(0).getAddress().getComplement());
+        assertEquals("Rua A", gravado.getAddresses().get(0).getAddress().getStreet());
+    }
+
+    @Test
+    @DisplayName("Atualização com o id do vínculo atualiza vínculo e endereço na mesma linha; sem id, cria outro")
+    void deveManterOVinculoPeloId() {
+        UserJpaEntity existente = userEntity();
+        UserAddressJpaEntity vinculo = existente.getAddresses().get(0);
+        when(users.findById(USER_ID)).thenReturn(Optional.of(existente));
+        when(roles.findAllById(any())).thenReturn(List.of(roleEntity()));
+        when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        AddressData outraRua = new AddressData(null, "Rua Outra", "7", null, "Centro", "São Paulo", "SP", "01001000");
+
+        dataSource.update(new UserData(USER_ID, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
+                USER_DATA.roles(), List.of(new UserAddressData(USER_ADDRESS_ID, "Casa Nova", false, outraRua),
+                        new UserAddressData(null, "Trabalho", true, outraRua)), NOW, NOW));
+
+        assertEquals(2, existente.getAddresses().size());
+        assertSame(vinculo, existente.getAddresses().get(0));
+        assertEquals("Casa Nova", vinculo.getLabel());
+        assertEquals(ADDRESS_ID, vinculo.getAddress().getId());
+        assertEquals("Rua Outra", vinculo.getAddress().getStreet());
+        assertNull(existente.getAddresses().get(1).getId());
+    }
+
+    @Test
+    @DisplayName("Id de vínculo que o usuário não tem é falha de estado: o domínio não deixaria chegar aqui")
+    void deveRecusarVinculoInexistente() {
+        when(users.findById(USER_ID)).thenReturn(Optional.of(userEntity()));
+        when(roles.findAllById(any())).thenReturn(List.of(roleEntity()));
+        UserData comVinculoAlheio = new UserData(USER_ID, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
+                USER_DATA.roles(),
+                List.of(new UserAddressData(UUID.randomUUID(), null, true, USER_ADDRESS_DATA.address())), NOW, NOW);
+
+        assertThrows(IllegalStateException.class, () -> dataSource.update(comVinculoAlheio));
     }
 
     @Test

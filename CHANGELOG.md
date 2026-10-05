@@ -360,3 +360,27 @@
 - `docs/arquitetura/01`, `04`, `05` e `CLAUDE.md` com a organização nova.
 - `mvn clean verify`: 530 testes unitários e 92 de integração; cobertura unitária 100% (1346
   linhas, 268 ramos, 560 métodos). Newman: 67 requests, 124 asserções, nenhuma falha.
+
+## Etapa 18 — Endereços via user_addresses e endereço próprio do restaurante
+- Migration `V4__user_addresses.sql`: tabela `user_addresses` (rótulo, `is_default`, auditoria;
+  `address_id` único; "um padrão por usuário" como restrição de exclusão adiada para o commit);
+  endereços existentes viram vínculos (o de menor id é o padrão); cada restaurante ganha uma cópia
+  própria do endereço que usava; `restaurants.address_id` único; `addresses.user_id` removida.
+- Domínio: `UserAddress` (parte do agregado `User`), com "exatamente um padrão" verificado no
+  `User`; `Restaurant` passa a ter um `Address` em vez de `addressId`.
+- Aplicação: `UserAddressDTO` (promove o primeiro a padrão quando nenhum é marcado); DTOs de
+  restaurante com `AddressDTO`; sai a regra "o endereço do restaurante é um dos endereços do dono".
+- Adaptadores: `UserAddressData`, `UserAddressView`; `AddressMapping` (adapter/gateway/mapping) e
+  `AddressPresenter`, compartilhados pelo usuário e pelo restaurante.
+- Persistência: `AddressJpaEntity` em `persistence/jpa/address` (com `AddressJpaMapping`);
+  `UserAddressJpaEntity` em `persistence/jpa/user/address`; restaurante com `@OneToOne` e
+  `orphanRemoval` para o endereço; `@EntityGraph` carregando o endereço.
+- API: endereços do usuário como `{ label, isDefault, address }`; restaurante com `address` no
+  corpo e na resposta. Coleção Postman ajustada e prints regenerados.
+- V4 verificada também sobre o volume do Compose com dados (restaurante usando o endereço do dono).
+- Revisão de código: papéis carregados por subselect (o grafo papéis × endereços repetia endereços);
+  `id` opcional no endereço do usuário mantém vínculo e endereço numa atualização (id alheio → 400);
+  ITs contam só os endereços que criaram (`EnderecosNoBanco`), limpeza em `finally`; guarda de que a
+  restrição adiada chega como 409.
+- `mvn clean verify`: 560 testes unitários e 98 de integração; cobertura unitária 100% (1429
+  linhas, 292 ramos, 597 métodos). Newman: 67 requests, 126 asserções, nenhuma falha.

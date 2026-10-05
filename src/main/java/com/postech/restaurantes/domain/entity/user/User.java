@@ -12,14 +12,15 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import com.postech.restaurantes.domain.entity.address.Address;
+import java.util.stream.Collectors;
 
 /**
  * Raiz do agregado de usuário. Não existe instância inválida: {@link #create} e
  * {@link #restore} passam pela mesma validação, e cada setter revalida o campo que altera.
  *
  * <p>Invariantes: nome, login e hash de senha não vazios; e-mail válido e normalizado;
- * ao menos um papel; endereços válidos (a lista pode ser vazia).
+ * ao menos um papel; endereços válidos (a lista pode ser vazia) e, havendo endereços, exatamente
+ * um deles é o padrão; endereço com id só se for um dos que o usuário já tem.
  */
 public final class User {
 
@@ -29,7 +30,7 @@ public final class User {
     private String login;
     private String passwordHash;
     private final Set<Role> roles = new LinkedHashSet<>();
-    private final List<Address> addresses = new ArrayList<>();
+    private final List<UserAddress> addresses = new ArrayList<>();
     private final LocalDateTime createdAt;
     private final LocalDateTime lastUpdatedAt;
 
@@ -41,26 +42,29 @@ public final class User {
 
     /** Usuário novo, ainda sem id nem auditoria. */
     public static User create(String name, String email, String login, String passwordHash,
-                              Set<Role> roles, List<Address> addresses) {
-        return fill(new User(null, null, null), name, email, login, passwordHash, roles, addresses);
+                              Set<Role> roles, List<UserAddress> addresses) {
+        User user = fill(new User(null, null, null), name, email, login, passwordHash, roles);
+        user.replaceAddresses(addresses);
+        return user;
     }
 
     /** Usuário reconstruído a partir da origem de dados, com id e auditoria conhecidos. */
     public static User restore(UUID id, String name, String email, String login, String passwordHash,
-                               Set<Role> roles, List<Address> addresses,
+                               Set<Role> roles, List<UserAddress> addresses,
                                LocalDateTime createdAt, LocalDateTime lastUpdatedAt) {
         User user = new User(Guard.requireNonNull(id, "Id do usuário inválido"), createdAt, lastUpdatedAt);
-        return fill(user, name, email, login, passwordHash, roles, addresses);
+        fill(user, name, email, login, passwordHash, roles);
+        user.setAddresses(addresses);
+        return user;
     }
 
     private static User fill(User user, String name, String email, String login, String passwordHash,
-                             Set<Role> roles, List<Address> addresses) {
+                             Set<Role> roles) {
         user.setName(name);
         user.setEmail(Email.of(email));
         user.setLogin(login);
         user.changePasswordHash(passwordHash);
         user.replaceRoles(roles);
-        user.replaceAddresses(addresses);
         return user;
     }
 
@@ -88,11 +92,34 @@ public final class User {
         roles.addAll(newRoles);
     }
 
-    public void replaceAddresses(List<Address> newAddresses) {
-        Guard.requireNonNull(newAddresses, "Lista de endereços inválida");
-        Guard.require(newAddresses.stream().noneMatch(Objects::isNull), "Endereço inválido");
+    /**
+     * Troca a lista inteira. Lista vazia é válida (o usuário pode não ter endereço); havendo
+     * endereços, um e só um é o padrão. Endereço com id é um dos que o usuário já tem e continua
+     * sendo o mesmo (mantém o id); sem id, é novo; os que não vierem deixam de ser do usuário. Id
+     * que não é de um endereço deste usuário é recusado — conhecer o id não dá posse dele.
+     */
+    public void replaceAddresses(List<UserAddress> newAddresses) {
+        validateAddresses(newAddresses);
+        Set<UUID> current = addresses.stream().map(UserAddress::getId).collect(Collectors.toSet());
+        List<UUID> kept = newAddresses.stream().map(UserAddress::getId).filter(Objects::nonNull).toList();
+        Guard.require(current.containsAll(kept), "Endereço do usuário não encontrado");
+        Guard.require(Set.copyOf(kept).size() == kept.size(), "Endereço do usuário repetido");
         addresses.clear();
         addresses.addAll(newAddresses);
+    }
+
+    /** O que vem da origem de dados já é do usuário: só as invariantes da lista se aplicam. */
+    private void setAddresses(List<UserAddress> restored) {
+        validateAddresses(restored);
+        addresses.clear();
+        addresses.addAll(restored);
+    }
+
+    private static void validateAddresses(List<UserAddress> list) {
+        Guard.requireNonNull(list, "Lista de endereços inválida");
+        Guard.require(list.stream().noneMatch(Objects::isNull), "Endereço inválido");
+        long defaults = list.stream().filter(UserAddress::isDefault).count();
+        Guard.require(list.isEmpty() || defaults == 1, "Exatamente um endereço deve ser o padrão");
     }
 
     public boolean hasRole(RoleName roleName) {
@@ -127,7 +154,7 @@ public final class User {
         return Collections.unmodifiableSet(roles);
     }
 
-    public List<Address> getAddresses() {
+    public List<UserAddress> getAddresses() {
         return Collections.unmodifiableList(addresses);
     }
 

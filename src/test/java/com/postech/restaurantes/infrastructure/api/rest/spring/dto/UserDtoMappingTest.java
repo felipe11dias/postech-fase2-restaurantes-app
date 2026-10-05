@@ -3,22 +3,26 @@ package com.postech.restaurantes.infrastructure.api.rest.spring.dto;
 import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.ADDRESS_ID;
 import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.NOW;
 import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.ROLE_ID;
+import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.USER_ADDRESS_ID;
 import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.USER_ID;
 import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.USER_VIEW;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.postech.restaurantes.application.dto.common.AddressDTO;
 import com.postech.restaurantes.application.dto.user.ChangePasswordDTO;
 import com.postech.restaurantes.application.dto.user.NewUserDTO;
 import com.postech.restaurantes.application.dto.user.UpdateUserDTO;
+import com.postech.restaurantes.application.dto.user.UserAddressDTO;
 import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.AddressRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.ChangePasswordRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.NewUserRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.UpdateUserRequest;
+import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.UserAddressRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.response.UserResponse;
 import java.util.List;
 import java.util.Set;
@@ -33,6 +37,10 @@ class UserDtoMappingTest {
         return new AddressRequest("Rua das Flores", "100", "Apto 21", "Centro", "São Paulo", "SP", "01001-000");
     }
 
+    private static UserAddressRequest enderecoDoUsuarioRequest() {
+        return new UserAddressRequest(null, "Casa", true, enderecoRequest());
+    }
+
     @Nested
     @DisplayName("Entrada")
     class Entrada {
@@ -41,14 +49,16 @@ class UserDtoMappingTest {
         @DisplayName("Cadastro converte papéis pelo domínio e repassa os endereços")
         void deveConverterOCadastro() {
             NewUserRequest request = new NewUserRequest("João Silva", "joao.silva@email.com", "joao.silva",
-                    "senhaSegura123", Set.of("ROLE_CUSTOMER"), List.of(enderecoRequest()));
+                    "senhaSegura123", Set.of("ROLE_CUSTOMER"), List.of(enderecoDoUsuarioRequest()));
 
             NewUserDTO dto = request.toDTO();
 
             assertEquals("João Silva", dto.name());
             assertEquals("senhaSegura123", dto.password());
             assertEquals(Set.of(RoleName.ROLE_CUSTOMER), dto.roles());
-            assertEquals("01001-000", dto.addresses().get(0).zipCode());
+            assertEquals("Casa", dto.addresses().get(0).label());
+            assertEquals(Boolean.TRUE, dto.addresses().get(0).isDefault());
+            assertEquals("01001-000", dto.addresses().get(0).address().zipCode());
         }
 
         @Test
@@ -74,12 +84,23 @@ class UserDtoMappingTest {
         @DisplayName("Atualização converte nome, e-mail, login e endereços")
         void deveConverterAAtualizacao() {
             UpdateUserDTO dto = new UpdateUserRequest("Novo Nome", "novo@email.com", "novo",
-                    List.of(enderecoRequest())).toDTO();
+                    List.of(enderecoDoUsuarioRequest())).toDTO();
 
             assertEquals("Novo Nome", dto.name());
             assertEquals("novo@email.com", dto.email());
             assertEquals("novo", dto.login());
             assertEquals(1, dto.addresses().size());
+        }
+
+        @Test
+        @DisplayName("Endereço do usuário sem o endereço aninhado chega ao caso de uso sem ele, com o id do corpo")
+        void deveRepassarEnderecoDoUsuarioSemEndereco() {
+            UserAddressDTO dto = new UserAddressRequest(USER_ADDRESS_ID, "Casa", null, null).toDTO();
+
+            assertEquals(USER_ADDRESS_ID, dto.id());
+            assertEquals("Casa", dto.label());
+            assertNull(dto.isDefault());
+            assertNull(dto.address());
         }
 
         @Test
@@ -122,8 +143,11 @@ class UserDtoMappingTest {
             assertEquals("joao.silva", response.login());
             assertEquals(ROLE_ID, response.roles().get(0).id());
             assertEquals("ROLE_CUSTOMER", response.roles().get(0).name());
-            assertEquals(ADDRESS_ID, response.addresses().get(0).id());
-            assertEquals("01001000", response.addresses().get(0).zipCode());
+            assertEquals(USER_ADDRESS_ID, response.addresses().get(0).id());
+            assertEquals("Casa", response.addresses().get(0).label());
+            assertTrue(response.addresses().get(0).isDefault());
+            assertEquals(ADDRESS_ID, response.addresses().get(0).address().id());
+            assertEquals("01001000", response.addresses().get(0).address().zipCode());
             assertEquals(NOW.minusDays(1), response.createdAt());
             assertEquals(NOW, response.lastUpdatedAt());
             assertFalse(response.toString().toLowerCase().contains("password"));

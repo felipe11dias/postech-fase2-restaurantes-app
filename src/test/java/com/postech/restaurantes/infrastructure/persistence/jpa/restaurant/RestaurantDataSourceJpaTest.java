@@ -1,7 +1,10 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa.restaurant;
 
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ADDRESS_DATA;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ADDRESS_ID;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.addressEntity;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -10,6 +13,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.postech.restaurantes.adapter.datasource.data.AddressData;
 import com.postech.restaurantes.adapter.datasource.data.RestaurantData;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
@@ -33,7 +37,6 @@ class RestaurantDataSourceJpaTest {
 
     private UUID id;
     private UUID userId;
-    private UUID addressId;
     private RestaurantJpaEntity entity;
 
     @BeforeEach
@@ -43,12 +46,11 @@ class RestaurantDataSourceJpaTest {
 
         id = UUID.randomUUID();
         userId = UUID.randomUUID();
-        addressId = UUID.randomUUID();
 
         entity = new RestaurantJpaEntity();
         entity.setId(id);
         entity.setUserId(userId);
-        entity.setAddressId(addressId);
+        entity.setAddress(addressEntity());
         entity.setName("Sabor");
         entity.setOfficeHourStart(LocalTime.of(8, 0));
         entity.setOfficeHourEnd(LocalTime.of(22, 0));
@@ -103,25 +105,41 @@ class RestaurantDataSourceJpaTest {
     }
 
     @Test
-    @DisplayName("Insercao e atualizacao")
-    void deveInserirEAtualizar() {
-        when(repository.saveAndFlush(any())).thenReturn(entity);
-        when(repository.findById(id)).thenReturn(Optional.of(entity));
-
-        RestaurantData data = new RestaurantData(id, userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0), null, null);
+    @DisplayName("Inserção grava o restaurante com uma linha de endereço nova, sem id")
+    void deveInserirComEnderecoNovo() {
+        when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        RestaurantData data = new RestaurantData(null, userId, ADDRESS_DATA, "Sabor", LocalTime.of(8, 0),
+                LocalTime.of(22, 0), null, null);
 
         RestaurantData inserted = dataSource.insert(data);
+
+        ArgumentCaptor<RestaurantJpaEntity> captor = ArgumentCaptor.forClass(RestaurantJpaEntity.class);
+        verify(repository).saveAndFlush(captor.capture());
+        assertNull(captor.getValue().getAddress().getId());
+        assertEquals("Rua das Flores", inserted.address().street());
+    }
+
+    @Test
+    @DisplayName("Atualização troca os campos do endereço na mesma linha, mantendo o id dela")
+    void deveAtualizarOEnderecoNaMesmaLinha() {
+        when(repository.findById(id)).thenReturn(Optional.of(entity));
+        when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        AddressData outro = new AddressData(UUID.randomUUID(), "Av. B", null, null, null, "Rio", "RJ", "20000000");
+        RestaurantData data = new RestaurantData(id, userId, outro, "Novo", LocalTime.of(8, 0), LocalTime.of(22, 0),
+                null, null);
+
         RestaurantData updated = dataSource.update(data);
 
-        assertNotNull(inserted);
-        assertNotNull(updated);
+        assertEquals(ADDRESS_ID, updated.address().id());
+        assertEquals("Av. B", updated.address().street());
+        assertEquals("Novo", updated.name());
     }
 
     @Test
     @DisplayName("Lanca excecao ao atualizar inexistente")
     void deveLancarExcecaoAoAtualizarInexistente() {
         when(repository.findById(id)).thenReturn(Optional.empty());
-        RestaurantData data = new RestaurantData(id, userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0), null, null);
+        RestaurantData data = new RestaurantData(id, userId, ADDRESS_DATA, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0), null, null);
 
         assertThrows(IllegalStateException.class, () -> dataSource.update(data));
     }

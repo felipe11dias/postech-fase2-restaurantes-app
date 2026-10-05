@@ -1,6 +1,7 @@
 package com.postech.restaurantes.domain.entity.restaurant;
 
 import com.postech.restaurantes.domain.Guard;
+import com.postech.restaurantes.domain.entity.address.Address;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.UUID;
@@ -9,14 +10,15 @@ import java.util.UUID;
  * Raiz do agregado de restaurante. Não existe instância inválida: {@link #create} e
  * {@link #restore} passam pela mesma validação.
  *
- * <p>Invariantes: nome não vazio; dono (userId) e endereço (addressId) válidos; horários
- * de funcionamento informados e distintos.
+ * <p>Invariantes: nome não vazio; dono (userId) informado; endereço próprio presente — o
+ * {@link Address} é parte deste agregado, e nenhum outro restaurante ou usuário o compartilha;
+ * horários de funcionamento informados e distintos.
  */
 public final class Restaurant {
 
     private final UUID id;
     private UUID userId;
-    private UUID addressId;
+    private Address address;
     private String name;
     private LocalTime officeHourStart;
     private LocalTime officeHourEnd;
@@ -30,26 +32,26 @@ public final class Restaurant {
     }
 
     /** Restaurante novo, ainda sem id nem auditoria. */
-    public static Restaurant create(UUID userId, UUID addressId, String name,
+    public static Restaurant create(UUID userId, Address address, String name,
                                     LocalTime officeHourStart, LocalTime officeHourEnd) {
-        return fill(new Restaurant(null, null, null), userId, addressId, name, officeHourStart, officeHourEnd);
+        return fill(new Restaurant(null, null, null), userId, address, name, officeHourStart, officeHourEnd);
     }
 
     /** Restaurante reconstruído a partir da origem de dados, com id e auditoria conhecidos. */
-    public static Restaurant restore(UUID id, UUID userId, UUID addressId, String name,
+    public static Restaurant restore(UUID id, UUID userId, Address address, String name,
                                      LocalTime officeHourStart, LocalTime officeHourEnd,
                                      LocalDateTime createdAt, LocalDateTime lastUpdatedAt) {
         Restaurant restaurant = new Restaurant(
                 Guard.requireNonNull(id, "Id do restaurante inválido"),
                 createdAt,
                 lastUpdatedAt);
-        return fill(restaurant, userId, addressId, name, officeHourStart, officeHourEnd);
+        return fill(restaurant, userId, address, name, officeHourStart, officeHourEnd);
     }
 
-    private static Restaurant fill(Restaurant restaurant, UUID userId, UUID addressId, String name,
+    private static Restaurant fill(Restaurant restaurant, UUID userId, Address address, String name,
                                    LocalTime officeHourStart, LocalTime officeHourEnd) {
         restaurant.setUserId(userId);
-        restaurant.setAddressId(addressId);
+        restaurant.setAddress(address);
         restaurant.setName(name);
         restaurant.setOfficeHours(officeHourStart, officeHourEnd);
         return restaurant;
@@ -59,8 +61,8 @@ public final class Restaurant {
         this.userId = Guard.requireNonNull(userId, "Id do dono do restaurante inválido");
     }
 
-    public void setAddressId(UUID addressId) {
-        this.addressId = Guard.requireNonNull(addressId, "Id do endereço do restaurante inválido");
+    public void setAddress(Address address) {
+        this.address = Guard.requireNonNull(address, "Endereço do restaurante inválido");
     }
 
     public void setName(String name) {
@@ -82,8 +84,8 @@ public final class Restaurant {
         return userId;
     }
 
-    public UUID getAddressId() {
-        return addressId;
+    public Address getAddress() {
+        return address;
     }
 
     public String getName() {

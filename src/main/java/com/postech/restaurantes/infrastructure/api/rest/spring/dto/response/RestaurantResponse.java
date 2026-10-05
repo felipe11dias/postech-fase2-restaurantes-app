@@ -9,7 +9,7 @@ import java.util.UUID;
 public record RestaurantResponse(
         UUID id,
         UUID userId,
-        UUID addressId,
+        AddressResponse address,
         String name,
         LocalTime officeHourStart,
         LocalTime officeHourEnd,
@@ -21,7 +21,7 @@ public record RestaurantResponse(
         return new RestaurantResponse(
                 view.id(),
                 view.userId(),
-                view.addressId(),
+                AddressResponse.from(view.address()),
                 view.name(),
                 view.officeHourStart(),
                 view.officeHourEnd(),

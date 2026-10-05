@@ -1,17 +1,18 @@
 package com.postech.restaurantes.adapter.gateway;
 
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
-import com.postech.restaurantes.adapter.datasource.data.AddressData;
 import com.postech.restaurantes.adapter.datasource.data.RoleData;
+import com.postech.restaurantes.adapter.datasource.data.UserAddressData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
+import com.postech.restaurantes.adapter.gateway.mapping.AddressMapping;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.gateway.IUserGateway;
 import com.postech.restaurantes.domain.Guard;
-import com.postech.restaurantes.domain.entity.address.Address;
 import com.postech.restaurantes.domain.entity.role.Role;
 import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.entity.user.User;
+import com.postech.restaurantes.domain.entity.user.UserAddress;
 import com.postech.restaurantes.domain.vo.Email;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -90,21 +91,20 @@ public final class UserGateway implements IUserGateway {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
-    private static List<Address> toAddresses(List<AddressData> addresses) {
+    private static List<UserAddress> toAddresses(List<UserAddressData> addresses) {
         return addresses.stream().map(UserGateway::toEntity).toList();
     }
 
-    private static Address toEntity(AddressData data) {
-        return Address.restore(data.id(), data.street(), data.number(), data.complement(),
-                data.neighborhood(), data.city(), data.state(), data.zipCode());
+    private static UserAddress toEntity(UserAddressData data) {
+        return UserAddress.restore(data.id(), data.label(), data.isDefault(), AddressMapping.toEntity(data.address()));
     }
 
     private static RoleData toData(Role role) {
         return new RoleData(role.getId(), role.getName().name());
     }
 
-    private static AddressData toData(Address address) {
-        return new AddressData(address.getId(), address.getStreet(), address.getNumber(), address.getComplement(),
-                address.getNeighborhood(), address.getCity(), address.getState(), address.getZipCode().value());
+    private static UserAddressData toData(UserAddress userAddress) {
+        return new UserAddressData(userAddress.getId(), userAddress.getLabel(), userAddress.isDefault(),
+                AddressMapping.toData(userAddress.getAddress()));
     }
 }

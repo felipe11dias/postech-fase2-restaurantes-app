@@ -1,11 +1,12 @@
 package com.postech.restaurantes.adapter.gateway;
 
-import static com.postech.restaurantes.adapter.AdapterFixtures.ADDRESS_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.ADDRESS_ID;
 import static com.postech.restaurantes.adapter.AdapterFixtures.CUSTOMER_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.HASH;
 import static com.postech.restaurantes.adapter.AdapterFixtures.NOW;
 import static com.postech.restaurantes.adapter.AdapterFixtures.ROLE_ID;
+import static com.postech.restaurantes.adapter.AdapterFixtures.USER_ADDRESS_DATA;
+import static com.postech.restaurantes.adapter.AdapterFixtures.USER_ADDRESS_ID;
 import static com.postech.restaurantes.adapter.AdapterFixtures.USER_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.USER_ID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,6 +26,7 @@ import com.postech.restaurantes.domain.entity.address.Address;
 import com.postech.restaurantes.domain.entity.role.Role;
 import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.entity.user.User;
+import com.postech.restaurantes.domain.entity.user.UserAddress;
 import com.postech.restaurantes.domain.vo.Email;
 import java.util.List;
 import java.util.Optional;
@@ -64,9 +66,12 @@ class UserGatewayTest {
         assertEquals("joao.silva", user.getLogin());
         assertEquals(HASH, user.getPasswordHash());
         assertEquals(Set.of(Role.restore(ROLE_ID, RoleName.ROLE_CUSTOMER)), user.getRoles());
-        Address address = user.getAddresses().get(0);
-        assertEquals(ADDRESS_ID, address.getId());
-        assertEquals("01001000", address.getZipCode().value());
+        UserAddress userAddress = user.getAddresses().get(0);
+        assertEquals(USER_ADDRESS_ID, userAddress.getId());
+        assertEquals("Casa", userAddress.getLabel());
+        assertTrue(userAddress.isDefault());
+        assertEquals(ADDRESS_ID, userAddress.getAddress().getId());
+        assertEquals("01001000", userAddress.getAddress().getZipCode().value());
         assertEquals(NOW.minusDays(1), user.getCreatedAt());
         assertEquals(NOW, user.getLastUpdatedAt());
     }
@@ -109,7 +114,8 @@ class UserGatewayTest {
     @DisplayName("Inserção traduz a entidade nova (sem id) para o record e reconstrói com o registro devolvido")
     void deveTraduzirNaInsercao() {
         User novo = User.create("Ana", "Ana@X.com", "ana", "hash", Set.of(Role.restore(ROLE_ID, RoleName.ROLE_CUSTOMER)),
-                List.of(Address.create("Rua A", null, null, null, "Cidade", "sp", "01001-000")));
+                List.of(UserAddress.create("Casa", true,
+                        Address.create("Rua A", null, null, null, "Cidade", "sp", "01001-000"))));
         when(dataSource.insert(any())).thenReturn(USER_DATA);
 
         User result = gateway.insert(novo);
@@ -122,8 +128,11 @@ class UserGatewayTest {
         assertEquals("ROLE_CUSTOMER", sent.roles().iterator().next().name());
         assertEquals(ROLE_ID, sent.roles().iterator().next().id());
         assertNull(sent.addresses().get(0).id());
-        assertEquals("SP", sent.addresses().get(0).state());
-        assertEquals("01001000", sent.addresses().get(0).zipCode());
+        assertEquals("Casa", sent.addresses().get(0).label());
+        assertTrue(sent.addresses().get(0).isDefault());
+        assertNull(sent.addresses().get(0).address().id());
+        assertEquals("SP", sent.addresses().get(0).address().state());
+        assertEquals("01001000", sent.addresses().get(0).address().zipCode());
         assertNull(sent.createdAt());
         assertEquals(USER_ID, result.getId());
     }
@@ -139,9 +148,9 @@ class UserGatewayTest {
         ArgumentCaptor<UserData> captor = ArgumentCaptor.forClass(UserData.class);
         verify(dataSource).update(captor.capture());
         assertEquals(USER_ID, captor.getValue().id());
-        assertEquals(ADDRESS_ID, captor.getValue().addresses().get(0).id());
+        assertEquals(USER_ADDRESS_ID, captor.getValue().addresses().get(0).id());
         assertEquals(CUSTOMER_DATA, captor.getValue().roles().iterator().next());
-        assertEquals(ADDRESS_DATA, captor.getValue().addresses().get(0));
+        assertEquals(USER_ADDRESS_DATA, captor.getValue().addresses().get(0));
         assertEquals(USER_ID, result.getId());
     }
 

@@ -1,5 +1,6 @@
 package com.postech.restaurantes.application.usecase.restaurant;
 
+import static com.postech.restaurantes.application.usecase.UseCaseFixtures.address;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
@@ -30,7 +31,7 @@ class FindRestaurantByIdUseCaseTest {
     @DisplayName("Encontra restaurante quando id existe")
     void deveEncontrarQuandoIdExiste() {
         UUID id = UUID.randomUUID();
-        Restaurant restaurant = Restaurant.restore(id, UUID.randomUUID(), UUID.randomUUID(), "Sabor",
+        Restaurant restaurant = Restaurant.restore(id, UUID.randomUUID(), address(), "Sabor",
                 LocalTime.of(8, 0), LocalTime.of(22, 0), null, null);
         when(restaurantGateway.findById(id)).thenReturn(Optional.of(restaurant));
 

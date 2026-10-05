@@ -3,14 +3,14 @@ package com.postech.restaurantes.infrastructure.persistence.jpa.user;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.HASH;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.NOW;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.USER_ID;
-import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.addressEntity;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.userAddressEntity;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.userEntity;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.postech.restaurantes.infrastructure.persistence.jpa.user.address.AddressJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.user.address.UserAddressJpaEntity;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.role.RoleJpaEntity;
 import java.util.List;
 import java.util.Set;
@@ -68,7 +68,7 @@ class UserJpaEntityTest {
     @DisplayName("Substituir os endereços descarta os anteriores e mantém só os novos")
     void deveSubstituirEnderecos() {
         UserJpaEntity user = userEntity();
-        AddressJpaEntity novo = addressEntity();
+        UserAddressJpaEntity novo = userAddressEntity();
         novo.setId(null);
 
         user.replaceAddresses(List.of(novo));

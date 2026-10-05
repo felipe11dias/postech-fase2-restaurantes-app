@@ -1,17 +1,25 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa.restaurant;
 
+import com.postech.restaurantes.infrastructure.persistence.jpa.address.AddressJpaEntity;
 import com.postech.restaurantes.infrastructure.persistence.jpa.audit.AuditableJpaEntity;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.time.LocalTime;
 import java.util.UUID;
 
 /**
  * Tabela {@code restaurants}. Mapeamento JPA separado da entidade de domínio.
+ *
+ * <p>O endereço é do restaurante e de mais ninguém ({@code address_id} é único): grava, atualiza
+ * e remove junto com ele. A chave estrangeira aponta daqui para {@code addresses}, então o banco
+ * não removeria o endereço sozinho — quem remove é o {@code orphanRemoval}.
  */
 @Entity
 @Table(name = "restaurants")
@@ -25,8 +33,9 @@ public class RestaurantJpaEntity extends AuditableJpaEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(name = "address_id", nullable = false)
-    private UUID addressId;
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true, optional = false)
+    @JoinColumn(name = "address_id", nullable = false, unique = true)
+    private AddressJpaEntity address;
 
     @Column(name = "name", nullable = false, length = 150)
     private String name;
@@ -53,12 +62,12 @@ public class RestaurantJpaEntity extends AuditableJpaEntity {
         this.userId = userId;
     }
 
-    public UUID getAddressId() {
-        return addressId;
+    public AddressJpaEntity getAddress() {
+        return address;
     }
 
-    public void setAddressId(UUID addressId) {
-        this.addressId = addressId;
+    public void setAddress(AddressJpaEntity address) {
+        this.address = address;
     }
 
     public String getName() {

@@ -34,10 +34,11 @@
 
 | Elemento | Onde | Regra que carrega |
 |---|---|---|
-| [`User`](../../src/main/java/com/postech/restaurantes/domain/entity/user/User.java) | `domain/entity/user` | nome, e-mail e login válidos; **ao menos um papel**; endereços válidos; recebe o *hash* da senha, nunca a senha |
+| [`User`](../../src/main/java/com/postech/restaurantes/domain/entity/user/User.java) | `domain/entity/user` | nome, e-mail e login válidos; **ao menos um papel**; endereços válidos e, havendo endereços, **exatamente um padrão**; endereço com id só se já for do usuário; recebe o *hash* da senha, nunca a senha |
+| [`UserAddress`](../../src/main/java/com/postech/restaurantes/domain/entity/user/UserAddress.java) | `domain/entity/user` | parte do agregado de usuário: rótulo opcional, marca de padrão e o `Address`; quantos são padrão é regra do `User`, não de um endereço isolado |
 | [`Role`](../../src/main/java/com/postech/restaurantes/domain/entity/role/Role.java) / [`RoleName`](../../src/main/java/com/postech/restaurantes/domain/entity/role/RoleName.java) | `domain/entity/role` | papel é um dos três reconhecidos (dono, cliente, administrador); igualdade pelo nome |
 | [`PasswordResetToken`](../../src/main/java/com/postech/restaurantes/domain/entity/password/PasswordResetToken.java) | `domain/entity/password` | vence no instante informado; usável só uma vez (`markUsed`); o **instante vem por parâmetro** — a entidade não consulta o relógio |
-| [`Address`](../../src/main/java/com/postech/restaurantes/domain/entity/address/Address.java) | `domain/entity/address` | campos obrigatórios, UF com 2 letras, CEP válido; pacote próprio porque o restaurante também terá endereço |
+| [`Address`](../../src/main/java/com/postech/restaurantes/domain/entity/address/Address.java) | `domain/entity/address` | campos obrigatórios, UF com 2 letras, CEP válido; pacote próprio porque é compartilhado: o usuário o tem por `UserAddress`, o restaurante, diretamente — e não conhece nenhum dos dois |
 | [`Email`](../../src/main/java/com/postech/restaurantes/domain/vo/Email.java), [`ZipCode`](../../src/main/java/com/postech/restaurantes/domain/vo/ZipCode.java) | `domain/vo` | *records* que validam e **normalizam** no construtor (e-mail em minúsculas, CEP só com dígitos) |
 | [`Guard`](../../src/main/java/com/postech/restaurantes/domain/Guard.java) | `domain` | `requireNonNull`, `requireNonBlank`, `require`, `trimToNull` — lançam `InvariantViolationException` |
 | [`domain/exception`](../../src/main/java/com/postech/restaurantes/domain/exception) | `domain/exception` | `DomainException` e subclasses (`DuplicateResourceException`, `ResourceNotFoundException`, …); `InvariantViolationException` para invariante violada |
@@ -46,12 +47,12 @@ Exemplo — as duas fábricas de `User`, o equivalente direto do `Estudante` da 
 
 ```java
 public static User create(String name, String email, String login, String passwordHash,
-                          Set<Role> roles, List<Address> addresses) {         // novo, sem id
+                          Set<Role> roles, List<UserAddress> addresses) {     // novo, sem id
     return fill(new User(null, null, null), name, email, login, passwordHash, roles, addresses);
 }
 
 public static User restore(UUID id, String name, String email, String login, String passwordHash,
-                           Set<Role> roles, List<Address> addresses,
+                           Set<Role> roles, List<UserAddress> addresses,
                            LocalDateTime createdAt, LocalDateTime lastUpdatedAt) { // já existe
     Guard.requireNonNull(id, "Id do usuário inválido");
     ...
@@ -89,5 +90,6 @@ proibido no *autocadastro*, resposta idêntica no "esqueci minha senha") mora no
   (só o JDK).
 - Testes unitários sem mocks, um por invariante (aceita o válido, recusa o inválido):
   [`UserTest`](../../src/test/java/com/postech/restaurantes/domain/entity/user/UserTest.java),
-  `RoleTest`, `RoleNameTest`, `PasswordResetTokenTest`, `AddressTest`, `EmailTest`,
+  `UserAddressTest`, `RoleTest`, `RoleNameTest`, `PasswordResetTokenTest`, `AddressTest`,
+  `RestaurantTest`, `EmailTest`,
   `ZipCodeTest`, `GuardTest`, `DomainExceptionsTest`.

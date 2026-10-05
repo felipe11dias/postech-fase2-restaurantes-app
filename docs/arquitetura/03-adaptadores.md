@@ -52,11 +52,13 @@
 ```
 adapter/
   controller/   UserController, AuthController              — o maestro
-  gateway/      UserGateway, RoleGateway, PasswordResetTokenGateway   — tradutores de dados
+  gateway/      UserGateway, RoleGateway, PasswordResetTokenGateway,
+                RestaurantGateway                                     — tradutores de dados
+  gateway/mapping/  AddressMapping                                 — tradução compartilhada (endereço)
                 PasswordResetMailGateway, TokenGateway                 — tradutores de serviços
   datasource/   IUserDataSource, IRoleDataSource, IPasswordResetTokenDataSource  (+ data/ *Data)
   service/      IMailSender, ITokenEncoder                                        (+ data/ *Data)
-  presenter/    UserPresenter, AuthPresenter                 (+ view/ *View)
+  presenter/    UserPresenter, AuthPresenter, RestaurantPresenter, AddressPresenter (+ view/ *View)
 ```
 
 ### Controllers — [`adapter/controller`](../../src/main/java/com/postech/restaurantes/adapter/controller)
@@ -79,11 +81,20 @@ comuns, criados pela fábrica estática na composição (`CompositionConfig`) �
 
 | Gateway | Porta do núcleo | Consome | Tradução que faz |
 |---|---|---|---|
-| `UserGateway` | `IUserGateway` | `IUserDataSource` | `User` ↔ `UserData` (e-mail normalizado, CEP sem máscara, papéis pelo nome); reconstrói com `User.restore`, que **revalida** |
+| `UserGateway` | `IUserGateway` | `IUserDataSource` | `User` ↔ `UserData` (e-mail normalizado, CEP sem máscara, papéis pelo nome, endereços como `UserAddressData` com rótulo e padrão); reconstrói com `User.restore`, que **revalida** |
 | `RoleGateway` | `IRoleGateway` | `IRoleDataSource` | `RoleName` ↔ nome textual |
+| `RestaurantGateway` | `IRestaurantGateway` | `IRestaurantDataSource` | `Restaurant` ↔ `RestaurantData`, com o endereço do restaurante aninhado |
 | `PasswordResetTokenGateway` | `IPasswordResetTokenGateway` | `IPasswordResetTokenDataSource` | `PasswordResetToken` ↔ `PasswordResetTokenData` |
 | [`PasswordResetMailGateway`](../../src/main/java/com/postech/restaurantes/adapter/gateway/PasswordResetMailGateway.java) | `IMailGateway` | `IMailSender` | pedido "token + validade" → **assunto e corpo** da mensagem em português |
 | [`TokenGateway`](../../src/main/java/com/postech/restaurantes/adapter/gateway/TokenGateway.java) | `ITokenIssuer` | `ITokenEncoder` | `User` → `TokenClaimsData` (id, login, nomes dos papéis) |
+
+**Tradução compartilhada — [`adapter/gateway/mapping`](../../src/main/java/com/postech/restaurantes/adapter/gateway/mapping).**
+O endereço é parte de dois agregados (usuário, por `UserAddress`, e restaurante). A tradução
+`Address` ↔ `AddressData` é uma só — se o endereço mudar, muda para os dois (duplicação verdadeira,
+Martin cap. 16) —, então mora em `AddressMapping`, usado por `UserGateway` e `RestaurantGateway`.
+Fica num subpacote porque não é gateway: não implementa porta do núcleo, e a regra
+`gateways_do_adapter_implementam_uma_porta_do_nucleo` vale para `adapter.gateway`. Na saída, o
+mesmo papel é do `AddressPresenter`.
 
 ### Interfaces consumidas pelos gateways
 

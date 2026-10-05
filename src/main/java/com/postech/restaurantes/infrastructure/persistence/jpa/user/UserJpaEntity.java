@@ -1,7 +1,7 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa.user;
 
 import com.postech.restaurantes.infrastructure.persistence.jpa.audit.AuditableJpaEntity;
-import com.postech.restaurantes.infrastructure.persistence.jpa.user.address.AddressJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.user.address.UserAddressJpaEntity;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.role.RoleJpaEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -20,6 +20,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 
 /**
  * Tabela {@code users}. É uma classe <strong>separada</strong> de
@@ -49,20 +51,27 @@ public class UserJpaEntity extends AuditableJpaEntity {
     @Column(name = "password", nullable = false, length = 100)
     private String password;
 
+    /**
+     * Fora do grafo de carga dos repositórios, de propósito: buscar os papéis (um Set) junto com os
+     * endereços (uma lista) na mesma consulta multiplica as linhas — papéis × endereços — e o
+     * Hibernate repete cada endereço na lista uma vez por papel. Com {@code SUBSELECT}, os papéis vêm
+     * numa consulta própria, uma só para todos os usuários carregados (inclusive os de uma página).
+     */
     @ManyToMany(fetch = FetchType.LAZY)
+    @Fetch(FetchMode.SUBSELECT)
     @JoinTable(name = "user_roles",
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id"))
     private Set<RoleJpaEntity> roles = new LinkedHashSet<>();
 
     /**
-     * Unidirecional: a chave estrangeira mora em {@code addresses}, mas só este lado a conhece
-     * (ver {@link AddressJpaEntity}). {@code nullable = false} faz o Hibernate gravar o
-     * {@code user_id} já no INSERT do endereço, em vez de inserir nulo e atualizar depois.
+     * Unidirecional: a chave estrangeira mora em {@code user_addresses}, mas só este lado a conhece
+     * (ver {@link UserAddressJpaEntity}). {@code nullable = false} faz o Hibernate gravar o
+     * {@code user_id} já no INSERT do vínculo, em vez de inserir nulo e atualizar depois.
      */
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, updatable = false)
-    private List<AddressJpaEntity> addresses = new ArrayList<>();
+    private List<UserAddressJpaEntity> addresses = new ArrayList<>();
 
     public UUID getId() {
         return id;
@@ -108,7 +117,7 @@ public class UserJpaEntity extends AuditableJpaEntity {
         return roles;
     }
 
-    public List<AddressJpaEntity> getAddresses() {
+    public List<UserAddressJpaEntity> getAddresses() {
         return addresses;
     }
 
@@ -119,10 +128,11 @@ public class UserJpaEntity extends AuditableJpaEntity {
     }
 
     /**
-     * Troca a coleção de endereços inteira. Com {@code orphanRemoval = true}, os que saem
-     * da lista são apagados na descarga da transação, sem DELETE explícito.
+     * Troca a coleção de vínculos pela lista dada, que pode reaproveitar instâncias já gerenciadas
+     * (o vínculo mantido). Com {@code orphanRemoval = true}, os que saem da lista são apagados na
+     * descarga da transação, sem DELETE explícito; os que ficam não são tocados.
      */
-    public void replaceAddresses(List<AddressJpaEntity> newAddresses) {
+    public void replaceAddresses(List<UserAddressJpaEntity> newAddresses) {
         addresses.clear();
         addresses.addAll(newAddresses);
     }

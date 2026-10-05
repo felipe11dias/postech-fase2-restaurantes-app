@@ -16,7 +16,7 @@ public final class RestaurantPresenter {
         return new RestaurantView(
                 restaurant.getId(),
                 restaurant.getUserId(),
-                restaurant.getAddressId(),
+                AddressPresenter.toView(restaurant.getAddress()),
                 restaurant.getName(),
                 restaurant.getOfficeHourStart(),
                 restaurant.getOfficeHourEnd(),

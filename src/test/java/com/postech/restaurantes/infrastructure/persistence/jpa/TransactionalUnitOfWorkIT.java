@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.postech.restaurantes.IntegrationTestSupport;
 import com.postech.restaurantes.adapter.datasource.IRoleDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
+import com.postech.restaurantes.adapter.datasource.data.AddressData;
+import com.postech.restaurantes.adapter.datasource.data.UserAddressData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
 import com.postech.restaurantes.application.gateway.IUnitOfWork;
 import java.time.LocalDateTime;
@@ -16,6 +18,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
@@ -64,6 +67,22 @@ class TransactionalUnitOfWorkIT extends IntegrationTestSupport {
         assertTrue(userDataSource.findByLogin(login).isEmpty());
         assertEquals(0, (int) jdbc.queryForObject(
                 "SELECT count(*) FROM users WHERE login = ?", Integer.class, login));
+    }
+
+    @Test
+    @DisplayName("Restrição conferida só no commit chega como DataIntegrityViolationException (409), não como erro genérico")
+    void deveTraduzirViolacaoAdiadaParaOCommit() {
+        String login = "uow." + UUID.randomUUID().toString().substring(0, 8);
+        AddressData endereco = new AddressData(null, "Rua A", "1", null, "Centro", "São Paulo", "SP", "01001000");
+        UserData doisPadroes = new UserData(null, "Dois Padrões", login + "@email.com", login,
+                "$2a$10$hashDeIntegracaoComTamanhoSuficiente", roleDataSource.findByNames(Set.of("ROLE_CUSTOMER")),
+                List.of(new UserAddressData(null, null, true, endereco), new UserAddressData(null, null, true, endereco)),
+                null, null);
+
+        assertThrows(DataIntegrityViolationException.class,
+                () -> unitOfWork.execute(() -> userDataSource.insert(doisPadroes)));
+
+        assertTrue(userDataSource.findByLogin(login).isEmpty());
     }
 
     private UserData novo(String login, String nome) {

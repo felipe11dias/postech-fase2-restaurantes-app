@@ -1,5 +1,6 @@
 package com.postech.restaurantes.application.usecase.restaurant;
 
+import static com.postech.restaurantes.application.usecase.UseCaseFixtures.address;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -34,7 +35,7 @@ class SearchRestaurantsUseCaseTest {
     @DisplayName("Executa busca paginada com ordenação válida")
     void deveExecutarBuscaPaginada() {
         PageRequest request = new PageRequest(0, 10, "name", SortDirection.ASC);
-        Restaurant r = Restaurant.restore(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "Sabor",
+        Restaurant r = Restaurant.restore(UUID.randomUUID(), UUID.randomUUID(), address(), "Sabor",
                 LocalTime.of(8, 0), LocalTime.of(22, 0), null, null);
         PageResult<Restaurant> page = new PageResult<>(List.of(r), 0, 10, 1);
         when(restaurantGateway.search(eq("sabor"), any())).thenReturn(page);

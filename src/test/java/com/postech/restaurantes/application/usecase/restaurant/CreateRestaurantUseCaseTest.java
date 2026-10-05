@@ -5,13 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.postech.restaurantes.application.dto.common.AddressDTO;
 import com.postech.restaurantes.application.dto.restaurant.CreateRestaurantDTO;
 import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.application.gateway.IUserGateway;
-import com.postech.restaurantes.domain.entity.address.Address;
 import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
 import com.postech.restaurantes.domain.entity.role.Role;
 import com.postech.restaurantes.domain.entity.role.RoleName;
@@ -34,8 +35,7 @@ class CreateRestaurantUseCaseTest {
     private CreateRestaurantUseCase useCase;
 
     private UUID userId;
-    private UUID addressId;
-    private Address address;
+    private AddressDTO endereco;
     private User owner;
 
     @BeforeEach
@@ -45,10 +45,9 @@ class CreateRestaurantUseCaseTest {
         useCase = CreateRestaurantUseCase.create(restaurantGateway, userGateway);
 
         userId = UUID.randomUUID();
-        addressId = UUID.randomUUID();
-        address = Address.restore(addressId, "Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
+        endereco = new AddressDTO("Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
         owner = User.restore(userId, "Dono", "dono@x.com", "dono", "hash",
-                Set.of(Role.restore(UUID.randomUUID(), RoleName.ROLE_OWNER)), List.of(address), null, null);
+                Set.of(Role.restore(UUID.randomUUID(), RoleName.ROLE_OWNER)), List.of(), null, null);
     }
 
     @Test
@@ -57,7 +56,7 @@ class CreateRestaurantUseCaseTest {
         when(userGateway.findById(userId)).thenReturn(Optional.of(owner));
         when(restaurantGateway.insert(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
         Restaurant result = useCase.run(dto);
 
         assertNotNull(result);
@@ -69,11 +68,11 @@ class CreateRestaurantUseCaseTest {
     @DisplayName("Aceita administrador como dono do restaurante")
     void deveCriarQuandoDonoEhAdministrador() {
         User admin = User.restore(userId, "Admin", "admin@x.com", "admin", "hash",
-                Set.of(Role.restore(UUID.randomUUID(), RoleName.ROLE_ADMIN)), List.of(address), null, null);
+                Set.of(Role.restore(UUID.randomUUID(), RoleName.ROLE_ADMIN)), List.of(), null, null);
         when(userGateway.findById(userId)).thenReturn(Optional.of(admin));
         when(restaurantGateway.insert(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
         Restaurant result = useCase.run(dto);
 
         assertEquals(userId, result.getUserId());
@@ -84,7 +83,7 @@ class CreateRestaurantUseCaseTest {
     void deveRecusarQuandoDonoNaoEncontrado() {
         when(userGateway.findById(userId)).thenReturn(Optional.empty());
 
-        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
         assertThrows(ResourceNotFoundException.class, () -> useCase.run(dto));
     }
 
@@ -92,20 +91,21 @@ class CreateRestaurantUseCaseTest {
     @DisplayName("Recusa quando usuário não possui papel de dono ou admin")
     void deveRecusarQuandoUsuarioSemPermissao() {
         User cliente = User.restore(userId, "Cliente", "cli@x.com", "cli", "hash",
-                Set.of(Role.restore(UUID.randomUUID(), RoleName.ROLE_CUSTOMER)), List.of(address), null, null);
+                Set.of(Role.restore(UUID.randomUUID(), RoleName.ROLE_CUSTOMER)), List.of(), null, null);
         when(userGateway.findById(userId)).thenReturn(Optional.of(cliente));
 
-        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
         assertThrows(ForbiddenOperationException.class, () -> useCase.run(dto));
     }
 
     @Test
-    @DisplayName("Recusa quando endereço não pertence ao usuário")
-    void deveRecusarQuandoEnderecoNaoPertenceAoUsuario() {
+    @DisplayName("Recusa quando o endereço do restaurante não é informado")
+    void deveRecusarQuandoEnderecoAusente() {
         when(userGateway.findById(userId)).thenReturn(Optional.of(owner));
 
-        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, UUID.randomUUID(), "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
-        assertThrows(ResourceNotFoundException.class, () -> useCase.run(dto));
+        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, null, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        assertThrows(IllegalArgumentException.class, () -> useCase.run(dto));
+        verify(restaurantGateway, never()).insert(any());
     }
 
     @Test

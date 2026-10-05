@@ -1,4 +1,4 @@
-package com.postech.restaurantes.infrastructure.persistence.jpa.user.address;
+package com.postech.restaurantes.infrastructure.persistence.jpa.address;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -9,11 +9,12 @@ import jakarta.persistence.Table;
 import java.util.UUID;
 
 /**
- * Tabela {@code addresses}: parte do agregado de usuário, nunca acessada por conta própria.
+ * Tabela {@code addresses}: parte de um agregado (do usuário, por {@code user_addresses}, ou do
+ * restaurante), nunca acessada por conta própria.
  *
- * <p>Não conhece o dono. A chave estrangeira {@code user_id} é mapeada só do lado do
- * {@code UserJpaEntity} (associação unidirecional): uma referência de volta faria este pacote e
- * o do usuário dependerem um do outro, e a regra {@code nenhum_ciclo_entre_pacotes} quebraria.
+ * <p>Não conhece o dono: quem referencia o endereço são {@code user_addresses.address_id} e
+ * {@code restaurants.address_id}. Sem referência de volta, este pacote não depende de nenhum dos
+ * dois, e os dois podem depender dele sem formar ciclo.
  */
 @Entity
 @Table(name = "addresses")

@@ -2,6 +2,7 @@ package com.postech.restaurantes.adapter.gateway;
 
 import com.postech.restaurantes.adapter.datasource.IRestaurantDataSource;
 import com.postech.restaurantes.adapter.datasource.data.RestaurantData;
+import com.postech.restaurantes.adapter.gateway.mapping.AddressMapping;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.gateway.IRestaurantGateway;
@@ -54,7 +55,7 @@ public final class RestaurantGateway implements IRestaurantGateway {
         return Restaurant.restore(
                 data.id(),
                 data.userId(),
-                data.addressId(),
+                AddressMapping.toEntity(data.address()),
                 data.name(),
                 data.officeHourStart(),
                 data.officeHourEnd(),
@@ -67,7 +68,7 @@ public final class RestaurantGateway implements IRestaurantGateway {
         return new RestaurantData(
                 restaurant.getId(),
                 restaurant.getUserId(),
-                restaurant.getAddressId(),
+                AddressMapping.toData(restaurant.getAddress()),
                 restaurant.getName(),
                 restaurant.getOfficeHourStart(),
                 restaurant.getOfficeHourEnd(),

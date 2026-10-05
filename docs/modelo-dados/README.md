@@ -33,7 +33,7 @@ técnico — seção "Modelo de Dados v2 — adequação planejada" de
 | FKs `addresses (id) REFERENCES user_addresses (address_id)` e `restaurants (address_id)` | Direção invertida no export: `user_addresses.address_id` e `restaurants.address_id` referenciam `addresses (id)` |
 | Auditoria, `expires_at` e `used` sem `NOT NULL` | `NOT NULL` mantido onde já existe hoje |
 | `varchar` sem tamanho | Tamanho definido por coluna |
-| `is_default` sem unicidade | Índice único parcial `user_addresses (user_id) WHERE is_default` |
+| `is_default` sem unicidade | Restrição de exclusão adiada para o commit: no máximo um padrão por usuário (`ex_user_addresses_one_default`, V4) |
 | `CASCADE` de `users`/`restaurants` | Não alcança `addresses` (referenciada); a aplicação remove o endereço |
 
 ## Observações para as tabelas fora do escopo

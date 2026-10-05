@@ -13,8 +13,9 @@ import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
 /**
  * Caso de uso de criação de restaurante.
  *
- * <p>Regras de aplicação: o dono deve existir, possuir papel de dono de restaurante
- * ({@code ROLE_OWNER}) ou admin ({@code ROLE_ADMIN}), e o endereço associado deve pertencer ao usuário.
+ * <p>Regras de aplicação: o dono deve existir e possuir papel de dono de restaurante
+ * ({@code ROLE_OWNER}) ou admin ({@code ROLE_ADMIN}). O endereço chega no pedido e é do
+ * restaurante — não é escolhido entre os endereços do dono.
  */
 public final class CreateRestaurantUseCase {
 
@@ -39,15 +40,9 @@ public final class CreateRestaurantUseCase {
             throw new ForbiddenOperationException("O usuário informado não possui papel de dono de restaurante");
         }
 
-        boolean addressBelongsToUser = user.getAddresses().stream()
-                .anyMatch(addr -> addr.getId().equals(dto.addressId()));
-        if (!addressBelongsToUser) {
-            throw new ResourceNotFoundException("Endereço não encontrado ou não pertence ao usuário");
-        }
-
         Restaurant restaurant = Restaurant.create(
                 dto.userId(),
-                dto.addressId(),
+                Guard.requireNonNull(dto.address(), "Endereço do restaurante inválido").toEntity(),
                 dto.name(),
                 dto.officeHourStart(),
                 dto.officeHourEnd()

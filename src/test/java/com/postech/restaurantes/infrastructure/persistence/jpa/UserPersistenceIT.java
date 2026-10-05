@@ -5,11 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.postech.restaurantes.EnderecosNoBanco;
 import com.postech.restaurantes.IntegrationTestSupport;
 import com.postech.restaurantes.adapter.datasource.IRoleDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
 import com.postech.restaurantes.adapter.datasource.data.AddressData;
 import com.postech.restaurantes.adapter.datasource.data.RoleData;
+import com.postech.restaurantes.adapter.datasource.data.UserAddressData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
 import com.postech.restaurantes.adapter.gateway.UserGateway;
 import com.postech.restaurantes.application.dto.common.PageRequest;
@@ -56,8 +58,25 @@ class UserPersistenceIT extends IntegrationTestSupport {
         assertEquals("Ana Integração", lido.name());
         assertEquals(Set.of("ROLE_CUSTOMER"), nomesDosPapeis(lido));
         assertEquals(1, lido.addresses().size());
-        assertEquals("Rua das Acácias", lido.addresses().get(0).street());
+        assertEquals("Casa", lido.addresses().get(0).label());
+        assertTrue(lido.addresses().get(0).isDefault());
+        assertEquals("Rua das Acácias", lido.addresses().get(0).address().street());
         assertNotNull(lido.addresses().get(0).id());
+        assertNotNull(lido.addresses().get(0).address().id());
+    }
+
+    @Test
+    @DisplayName("Usuário com dois papéis e um endereço é lido com o endereço uma vez só, nas consultas por id, login, e-mail e página")
+    void deveLerOEnderecoUmaVezComVariosPapeis() {
+        UserData gravado = inserir("Ivo Integração", Set.of("ROLE_OWNER", "ROLE_CUSTOMER"),
+                List.of(endereco("Rua dos Papéis", "3")));
+
+        assertEquals(1, userDataSource.findById(gravado.id()).orElseThrow().addresses().size());
+        assertEquals(1, userDataSource.findByLogin(gravado.login()).orElseThrow().addresses().size());
+        assertEquals(1, userDataSource.findByEmail(gravado.email()).orElseThrow().addresses().size());
+        assertEquals(1, userDataSource.search("Ivo Integração", PageRequest.of(0, 10)).content().get(0)
+                .addresses().size());
+        assertEquals(2, UserGateway.create(userDataSource).findById(gravado.id()).orElseThrow().getRoles().size());
     }
 
     @Test
@@ -70,7 +89,7 @@ class UserPersistenceIT extends IntegrationTestSupport {
         assertEquals("Bruno Integração", usuario.getName());
         assertEquals(gravado.email(), usuario.getEmail().value());
         assertEquals(1, usuario.getRoles().size());
-        assertEquals("20", usuario.getAddresses().get(0).getNumber());
+        assertEquals("20", usuario.getAddresses().get(0).getAddress().getNumber());
     }
 
     @Test
@@ -94,19 +113,22 @@ class UserPersistenceIT extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Substituir os endereços apaga os órfãos e grava os novos")
+    @DisplayName("Substituir os endereços apaga vínculos e endereços antigos, inclusive trocando o padrão")
     void deveRemoverOsEnderecosOrfaos() {
         UserData gravado = inserir("Elisa Integração",
-                List.of(endereco("Rua Antiga", "1"), endereco("Rua Também Antiga", "2")));
+                List.of(endereco("Rua Antiga", "1"), enderecoSecundario("Rua Também Antiga", "2")));
+        List<UUID> enderecosAntigos = idsDosEnderecos(gravado);
 
         UserData atualizado = userDataSource.update(new UserData(gravado.id(), gravado.name(), gravado.email(),
                 gravado.login(), gravado.passwordHash(), gravado.roles(),
                 List.of(endereco("Rua Nova", "99")), gravado.createdAt(), LocalDateTime.now()));
 
         assertEquals(1, atualizado.addresses().size());
-        assertEquals("Rua Nova", atualizado.addresses().get(0).street());
-        assertEquals(1, (int) jdbc.queryForObject(
-                "SELECT count(*) FROM addresses WHERE user_id = ?", Integer.class, gravado.id()));
+        assertEquals("Rua Nova", atualizado.addresses().get(0).address().street());
+        assertEquals(1, vinculos(gravado.id()));
+        assertEquals(0, EnderecosNoBanco.existentes(jdbc, enderecosAntigos),
+                "os endereços antigos saíram com os vínculos");
+        assertEquals(1, EnderecosNoBanco.existentes(jdbc, idsDosEnderecos(atualizado)));
     }
 
     @Test
@@ -239,29 +261,50 @@ class UserPersistenceIT extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Exclusão remove o usuário e, em cascata, os endereços")
+    @DisplayName("Exclusão remove o usuário e, em cascata, os vínculos e os endereços deles")
     void deveExcluirEmCascata() {
         UserData gravado = inserir("Helena Integração", List.of(endereco("Rua H", "8")));
 
         userDataSource.delete(gravado.id());
 
         assertTrue(userDataSource.findById(gravado.id()).isEmpty());
-        assertEquals(0, (int) jdbc.queryForObject(
-                "SELECT count(*) FROM addresses WHERE user_id = ?", Integer.class, gravado.id()));
+        assertEquals(0, vinculos(gravado.id()));
+        assertEquals(0, EnderecosNoBanco.existentes(jdbc, idsDosEnderecos(gravado)));
         assertEquals(0, (int) jdbc.queryForObject(
                 "SELECT count(*) FROM user_roles WHERE user_id = ?", Integer.class, gravado.id()));
     }
 
-    private UserData inserir(String nome, List<AddressData> enderecos) {
+    private UserData inserir(String nome, List<UserAddressData> enderecos) {
+        return inserir(nome, Set.of("ROLE_CUSTOMER"), enderecos);
+    }
+
+    private UserData inserir(String nome, Set<String> papeis, List<UserAddressData> enderecos) {
         String sufixo = UUID.randomUUID().toString().substring(0, 8);
         LocalDateTime agora = LocalDateTime.now().withNano(0);
         return userDataSource.insert(new UserData(null, nome, "usuario." + sufixo + "@email.com",
                 "usuario." + sufixo, "$2a$10$hashDeIntegracaoComTamanhoSuficiente",
-                roleDataSource.findByNames(Set.of("ROLE_CUSTOMER")), enderecos, agora, agora));
+                roleDataSource.findByNames(papeis), enderecos, agora, agora));
     }
 
-    private static AddressData endereco(String rua, String numero) {
+    /** Endereço padrão do usuário, rotulado "Casa". */
+    private static UserAddressData endereco(String rua, String numero) {
+        return new UserAddressData(null, "Casa", true, enderecoAvulso(rua, numero));
+    }
+
+    private static UserAddressData enderecoSecundario(String rua, String numero) {
+        return new UserAddressData(null, null, false, enderecoAvulso(rua, numero));
+    }
+
+    private static AddressData enderecoAvulso(String rua, String numero) {
         return new AddressData(null, rua, numero, null, "Centro", "São Paulo", "SP", "01001000");
+    }
+
+    private int vinculos(UUID userId) {
+        return jdbc.queryForObject("SELECT count(*) FROM user_addresses WHERE user_id = ?", Integer.class, userId);
+    }
+
+    private static List<UUID> idsDosEnderecos(UserData usuario) {
+        return usuario.addresses().stream().map(vinculo -> vinculo.address().id()).toList();
     }
 
     private static Set<String> nomesDosPapeis(UserData usuario) {

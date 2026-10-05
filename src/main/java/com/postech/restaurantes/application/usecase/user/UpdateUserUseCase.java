@@ -1,7 +1,7 @@
 package com.postech.restaurantes.application.usecase.user;
 
-import com.postech.restaurantes.application.dto.common.AddressDTO;
 import com.postech.restaurantes.application.dto.user.UpdateUserDTO;
+import com.postech.restaurantes.application.dto.user.UserAddressDTO;
 import com.postech.restaurantes.application.gateway.IUserGateway;
 import com.postech.restaurantes.domain.Guard;
 import com.postech.restaurantes.domain.entity.user.User;
@@ -43,7 +43,7 @@ public final class UpdateUserUseCase {
         user.setName(dto.name());
         user.setEmail(email);
         user.setLogin(login);
-        user.replaceAddresses(AddressDTO.toEntities(dto.addresses()));
+        user.replaceAddresses(UserAddressDTO.toEntities(dto.addresses()));
         return userGateway.update(user);
     }
 }

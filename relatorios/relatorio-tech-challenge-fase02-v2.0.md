@@ -52,7 +52,7 @@
 | 15  | API REST em `api/rest/spring`, organizada como MVC | ✅  |
 | 16  | Módulo de Gestão de Restaurantes (`restaurants` - Imagem 2) | ✅  |
 | 17  | Reorganização dos pacotes do agregado de usuário   | ✅     |
-| 18  | Endereços via `user_addresses` e endereço próprio do restaurante | ⏳ |
+| 18  | Endereços via `user_addresses` e endereço próprio do restaurante | ✅ |
 | 19  | Token de redefinição único por usuário (`password_reset_tokens`) | ⏳ |
 | 20  | Perfis de usuário no domínio (`owners`, `clients`, `couriers`, `admins`) | ⏳ |
 | 21  | Usuário composto por perfis (papel derivado)       | ⏳     |
@@ -61,9 +61,9 @@
 | 24  | Horário de funcionamento por dia (`restaurant_office_hours`) | ⏳ |
 | 25  | Revisão de conformidade do modelo de dados v2      | ⏳     |
 
-**Progresso:** 17 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
-Dados v2 (seção "Modelo de Dados v2 — adequação planejada"); a 17 está concluída e as demais,
-planejadas.
+**Progresso:** 18 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
+Dados v2 (seção "Modelo de Dados v2 — adequação planejada"); a 17 e a 18 estão concluídas e as
+demais, planejadas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -2096,7 +2096,7 @@ db/migration/                      V3__create_restaurant_schema.sql
 | Escrita autorizada só por papel (`hasRole('OWNER') or hasRole('ADMIN')`), sem regra de posse; o corpo do `PUT` escolhe livremente o `userId` | Um dono altera ou exclui o restaurante de outro dono e pode transferi-lo — o mesmo IDOR que a Etapa 7 fechou para usuários com `@userSecurity.isSelf` | Etapa 23 |
 | Administrador aceito como dono do restaurante | No modelo v2, ser dono é ter perfil em `owners` | Etapa 21 |
 | `ON DELETE RESTRICT` em `user_id` | Usuário dono de restaurante não pode ser excluído; o modelo v2 pede `CASCADE` | Etapa 23 |
-| Restaurante usa um endereço **do dono** | No modelo v2, `restaurants.address_id` é `UNIQUE`: o restaurante tem endereço próprio | Etapa 18 |
+| Restaurante usa um endereço **do dono** | No modelo v2, `restaurants.address_id` é `UNIQUE`: o restaurante tem endereço próprio | Etapa 18 ✅ |
 | Horário único (`office_hour_start/end`) para todos os dias | O modelo v2 tem `restaurant_office_hours`, um intervalo por dia da semana | Etapa 24 |
 | Seção da etapa ausente na v1.0 do relatório | O Sumário marcava a etapa, mas não havia a seção — registrada aqui | — |
 
@@ -2261,7 +2261,7 @@ PostgreSQL não aceita como pretendido. Cada decisão abaixo preserva a intenç�
 | `ALTER TABLE addresses ADD FOREIGN KEY (id) REFERENCES user_addresses (address_id)` (idem para `restaurants`) | Direção invertida no export: quem referencia é `user_addresses.address_id` e `restaurants.address_id`, ambos `REFERENCES addresses (id) ON DELETE RESTRICT` | Integridade referencial (Date): a chave estrangeira fica na tabela que depende |
 | Colunas de auditoria, `expires_at` e `used` sem `NOT NULL` | `NOT NULL` mantido onde já existe (`created_at`, `last_updated_at`, `expires_at`, `used DEFAULT FALSE`); `created_by`/`last_updated_by` continuam opcionais | Restrição de integridade (Date): o listener de auditoria e o domínio sempre preenchem; o banco não deve aceitar o que a aplicação nunca grava |
 | `varchar` sem tamanho | Tamanho definido, alinhado ao que já existe (`name` 150, `email` 150, `login` 50) e ao conteúdo (`label` 50, `legal_name` 150, `employee_code` 50, `department` 100, `driver_license_number` 11) | Domínio do atributo (Machado): o tamanho é parte da definição da coluna |
-| `is_default` sem garantia de unicidade | Índice único parcial `user_addresses (user_id) WHERE is_default` — no máximo um endereço padrão por usuário | Restrição declarada no banco (Date), além da invariante na entidade |
+| `is_default` sem garantia de unicidade | Restrição de exclusão `EXCLUDE USING btree (user_id WITH =) WHERE (is_default) DEFERRABLE INITIALLY DEFERRED` — no máximo um endereço padrão por usuário, conferido no commit (Etapa 18: um índice único parcial recusaria a troca de padrão que o Hibernate faz inserindo antes de apagar) | Restrição declarada no banco (Date), além da invariante na entidade |
 | Perfis com PK = FK para `users` | Especialização **sobreposta** (um usuário pode ter vários perfis) e **total** (todo usuário tem ao menos um) | Generalização/especialização mapeada em uma tabela por subtipo (Machado) |
 | `cpf` único em `clients` e em `couriers`, separadamente | Se o mesmo usuário é cliente e entregador, o CPF dos dois perfis é o mesmo — invariante do agregado `User` | Uma pessoa, um CPF: a regra que cruza dois perfis do mesmo usuário mora na raiz do agregado |
 | `addresses` referenciada, não referenciadora | O `CASCADE` de `users`/`restaurants` apaga `user_addresses`/`restaurants`, mas não alcança `addresses`: quem remove o endereço é a aplicação, pela cascata JPA da parte do agregado | Endereço é parte do agregado (não existe sem dono); sem a remoção explícita, sobraria linha órfã |
@@ -2364,7 +2364,8 @@ padrão) e dar ao restaurante um endereço só dele (`restaurants.address_id UNI
 **Migration V4.**
 1. Cria `user_addresses` (`id`, `user_id → users ON DELETE CASCADE`, `address_id UNIQUE →
    addresses ON DELETE RESTRICT`, `label VARCHAR(50)`, `is_default BOOLEAN NOT NULL DEFAULT FALSE`,
-   auditoria), índice em `user_id` e índice único parcial `(user_id) WHERE is_default`.
+   auditoria), índice em `user_id` e a restrição "um padrão por usuário" — planejada como índice
+   único parcial, entregue como restrição de exclusão adiada (ver "O que foi entregue").
 2. Para cada linha de `addresses` com `user_id`, cria a linha associativa; o endereço padrão de
    cada usuário é o de menor `id` (critério determinístico, registrado na migration).
 3. Para cada restaurante, **copia** o endereço que ele usa hoje (que é do dono) para uma linha nova
@@ -2383,6 +2384,97 @@ padrão) e dar ao restaurante um endereço só dele (`restaurants.address_id UNI
 endereço órfão (IT conferindo `addresses` por `JdbcTemplate`, que a API não expõe).
 **Conceito:** agregado — o endereço não existe sem dono (Etapa 5); integridade referencial e
 restrição declarada (Date).
+
+### Estrutura
+
+```
+domain/entity/user/              UserAddress (rótulo, padrão, Address); User com List<UserAddress>
+domain/entity/restaurant/        Restaurant com Address (antes: addressId)
+application/dto/user/            UserAddressDTO (+ promoção do primeiro a padrão)
+adapter/datasource/data/         UserAddressData; UserData e RestaurantData com o endereço aninhado
+adapter/gateway/mapping/         AddressMapping — Address <-> AddressData, para os dois gateways
+adapter/presenter/               AddressPresenter; view/UserAddressView
+infrastructure/persistence/jpa/
+  address/                       AddressJpaEntity (movida de user/address), AddressJpaMapping
+  user/address/                  UserAddressJpaEntity (tabela user_addresses)
+  restaurant/                    RestaurantJpaEntity com @OneToOne para AddressJpaEntity
+infrastructure/api/rest/spring/dto/
+  request/UserAddressRequest     { label, isDefault, address: AddressRequest }
+  response/UserAddressResponse   { id, label, isDefault, address: AddressResponse }
+db/migration/V4__user_addresses.sql
+```
+
+Forma do endereço no HTTP:
+
+```json
+// usuário — POST/PUT /api/v1/users
+"addresses": [ { "id": "<opcional: endereço que o usuário já tem>", "label": "Casa", "isDefault": true,
+                 "address": { "street": "Rua das Flores", "number": "100", "...": "...", "zipCode": "01001-000" } } ]
+
+// restaurante — POST/PUT /api/v1/restaurants (antes: "addressId": "<id de um endereço do dono>")
+"address": { "street": "Avenida Paulista", "number": "500", "...": "...", "zipCode": "01310-100" }
+```
+
+### O que foi entregue nesta etapa
+
+| Decisão | Conceito que a sustenta |
+| --- | --- |
+| **`UserAddress` como parte do agregado `User`**, com a regra "havendo endereços, exatamente um é o padrão" no `User` | A regra é do conjunto, não de um endereço isolado: quem guarda o conjunto é a raiz do agregado (invariante na entidade, Etapa 2) |
+| **O primeiro endereço vira padrão quando nenhum é marcado** — em `UserAddressDTO`, não na entidade | Conveniência desta porta de entrada (regra de aplicação, Etapa 3); a entidade continua estrita: dois marcados são recusados com "Exatamente um endereço deve ser o padrão" |
+| **Endereço próprio do restaurante, no corpo do pedido** | `restaurants.address_id` é único no modelo v2. Sai a regra "o endereço precisa ser do dono" (e o `404` que ela produzia); o endereço do restaurante é parte do agregado `Restaurant` |
+| **Endereço atualizado na mesma linha**, no restaurante e no usuário | O restaurante tem um endereço só: atualizar mantém o id. No usuário, o pedido pode trazer o `id` de um endereço que ele já tem: o vínculo e o endereço são atualizados no lugar (os ids não mudam); sem `id`, é endereço novo; os que não vierem são removidos. O `User` recusa id que não é dele ("Endereço do usuário não encontrado") — conhecer o id não dá posse, como na regra de posse da Etapa 7 |
+| **Papéis carregados por subselect, fora do grafo de carga** | Buscar os papéis (Set) e os endereços (lista) na mesma consulta multiplica as linhas, e o Hibernate repetia cada endereço uma vez por papel. Com a regra "exatamente um padrão", um usuário com dois papéis e um endereço deixaria de ser reconstruído. Encontrado na revisão de código da etapa e reproduzido por IT antes da correção |
+| **`AddressJpaEntity` em `persistence/jpa/address`**, sem conhecer quem a referencia; vínculos e restaurante a referenciam por `@OneToOne(cascade = ALL, orphanRemoval = true)` | ADP (cap. 14): a parte compartilhada não depende de nenhum agregado, e os dois dependem dela sem ciclo. As FKs apontam para `addresses`, então o `CASCADE` do banco não alcança o endereço — o `orphanRemoval` é quem o remove |
+| **"Um padrão por usuário" como restrição de exclusão adiada** (`EXCLUDE USING btree (user_id WITH =) WHERE (is_default) DEFERRABLE INITIALLY DEFERRED`), no lugar do índice único parcial planejado | Restrição declarada no banco (Date). O índice parcial é imediato e recusaria uma troca válida: ao substituir a lista, o Hibernate **insere os vínculos novos antes de apagar os antigos**, e por um instante há dois padrões. Adiada, a regra vale no commit — que é onde ela importa |
+| **`AddressMapping` (adapter/gateway/mapping) e `AddressPresenter`** | Duplicação verdadeira (Martin, cap. 16): `UserGateway` e `RestaurantGateway` traduzem o mesmo endereço do mesmo jeito; se ele mudar, muda para os dois. Fica fora de `adapter.gateway` porque não implementa porta do núcleo |
+| **V4 converte os dados existentes sem inventar nada** | Cada endereço de usuário vira vínculo (o de menor id é o padrão, critério registrado na migration); cada restaurante ganha uma **cópia** do endereço que usava, antes de `addresses.user_id` sair — a cópia não vira endereço do dono |
+
+### Verificação da migração com dados
+
+Além dos ITs (banco limpo), a V4 foi aplicada sobre o volume do Compose, ainda na V3, com um
+restaurante apontando para o endereço do dono da seed e um segundo endereço do dono. Resultado:
+dois vínculos do dono, só o de menor id como padrão, autoria `system`; o restaurante com um
+endereço novo, sem vínculo de usuário; `addresses` sem `user_id`; nenhum endereço órfão; as
+restrições `ex_user_addresses_one_default` e `uk_restaurants_address_id` criadas. Os registros da
+verificação foram removidos em seguida.
+
+### Testes novos e ajustados
+
+| Teste | O que prova |
+| --- | --- |
+| `UserAddressTest`, `UserTest` | rótulo opcional, endereço obrigatório; nenhum ou dois padrões recusados sem alterar a lista atual |
+| `UserAddressDTOTest` | lista nula vira vazia; o primeiro é promovido só quando ninguém foi marcado |
+| `AddressJpaMappingTest`, `UserAddressJpaEntityTest` | linha nova sem id; cópia mantém o id; tradução de volta completa |
+| `RestaurantDataSourceJpaTest` | inserção cria endereço novo; atualização troca os campos na mesma linha (id preservado) |
+| `SchemaMigrationIT` | V4 aplicada, sete tabelas, endereço da seed virou vínculo padrão; o banco apaga vínculos em cascata e **mantém** o endereço; o banco recusa dois padrões |
+| `UserPersistenceIT` | trocar a lista **e o padrão** no mesmo update passa pela restrição adiada; os endereços removidos não sobram; usuário com dois papéis lê o endereço uma vez só |
+| `UserApiIT` | primeiro endereço promovido a padrão; dois padrões → 400 com a mensagem do domínio; com o `id`, o endereço é mantido (mesmos ids); id de endereço alheio → 400 |
+| `RestaurantLifecycleIT` | endereço do restaurante diferente do endereço do dono; atualização mantém o id; exclusão remove o endereço do restaurante e preserva o do dono; restaurante sem endereço → 400 |
+| `OpenApiDocumentationIT` | o corpo montado só com os exemplos do documento passou a seguir objetos aninhados (`$ref` e `allOf`) e continua aceito |
+
+### Revisão de código da etapa
+
+| Achado | Tratamento |
+| --- | --- |
+| Usuário com dois papéis e um endereço lia o endereço duas vezes (produto cartesiano papéis × endereços) e falharia na regra do padrão | IT `deveLerOEnderecoUmaVezComVariosPapeis` reproduziu (2 em vez de 1); papéis passaram a `@Fetch(SUBSELECT)`, fora do `@EntityGraph` |
+| A restrição adiada estoura no commit — chegaria ao cliente como 500? | Não: o `JpaTransactionManager` traduz para `DataIntegrityViolationException`, que o handler responde com 409. Ficou o IT `deveTraduzirViolacaoAdiadaParaOCommit` como guarda |
+| ITs contavam endereços órfãos na tabela inteira, dependendo do estado de outras classes | Contagem passou a ser só dos endereços que o próprio teste criou (`EnderecosNoBanco.existentes`, um helper para os três ITs) |
+| Testes com ids fixos limpavam só na última linha | Limpeza em `finally` |
+| Ids dos endereços mudavam a cada `PUT` | `id` opcional no endereço do usuário; reconciliação por id na origem de dados |
+| IT de restaurante sem endereço só conferia o 400 | Confere também que o campo recusado é `address` |
+
+**Postman:** corpos de usuário com `{ label, isDefault, address }`; restaurante com o endereço no
+corpo; o request 54 deixou de buscar um endereço do dono ("…para obter o id"); o 55 guarda o id do
+endereço do restaurante e o 63 confere que a atualização o preserva. Prints regenerados da mesma
+execução.
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `mvn clean verify` | **560 testes unitários** e **98 de integração** — BUILD SUCCESS; cobertura unitária **1429/1429 linhas, 292/292 ramos, 597/597 métodos** |
+| Pilha do Compose + coleção Postman (`npx newman@6`) | 67 requests (68 execuções, com a nova tentativa do Mailpit), 126 asserções, nenhuma falha; 67 prints regenerados |
+| Endereços órfãos no banco do Compose depois da coleção | 0 |
 
 ## Etapa 19 — Token de redefinição único por usuário
 

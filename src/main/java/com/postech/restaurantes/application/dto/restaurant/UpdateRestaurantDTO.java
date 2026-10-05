@@ -1,5 +1,6 @@
 package com.postech.restaurantes.application.dto.restaurant;
 
+import com.postech.restaurantes.application.dto.common.AddressDTO;
 import java.time.LocalTime;
 import java.util.UUID;
 
@@ -7,7 +8,7 @@ import java.util.UUID;
 public record UpdateRestaurantDTO(
         UUID id,
         UUID userId,
-        UUID addressId,
+        AddressDTO address,
         String name,
         LocalTime officeHourStart,
         LocalTime officeHourEnd

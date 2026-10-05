@@ -1,13 +1,14 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa.user;
 
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
-import com.postech.restaurantes.adapter.datasource.data.AddressData;
 import com.postech.restaurantes.adapter.datasource.data.RoleData;
+import com.postech.restaurantes.adapter.datasource.data.UserAddressData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
-import com.postech.restaurantes.infrastructure.persistence.jpa.user.address.AddressJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.address.AddressJpaMapping;
+import com.postech.restaurantes.infrastructure.persistence.jpa.user.address.UserAddressJpaEntity;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.role.RoleJpaEntity;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.role.SpringDataRoleRepository;
 import java.util.Collection;
@@ -17,6 +18,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -134,7 +136,7 @@ public class UserDataSourceJpa implements IUserDataSource {
         entity.setLogin(data.login());
         entity.setPassword(data.passwordHash());
         entity.replaceRoles(resolveRoles(data.roles()));
-        entity.replaceAddresses(data.addresses().stream().map(UserDataSourceJpa::toEntity).toList());
+        entity.replaceAddresses(reconcile(entity.getAddresses(), data.addresses()));
     }
 
     /**
@@ -147,19 +149,41 @@ public class UserDataSourceJpa implements IUserDataSource {
     }
 
     /**
-     * Endereço sempre nasce sem id: {@code orphanRemoval} apaga os antigos e o banco emite
-     * os novos. É a tradução literal de {@code User.replaceAddresses} — a lista é substituída
-     * como um todo, não reconciliada item a item.
+     * Tradução de {@code User.replaceAddresses}: o registro com id é um vínculo que o usuário já
+     * tem, atualizado na mesma linha (vínculo e endereço mantêm o id); sem id, é um vínculo novo; o
+     * que não vier é removido pelo {@code orphanRemoval} (o vínculo e, em cascata, o endereço dele).
+     * Assim o id que o cliente recebeu continua valendo depois de uma atualização.
+     *
+     * <p>Na descarga, o Hibernate pode inserir ou atualizar um padrão novo antes de desmarcar ou
+     * apagar o antigo: por um instante há dois endereços padrão do mesmo usuário. Por isso a
+     * restrição "um padrão por usuário" é conferida no commit ({@code DEFERRABLE INITIALLY
+     * DEFERRED}, migration V4).
      */
-    private static AddressJpaEntity toEntity(AddressData data) {
-        AddressJpaEntity entity = new AddressJpaEntity();
-        entity.setStreet(data.street());
-        entity.setNumber(data.number());
-        entity.setComplement(data.complement());
-        entity.setNeighborhood(data.neighborhood());
-        entity.setCity(data.city());
-        entity.setState(data.state());
-        entity.setZipCode(data.zipCode());
+    private static List<UserAddressJpaEntity> reconcile(List<UserAddressJpaEntity> current,
+                                                        List<UserAddressData> wanted) {
+        Map<UUID, UserAddressJpaEntity> byId = current.stream()
+                .collect(Collectors.toMap(UserAddressJpaEntity::getId, Function.identity()));
+        return wanted.stream()
+                .map(data -> data.id() == null ? toEntity(data) : update(byId.get(data.id()), data))
+                .toList();
+    }
+
+    /** O domínio só deixa passar id de um endereço do próprio usuário; ausência aqui é falha de estado. */
+    private static UserAddressJpaEntity update(UserAddressJpaEntity existing, UserAddressData data) {
+        if (existing == null) {
+            throw new IllegalStateException("Endereço do usuário inexistente para atualização: " + data.id());
+        }
+        existing.setLabel(data.label());
+        existing.setDefaultAddress(data.isDefault());
+        AddressJpaMapping.copy(data.address(), existing.getAddress());
+        return existing;
+    }
+
+    private static UserAddressJpaEntity toEntity(UserAddressData data) {
+        UserAddressJpaEntity entity = new UserAddressJpaEntity();
+        entity.setLabel(data.label());
+        entity.setDefaultAddress(data.isDefault());
+        entity.setAddress(AddressJpaMapping.toEntity(data.address()));
         return entity;
     }
 
@@ -173,9 +197,9 @@ public class UserDataSourceJpa implements IUserDataSource {
                 entity.getCreatedAt(), entity.getLastUpdatedAt());
     }
 
-    private static AddressData toData(AddressJpaEntity entity) {
-        return new AddressData(entity.getId(), entity.getStreet(), entity.getNumber(), entity.getComplement(),
-                entity.getNeighborhood(), entity.getCity(), entity.getState(), entity.getZipCode());
+    private static UserAddressData toData(UserAddressJpaEntity entity) {
+        return new UserAddressData(entity.getId(), entity.getLabel(), entity.isDefaultAddress(),
+                AddressJpaMapping.toData(entity.getAddress()));
     }
 
     private static Sort toSort(PageRequest request) {

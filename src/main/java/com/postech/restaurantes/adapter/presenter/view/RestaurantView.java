@@ -8,7 +8,7 @@ import java.util.UUID;
 public record RestaurantView(
         UUID id,
         UUID userId,
-        UUID addressId,
+        AddressView address,
         String name,
         LocalTime officeHourStart,
         LocalTime officeHourEnd,

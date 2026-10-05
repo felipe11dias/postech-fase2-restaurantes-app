@@ -3,6 +3,7 @@ package com.postech.restaurantes.infrastructure.api.rest.spring;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.postech.restaurantes.EnderecosNoBanco;
 import com.postech.restaurantes.WebIntegrationTestSupport;
 import java.net.URI;
 import java.util.List;
@@ -49,19 +50,23 @@ class UserLifecycleIT extends WebIntegrationTestSupport {
         assertEquals(HttpStatus.CREATED, cadastro.getStatusCode());
         URI location = cadastro.getHeaders().getLocation();
         UUID id = UUID.fromString(cadastro.getBody().get("id").asText());
+        UUID enderecoCadastrado = UUID.fromString(cadastro.getBody().at("/addresses/0/address/id").asText());
 
         // 2. Login e consulta do próprio cadastro pelo Location devolvido
         String token = autenticar(login, "senhaSegura123");
         ResponseEntity<JsonNode> consulta = rest.exchange(location, HttpMethod.GET, autenticado(token), JsonNode.class);
         assertEquals(HttpStatus.OK, consulta.getStatusCode());
-        assertEquals("Rua das Flores", consulta.getBody().get("addresses").get(0).get("street").asText());
+        assertEquals("Rua das Flores", consulta.getBody().at("/addresses/0/address/street").asText());
 
-        // 3. Atualização troca o endereço inteiro; a senha continua a mesma
+        // 3. Atualização troca o endereço inteiro — e o padrão, de um vínculo para outro; a senha continua a mesma
         ResponseEntity<JsonNode> atualizacao = rest.exchange(location, HttpMethod.PUT, corpoAutenticado(Map.of(
                 "name", "Ciclo Atualizado", "email", login + "@email.com", "login", login,
                 "addresses", List.of(endereco("Avenida Nova"))), token), JsonNode.class);
         assertEquals(HttpStatus.OK, atualizacao.getStatusCode());
         assertEquals(List.of("Avenida Nova"), ruas(id), "o endereço antigo foi removido, não acumulado");
+        assertEquals(0, EnderecosNoBanco.existentes(jdbc, List.of(enderecoCadastrado)),
+                "o endereço do vínculo antigo saiu junto com ele");
+        UUID enderecoAtual = UUID.fromString(atualizacao.getBody().at("/addresses/0/address/id").asText());
         token = autenticar(login, "senhaSegura123");
 
         // 4. Troca de senha: a nova entra, a antiga sai
@@ -84,7 +89,8 @@ class UserLifecycleIT extends WebIntegrationTestSupport {
                 rest.exchange(location, HttpMethod.GET, autenticado(token), JsonNode.class).getStatusCode());
         assertEquals(HttpStatus.UNAUTHORIZED, statusDoLogin(login, "senhaNova456"));
         assertEquals(0, linhas("users", id, "id"));
-        assertEquals(0, linhas("addresses", id));
+        assertEquals(0, linhas("user_addresses", id));
+        assertEquals(0, EnderecosNoBanco.existentes(jdbc, List.of(enderecoAtual)));
         assertEquals(0, linhas("user_roles", id));
         assertEquals(0, linhas("password_reset_tokens", id));
     }
@@ -95,7 +101,8 @@ class UserLifecycleIT extends WebIntegrationTestSupport {
     }
 
     private List<String> ruas(UUID userId) {
-        return jdbc.queryForList("SELECT street FROM addresses WHERE user_id = ?", String.class, userId);
+        return jdbc.queryForList("SELECT a.street FROM addresses a JOIN user_addresses ua ON ua.address_id = a.id "
+                + "WHERE ua.user_id = ?", String.class, userId);
     }
 
     private int linhas(String tabela, UUID userId) {
@@ -109,7 +116,7 @@ class UserLifecycleIT extends WebIntegrationTestSupport {
     }
 
     private static Map<String, Object> endereco(String rua) {
-        return Map.of("street", rua, "number", "100", "complement", "Apto 21", "neighborhood", "Centro",
-                "city", "São Paulo", "state", "SP", "zipCode", "01001-000");
+        return Map.of("label", "Casa", "address", Map.of("street", rua, "number", "100", "complement", "Apto 21",
+                "neighborhood", "Centro", "city", "São Paulo", "state", "SP", "zipCode", "01001-000"));
     }
 }

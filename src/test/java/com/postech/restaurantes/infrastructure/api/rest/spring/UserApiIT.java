@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.postech.restaurantes.WebIntegrationTestSupport;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -42,11 +43,31 @@ class UserApiIT extends WebIntegrationTestSupport {
         assertNotNull(corpo.get("id").asText());
         assertEquals(login, corpo.get("login").asText());
         assertEquals("ROLE_CUSTOMER", corpo.get("roles").get(0).get("name").asText());
-        assertEquals("01001000", corpo.get("addresses").get(0).get("zipCode").asText(), "CEP sai normalizado");
+        assertEquals("01001000", corpo.at("/addresses/0/address/zipCode").asText(), "CEP sai normalizado");
+        assertEquals("Casa", corpo.at("/addresses/0/label").asText());
+        assertTrue(corpo.at("/addresses/0/isDefault").asBoolean(), "o único endereço é o padrão");
         assertTrue(corpo.has("_links"));
         assertTrue(resposta.getHeaders().getLocation().toString().endsWith(USERS + "/" + corpo.get("id").asText()));
         assertFalse(corpo.has("password"), "a resposta não tem campo de senha");
         assertFalse(corpo.toString().contains("$2a$"), "nenhum hash vaza no corpo");
+    }
+
+    @Test
+    @DisplayName("Sem endereço marcado como padrão, o primeiro passa a ser; marcar dois é recusado com 400")
+    void deveDefinirOEnderecoPadrao() {
+        Map<String, Object> semPadrao = new HashMap<>(novoUsuario(novoLogin()));
+        semPadrao.put("addresses", List.of(Map.of("address", endereco("Rua 1")), Map.of("address", endereco("Rua 2"))));
+        Map<String, Object> doisPadroes = new HashMap<>(novoUsuario(novoLogin()));
+        doisPadroes.put("addresses", List.of(Map.of("isDefault", true, "address", endereco("Rua 1")),
+                Map.of("isDefault", true, "address", endereco("Rua 2"))));
+
+        JsonNode criado = rest.postForEntity(USERS, corpo(semPadrao), JsonNode.class).getBody();
+        ResponseEntity<JsonNode> recusado = rest.postForEntity(USERS, corpo(doisPadroes), JsonNode.class);
+
+        assertTrue(criado.at("/addresses/0/isDefault").asBoolean());
+        assertFalse(criado.at("/addresses/1/isDefault").asBoolean());
+        assertEquals(HttpStatus.BAD_REQUEST, recusado.getStatusCode());
+        assertEquals("Exatamente um endereço deve ser o padrão", recusado.getBody().get("detail").asText());
     }
 
     @Test
@@ -164,6 +185,37 @@ class UserApiIT extends WebIntegrationTestSupport {
     }
 
     @Test
+    @DisplayName("Com o id do endereço, a atualização o mantém (mesmos ids); id de endereço alheio dá 400")
+    void deveManterOEnderecoPeloId() {
+        Usuario eu = cadastrarEAutenticar();
+        Usuario outro = cadastrarEAutenticar();
+        JsonNode antes = rest.exchange(USERS + "/" + eu.id(), HttpMethod.GET, autenticado(eu.token()), JsonNode.class)
+                .getBody();
+        String vinculo = antes.at("/addresses/0/id").asText();
+        String endereco = antes.at("/addresses/0/address/id").asText();
+        String vinculoAlheio = rest.exchange(USERS + "/" + outro.id(), HttpMethod.GET, autenticado(outro.token()),
+                JsonNode.class).getBody().at("/addresses/0/id").asText();
+
+        ResponseEntity<JsonNode> mantido = rest.exchange(USERS + "/" + eu.id(), HttpMethod.PUT, corpoAutenticado(Map.of(
+                "name", "Com Endereço Mantido", "email", eu.login() + "@email.com", "login", eu.login(),
+                "addresses", List.of(Map.of("id", vinculo, "label", "Casa Reformada",
+                        "address", endereco("Rua Nova")))),
+                eu.token()), JsonNode.class);
+        ResponseEntity<JsonNode> alheio = rest.exchange(USERS + "/" + eu.id(), HttpMethod.PUT, corpoAutenticado(Map.of(
+                "name", "Com Endereço Alheio", "email", eu.login() + "@email.com", "login", eu.login(),
+                "addresses", List.of(Map.of("id", vinculoAlheio, "address", endereco("Rua Alheia")))),
+                eu.token()), JsonNode.class);
+
+        assertEquals(HttpStatus.OK, mantido.getStatusCode());
+        assertEquals(vinculo, mantido.getBody().at("/addresses/0/id").asText());
+        assertEquals(endereco, mantido.getBody().at("/addresses/0/address/id").asText());
+        assertEquals("Casa Reformada", mantido.getBody().at("/addresses/0/label").asText());
+        assertEquals("Rua Nova", mantido.getBody().at("/addresses/0/address/street").asText());
+        assertEquals(HttpStatus.BAD_REQUEST, alheio.getStatusCode());
+        assertEquals("Endereço do usuário não encontrado", alheio.getBody().get("detail").asText());
+    }
+
+    @Test
     @DisplayName("Atualização não toca na senha nem nos papéis: o login seguinte usa a mesma senha")
     void devePreservarSenhaEPapeisQuandoAtualiza() {
         Usuario eu = cadastrarEAutenticar();
@@ -227,6 +279,15 @@ class UserApiIT extends WebIntegrationTestSupport {
         assertEquals(HttpStatus.BAD_REQUEST, resposta.getStatusCode());
     }
 
+    private static String novoLogin() {
+        return "api" + SEQUENCIA.incrementAndGet() + UUID.randomUUID().toString().substring(0, 6);
+    }
+
+    private static Map<String, Object> endereco(String rua) {
+        return Map.of("street", rua, "number", "1", "neighborhood", "Centro", "city", "São Paulo", "state", "SP",
+                "zipCode", "01001000");
+    }
+
     private Map<String, Object> novoUsuario(String login) {
         return Map.of(
                 "name", "Usuário " + login,
@@ -234,9 +295,9 @@ class UserApiIT extends WebIntegrationTestSupport {
                 "login", login,
                 "password", "senhaSegura123",
                 "roles", List.of("ROLE_CUSTOMER"),
-                "addresses", List.of(Map.of("street", "Rua das Flores", "number", "100",
-                        "complement", "Apto 21", "neighborhood", "Centro", "city", "São Paulo",
-                        "state", "SP", "zipCode", "01001-000")));
+                "addresses", List.of(Map.of("label", "Casa", "address", Map.of("street", "Rua das Flores",
+                        "number", "100", "complement", "Apto 21", "neighborhood", "Centro", "city", "São Paulo",
+                        "state", "SP", "zipCode", "01001-000"))));
     }
 
     private Usuario cadastrarEAutenticar() {

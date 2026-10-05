@@ -26,8 +26,9 @@ import com.postech.restaurantes.domain.entity.address.Address;
 class UserTest {
 
     private static final Set<Role> CUSTOMER = Set.of(Role.create(RoleName.ROLE_CUSTOMER));
-    private static final Address ADDRESS =
-            Address.create("Rua das Flores", "100", null, "Centro", "São Paulo", "SP", "01001000");
+    private static final UserAddress ADDRESS = UserAddress.create("Casa", true,
+            Address.create("Rua das Flores", "100", null, "Centro", "São Paulo", "SP", "01001000"));
+    private static final Address OUTRO_ENDERECO = Address.create("Av. B", null, null, null, "Rio", "RJ", "20000000");
 
     private static User valido() {
         return User.create("João Silva", "Joao.Silva@Email.com", "joao.silva", "$2a$hash", CUSTOMER, List.of(ADDRESS));
@@ -146,7 +147,7 @@ class UserTest {
     @Test
     @DisplayName("Recusa endereço nulo dentro da lista")
     void deveRecusarEnderecoNuloNaLista() {
-        List<Address> comNulo = new ArrayList<>();
+        List<UserAddress> comNulo = new ArrayList<>();
         comNulo.add(null);
 
         assertThrows(IllegalArgumentException.class,
@@ -157,11 +158,70 @@ class UserTest {
     @DisplayName("Substitui os endereços por completo")
     void deveSubstituirEnderecos() {
         User user = valido();
-        Address novo = Address.create("Av. B", null, null, null, "Rio", "RJ", "20000000");
+        UserAddress padrao = UserAddress.create("Trabalho", true, OUTRO_ENDERECO);
+        UserAddress outro = UserAddress.create(null, false, OUTRO_ENDERECO);
 
-        user.replaceAddresses(List.of(novo, novo));
+        user.replaceAddresses(List.of(padrao, outro));
 
-        assertEquals(List.of(novo, novo), user.getAddresses());
+        assertEquals(List.of(padrao, outro), user.getAddresses());
+    }
+
+    @Test
+    @DisplayName("Recusa endereços sem nenhum padrão, sem alterar os atuais")
+    void deveRecusarEnderecosSemPadrao() {
+        User user = valido();
+        List<UserAddress> semPadrao = List.of(UserAddress.create(null, false, OUTRO_ENDERECO));
+
+        assertThrows(IllegalArgumentException.class, () -> user.replaceAddresses(semPadrao));
+        assertEquals(List.of(ADDRESS), user.getAddresses());
+    }
+
+    @Test
+    @DisplayName("Endereço com id que o usuário já tem é mantido; sem id, entra como novo")
+    void deveManterEnderecoPeloId() {
+        UUID idDoEndereco = UUID.randomUUID();
+        User user = User.restore(UUID.randomUUID(), "Ana", "ana@x.com", "ana", "hash", CUSTOMER,
+                List.of(UserAddress.restore(idDoEndereco, "Casa", true, OUTRO_ENDERECO)), null, null);
+        UserAddress mantido = UserAddress.restore(idDoEndereco, "Casa Nova", true, OUTRO_ENDERECO);
+        UserAddress novo = UserAddress.create("Trabalho", false, OUTRO_ENDERECO);
+
+        user.replaceAddresses(List.of(mantido, novo));
+
+        assertEquals(List.of(mantido, novo), user.getAddresses());
+    }
+
+    @Test
+    @DisplayName("Recusa id de endereço que não é do usuário — no cadastro e na troca —, sem alterar os atuais")
+    void deveRecusarEnderecoDeOutroUsuario() {
+        User user = valido();
+        List<UserAddress> alheio = List.of(UserAddress.restore(UUID.randomUUID(), "Casa", true, OUTRO_ENDERECO));
+
+        assertThrows(IllegalArgumentException.class, () -> user.replaceAddresses(alheio));
+        assertThrows(IllegalArgumentException.class,
+                () -> User.create("Ana", "a@x.com", "login", "hash", CUSTOMER, alheio));
+        assertEquals(List.of(ADDRESS), user.getAddresses());
+    }
+
+    @Test
+    @DisplayName("Recusa o mesmo endereço do usuário duas vezes na lista")
+    void deveRecusarEnderecoRepetido() {
+        UUID idDoEndereco = UUID.randomUUID();
+        User user = User.restore(UUID.randomUUID(), "Ana", "ana@x.com", "ana", "hash", CUSTOMER,
+                List.of(UserAddress.restore(idDoEndereco, "Casa", true, OUTRO_ENDERECO)), null, null);
+        List<UserAddress> repetido = List.of(UserAddress.restore(idDoEndereco, null, true, OUTRO_ENDERECO),
+                UserAddress.restore(idDoEndereco, null, false, OUTRO_ENDERECO));
+
+        assertThrows(IllegalArgumentException.class, () -> user.replaceAddresses(repetido));
+    }
+
+    @Test
+    @DisplayName("Recusa mais de um endereço padrão")
+    void deveRecusarDoisEnderecosPadrao() {
+        User user = valido();
+        List<UserAddress> doisPadroes = List.of(UserAddress.create(null, true, OUTRO_ENDERECO),
+                UserAddress.create(null, true, OUTRO_ENDERECO));
+
+        assertThrows(IllegalArgumentException.class, () -> user.replaceAddresses(doisPadroes));
     }
 
     @Test

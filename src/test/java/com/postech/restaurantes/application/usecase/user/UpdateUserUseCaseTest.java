@@ -16,6 +16,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.postech.restaurantes.application.dto.common.AddressDTO;
+import com.postech.restaurantes.application.dto.user.UserAddressDTO;
 import com.postech.restaurantes.application.dto.user.UpdateUserDTO;
 import com.postech.restaurantes.application.gateway.IUserGateway;
 import com.postech.restaurantes.domain.entity.user.User;
@@ -30,7 +31,8 @@ import org.junit.jupiter.api.Test;
 class UpdateUserUseCaseTest {
 
     private static final UpdateUserDTO DTO = new UpdateUserDTO("João Atualizado", "Novo@Email.com", "joao.novo",
-            List.of(new AddressDTO("Av. B", null, null, null, "Rio", "RJ", "20000000")));
+            List.of(new UserAddressDTO(null, null, null,
+                    new AddressDTO("Av. B", null, null, null, "Rio", "RJ", "20000000"))));
 
     private IUserGateway userGateway;
     private UpdateUserUseCase useCase;
@@ -56,7 +58,7 @@ class UpdateUserUseCaseTest {
         assertEquals("João Atualizado", user.getName());
         assertEquals("novo@email.com", user.getEmail().value());
         assertEquals("joao.novo", user.getLogin());
-        assertEquals("RJ", user.getAddresses().get(0).getState());
+        assertEquals("RJ", user.getAddresses().get(0).getAddress().getState());
         assertEquals(HASH, user.getPasswordHash());
     }
 

@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (17 até aqui; as Etapas 18
+Architecture**. O projeto está sendo entregue **etapa por etapa** (18 até aqui; as Etapas 19
 a 25, de adequação ao Modelo de Dados v2 em `docs/modelo-dados/`, estão planejadas no
 relatório) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
 `CHANGELOG.md`, e atualização do relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (marcar a etapa
@@ -117,10 +117,12 @@ infrastructure/
 
 Regras (verificadas pelo `InfrastructureModulesTest`):
 - **Nenhum ciclo entre pacotes no projeto inteiro** (ADP). Entidade JPA de parte de um agregado
-  fica num subpacote do agregado, espelhando o domínio (`persistence/jpa/user/{address,role,password}`
-  ↔ `domain/entity/{address,role,password}`), e a dependência só vai do agregado para a parte:
-  a parte não referencia a raiz (o endereço é `@OneToMany` + `@JoinColumn` unidirecional do lado
-  do `UserJpaEntity`), senão os dois pacotes formam ciclo.
+  fica num subpacote do agregado (`persistence/jpa/user/{address,role,password}`; `user/address` é o
+  vínculo `user_addresses`), e a dependência só vai do agregado para a parte: a parte não referencia
+  a raiz (`@OneToMany` + `@JoinColumn` unidirecional do lado do `UserJpaEntity`), senão os dois
+  pacotes formam ciclo. Entidade compartilhada por agregados fica em pacote próprio que não conhece
+  nenhum deles: o endereço está em `persistence/jpa/address` (com `AddressJpaMapping`), usado pelo
+  usuário e pelo restaurante.
 - **Nenhum módulo conhece outro módulo-irmão; só `main` liga as pontas.** Quando um módulo precisa
   de algo de outro, ele declara a interface (ou recebe um `Supplier`) e o `main` liga. Ex.: o autor
   da auditoria vem de `api/rest/spring/security/AuthenticatedActor` para `persistence/jpa/audit` via
@@ -179,7 +181,9 @@ Pontos que só ficam claros lendo várias camadas:
 - **Saída do núcleo são views** (`adapter/presenter/view`, records `*View`), produzidas só pelos
   presenters; `UserView` não tem campo de senha. Gateways do adapter reconstroem entidades com
   `restore(...)` (revalida invariantes) e desmontam com `toData`. ArchUnit exige que toda
-  classe em `adapter.gateway` implemente uma interface de `application.gateway`.
+  classe em `adapter.gateway` implemente uma interface de `application.gateway`. Tradução de
+  parte compartilhada por agregados (o endereço) fica em `adapter/gateway/mapping` (`AddressMapping`)
+  e, na saída, em `AddressPresenter` — uma tradução só, usada pelos dois gateways/presenters.
 - **Schema é do Flyway** (`db/migration`); JPA roda com `ddl-auto: validate` e
   `open-in-view: false`. A transação é aberta pela implementação de `IUnitOfWork` (`TransactionTemplate`), não por `@Transactional` em casos de uso.
 
@@ -206,6 +210,20 @@ Pontos que só ficam claros lendo várias camadas:
   propriedade fora do mapa cai no padrão. Nunca repassar `sortBy` direto para o `Sort`.
 - Leitura traz o agregado inteiro (hash inclusive), porque o gateway reconstrói com `restore`;
   quem esconde a senha é o presenter, por ausência de campo na view — não projeção no SQL.
+- **Endereço (Etapa 18).** O usuário se liga aos endereços por `user_addresses` (rótulo, `is_default`);
+  o restaurante tem `address_id` próprio e único. As chaves estrangeiras apontam **para**
+  `addresses`, então o `CASCADE` do banco não remove o endereço: quem remove é o `orphanRemoval` da
+  parte do agregado (`@OneToOne(cascade = ALL, orphanRemoval = true)`). Nos ITs, conferir que não
+  sobra endereço — contando só os ids que o próprio teste criou (`EnderecosNoBanco.existentes`), nunca
+  a tabela inteira. Endereço é atualizado na mesma linha: o do restaurante sempre; o do usuário
+  quando o pedido traz o `id` dele (sem `id`, é novo; os ausentes saem). O `User` recusa id que não é
+  seu.
+- **"Um padrão por usuário" é restrição adiada** (`EXCLUDE ... WHERE (is_default) DEFERRABLE
+  INITIALLY DEFERRED`): ao trocar a lista, o Hibernate insere os vínculos novos antes de apagar os
+  antigos, e um índice único parcial recusaria essa troca válida. Restrição nova que o Hibernate
+  pode violar no meio da descarga segue o mesmo desenho.
+- **Nunca buscar um `Set` e uma `List` (bag) no mesmo `@EntityGraph`**: o produto cartesiano repete
+  os itens da lista. Os papéis do usuário vêm por `@Fetch(FetchMode.SUBSELECT)`, fora do grafo.
 
 ### API REST organizada como MVC (Etapa 15, já implementada)
 

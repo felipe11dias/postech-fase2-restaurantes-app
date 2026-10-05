@@ -18,10 +18,10 @@ import com.postech.restaurantes.adapter.service.IMailSender;
 import com.postech.restaurantes.adapter.service.ITokenEncoder;
 import com.postech.restaurantes.adapter.service.data.TokenClaimsData;
 import com.postech.restaurantes.application.dto.auth.IssuedToken;
-import com.postech.restaurantes.domain.entity.address.Address;
 import com.postech.restaurantes.domain.entity.role.Role;
 import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.entity.user.User;
+import com.postech.restaurantes.domain.entity.user.UserAddress;
 import com.postech.restaurantes.domain.vo.Email;
 import java.time.Duration;
 import java.util.List;
@@ -86,7 +86,7 @@ class ServiceGatewaysTest {
             when(encoder.encode(any())).thenReturn(emitido);
             User usuario = User.restore(USER_ID, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
                     Set.of(Role.restore(ROLE_ID, RoleName.ROLE_OWNER), Role.restore(java.util.UUID.randomUUID(), RoleName.ROLE_CUSTOMER)),
-                    List.<Address>of(), NOW, NOW);
+                    List.<UserAddress>of(), NOW, NOW);
 
             IssuedToken resultado = gateway.issue(usuario);
 

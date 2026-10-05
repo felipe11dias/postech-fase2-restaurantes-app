@@ -76,8 +76,8 @@ class ErrorHandlingIT extends WebIntegrationTestSupport {
     @DisplayName("Invariante do domínio: 400 com a mensagem do objeto de valor")
     void deveTraduzirInvarianteDoDominio() {
         Map<String, Object> corpo = novoUsuario("cep" + sufixo());
-        corpo.put("addresses", List.of(Map.of("street", "Rua A", "number", "1", "neighborhood", "Centro",
-                "city", "São Paulo", "state", "SP", "zipCode", "123")));
+        corpo.put("addresses", List.of(Map.of("address", Map.of("street", "Rua A", "number", "1",
+                "neighborhood", "Centro", "city", "São Paulo", "state", "SP", "zipCode", "123"))));
 
         ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(corpo), JsonNode.class);
 

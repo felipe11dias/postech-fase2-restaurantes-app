@@ -23,6 +23,7 @@ import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.user.ChangePasswordDTO;
 import com.postech.restaurantes.application.dto.user.NewUserDTO;
 import com.postech.restaurantes.application.dto.user.UpdateUserDTO;
+import com.postech.restaurantes.application.dto.user.UserAddressDTO;
 import com.postech.restaurantes.application.gateway.IPasswordEncoder;
 import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.exception.ForbiddenOperationException;
@@ -79,8 +80,8 @@ class UserControllerTest {
         when(passwordEncoder.encode("senha123")).thenReturn(HASH);
         when(userDataSource.insert(any())).thenReturn(USER_DATA);
         NewUserDTO dto = new NewUserDTO("João Silva", "joao.silva@email.com", "joao.silva", "senha123",
-                Set.of(RoleName.ROLE_CUSTOMER), List.of(new AddressDTO("Rua das Flores", "100", "Apto 21", "Centro",
-                        "São Paulo", "SP", "01001-000")));
+                Set.of(RoleName.ROLE_CUSTOMER), List.of(new UserAddressDTO(null, "Casa", true,
+                        new AddressDTO("Rua das Flores", "100", "Apto 21", "Centro", "São Paulo", "SP", "01001-000"))));
 
         UserView view = controller.register(dto);
 

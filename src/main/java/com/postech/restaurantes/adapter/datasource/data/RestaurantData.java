@@ -11,7 +11,7 @@ import java.util.UUID;
 public record RestaurantData(
         UUID id,
         UUID userId,
-        UUID addressId,
+        AddressData address,
         String name,
         LocalTime officeHourStart,
         LocalTime officeHourEnd,

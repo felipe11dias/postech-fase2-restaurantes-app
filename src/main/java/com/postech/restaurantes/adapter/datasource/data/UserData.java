@@ -10,6 +10,6 @@ import java.util.UUID;
  * de dados devolve o registro preenchido.
  */
 public record UserData(UUID id, String name, String email, String login, String passwordHash,
-                       Set<RoleData> roles, List<AddressData> addresses,
+                       Set<RoleData> roles, List<UserAddressData> addresses,
                        LocalDateTime createdAt, LocalDateTime lastUpdatedAt) {
 }

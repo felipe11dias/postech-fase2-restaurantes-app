@@ -1,10 +1,12 @@
 package com.postech.restaurantes.application.usecase;
 
 import com.postech.restaurantes.application.dto.common.AddressDTO;
+import com.postech.restaurantes.application.dto.user.UserAddressDTO;
 import com.postech.restaurantes.domain.entity.address.Address;
 import com.postech.restaurantes.domain.entity.role.Role;
 import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.entity.user.User;
+import com.postech.restaurantes.domain.entity.user.UserAddress;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -19,6 +21,7 @@ public final class UseCaseFixtures {
 
     public static final UUID USER_ID = UUID.fromString("7295577e-afe6-4875-8bbf-d21c21860711");
     public static final UUID OTHER_ID = UUID.fromString("a0d64f5e-e511-4b52-871d-582d7a8b18d0");
+    public static final UUID USER_ADDRESS_ID = UUID.fromString("5c6f1a2b-3d4e-4f50-8a61-7b8c9d0e1f23");
     public static final String HASH = "$2a$10$hash";
     public static final LocalDateTime NOW = LocalDateTime.of(2026, 9, 16, 12, 0);
     public static final Clock CLOCK = Clock.fixed(NOW.toInstant(ZoneOffset.UTC), ZoneId.of("UTC"));
@@ -26,13 +29,15 @@ public final class UseCaseFixtures {
     public static final Role OWNER = Role.restore(UUID.randomUUID(), RoleName.ROLE_OWNER);
     public static final AddressDTO ADDRESS_DTO =
             new AddressDTO("Rua das Flores", "100", "Apto 21", "Centro", "São Paulo", "SP", "01001-000");
+    public static final UserAddressDTO USER_ADDRESS_DTO = new UserAddressDTO(null, "Casa", true, ADDRESS_DTO);
 
     private UseCaseFixtures() {
     }
 
     public static User existingUser() {
         return User.restore(USER_ID, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
-                Set.of(CUSTOMER), List.of(ADDRESS_DTO.toEntity()), NOW.minusDays(1), NOW.minusDays(1));
+                Set.of(CUSTOMER), List.of(UserAddress.restore(USER_ADDRESS_ID, "Casa", true, ADDRESS_DTO.toEntity())),
+                NOW.minusDays(1), NOW.minusDays(1));
     }
 
     public static User otherUser() {

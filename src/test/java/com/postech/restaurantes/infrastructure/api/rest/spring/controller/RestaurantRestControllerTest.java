@@ -1,5 +1,7 @@
 package com.postech.restaurantes.infrastructure.api.rest.spring.controller;
 
+import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.ADDRESS_REQUEST;
+import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.ADDRESS_VIEW;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -40,7 +42,6 @@ class RestaurantRestControllerTest {
 
     private UUID restaurantId;
     private UUID userId;
-    private UUID addressId;
     private RestaurantView view;
 
     @BeforeEach
@@ -54,8 +55,7 @@ class RestaurantRestControllerTest {
 
         restaurantId = UUID.randomUUID();
         userId = UUID.randomUUID();
-        addressId = UUID.randomUUID();
-        view = new RestaurantView(restaurantId, userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0),
+        view = new RestaurantView(restaurantId, userId, ADDRESS_VIEW, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0),
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
@@ -64,7 +64,7 @@ class RestaurantRestControllerTest {
     void deveCriar() {
         when(controller.create(any())).thenReturn(view);
 
-        CreateRestaurantRequest req = new CreateRestaurantRequest(userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        CreateRestaurantRequest req = new CreateRestaurantRequest(userId, ADDRESS_REQUEST, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
         ResponseEntity<EntityModel<RestaurantResponse>> response = restController.create(req);
 
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
@@ -97,7 +97,7 @@ class RestaurantRestControllerTest {
     void deveAtualizar() {
         when(controller.update(any())).thenReturn(view);
 
-        UpdateRestaurantRequest req = new UpdateRestaurantRequest(userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        UpdateRestaurantRequest req = new UpdateRestaurantRequest(userId, ADDRESS_REQUEST, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
         EntityModel<RestaurantResponse> response = restController.update(restaurantId, req);
 
         assertNotNull(response.getContent());

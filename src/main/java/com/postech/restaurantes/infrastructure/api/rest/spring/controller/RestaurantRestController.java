@@ -64,7 +64,7 @@ public class RestaurantRestController {
     @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Campo inválido")
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
     @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Usuário sem perfil de dono/admin")
-    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Dono ou endereço não encontrado")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Dono não encontrado")
     public ResponseEntity<EntityModel<RestaurantResponse>> create(@Valid @RequestBody CreateRestaurantRequest request) {
         RestaurantView criado = controller.create(request.toDTO());
         EntityModel<RestaurantResponse> corpo = assembler.toModel(criado);
@@ -106,7 +106,7 @@ public class RestaurantRestController {
     @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Campo inválido")
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
     @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Usuário sem perfil de dono/admin")
-    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Restaurante, dono ou endereço não encontrado")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Restaurante ou dono não encontrado")
     public EntityModel<RestaurantResponse> update(
             @Parameter(description = "Id do restaurante") @PathVariable UUID id,
             @Valid @RequestBody UpdateRestaurantRequest request) {

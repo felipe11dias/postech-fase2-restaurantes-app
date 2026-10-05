@@ -1,5 +1,6 @@
 package com.postech.restaurantes.infrastructure.api.rest.spring.assembler;
 
+import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.ADDRESS_VIEW;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -31,7 +32,7 @@ class RestaurantModelAssemblerTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
-        view = new RestaurantView(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "Sabor",
+        view = new RestaurantView(UUID.randomUUID(), UUID.randomUUID(), ADDRESS_VIEW, "Sabor",
                 LocalTime.of(8, 0), LocalTime.of(22, 0), LocalDateTime.now(), LocalDateTime.now());
     }
 

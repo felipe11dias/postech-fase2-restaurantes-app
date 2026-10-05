@@ -15,6 +15,7 @@ import com.postech.restaurantes.adapter.datasource.data.RestaurantData;
 import com.postech.restaurantes.adapter.datasource.data.RoleData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
 import com.postech.restaurantes.adapter.presenter.view.RestaurantView;
+import com.postech.restaurantes.application.dto.common.AddressDTO;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.restaurant.CreateRestaurantDTO;
@@ -41,7 +42,7 @@ class RestaurantControllerTest {
 
     private UUID restaurantId;
     private UUID userId;
-    private UUID addressId;
+    private AddressDTO endereco;
     private RestaurantData restaurantData;
     private UserData userData;
 
@@ -67,13 +68,13 @@ class RestaurantControllerTest {
 
         restaurantId = UUID.randomUUID();
         userId = UUID.randomUUID();
-        addressId = UUID.randomUUID();
+        endereco = new AddressDTO("Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
 
-        AddressData addressData = new AddressData(addressId, "Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
+        AddressData addressData = new AddressData(UUID.randomUUID(), "Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
         userData = new UserData(userId, "Dono", "dono@x.com", "dono", "hash",
-                Set.of(new RoleData(UUID.randomUUID(), RoleName.ROLE_OWNER.name())), List.of(addressData), null, null);
+                Set.of(new RoleData(UUID.randomUUID(), RoleName.ROLE_OWNER.name())), List.of(), null, null);
 
-        restaurantData = new RestaurantData(restaurantId, userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0),
+        restaurantData = new RestaurantData(restaurantId, userId, addressData, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0),
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
@@ -83,7 +84,7 @@ class RestaurantControllerTest {
         when(userDataSource.findById(userId)).thenReturn(Optional.of(userData));
         when(restaurantDataSource.insert(any())).thenReturn(restaurantData);
 
-        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
         RestaurantView view = controller.create(dto);
 
         assertNotNull(view);
@@ -118,7 +119,7 @@ class RestaurantControllerTest {
         when(userDataSource.findById(userId)).thenReturn(Optional.of(userData));
         when(restaurantDataSource.update(any())).thenReturn(restaurantData);
 
-        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, addressId, "Novo", LocalTime.of(9, 0), LocalTime.of(23, 0));
+        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo", LocalTime.of(9, 0), LocalTime.of(23, 0));
         RestaurantView view = controller.update(dto);
 
         assertNotNull(view);

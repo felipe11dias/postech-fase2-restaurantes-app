@@ -4,7 +4,6 @@ import com.postech.restaurantes.application.dto.common.AddressDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import java.util.List;
 
 /**
  * Endereço como chega pelo HTTP. A validação aqui é <strong>sintática</strong> — campo
@@ -24,9 +23,5 @@ public record AddressRequest(
 
     public AddressDTO toDTO() {
         return new AddressDTO(street, number, complement, neighborhood, city, state, zipCode);
-    }
-
-    public static List<AddressDTO> toDTOs(List<AddressRequest> requests) {
-        return requests == null ? null : requests.stream().map(AddressRequest::toDTO).toList();
     }
 }

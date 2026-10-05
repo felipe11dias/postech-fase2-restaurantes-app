@@ -1,4 +1,4 @@
-package com.postech.restaurantes.infrastructure.persistence.jpa.user.address;
+package com.postech.restaurantes.infrastructure.persistence.jpa.address;
 
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ADDRESS_ID;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.addressEntity;

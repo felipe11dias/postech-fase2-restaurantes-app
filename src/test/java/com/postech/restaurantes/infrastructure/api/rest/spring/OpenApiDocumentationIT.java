@@ -201,7 +201,7 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
                 JsonNode.class);
 
         assertEquals(HttpStatus.CREATED, criado.getStatusCode(), String.valueOf(criado.getBody()));
-        assertEquals("01001000", criado.getBody().at("/addresses/0/zipCode").asText(),
+        assertEquals("01001000", criado.getBody().at("/addresses/0/address/zipCode").asText(),
                 "o CEP de exemplo, com máscara, é normalizado");
         assertEquals(HttpStatus.OK, login.getStatusCode());
     }
@@ -260,6 +260,8 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
             JsonNode definicao = campo.getValue();
             if (definicao.has("example")) {
                 corpo.set(campo.getKey(), definicao.get("example"));
+            } else if (referencia(definicao) != null) {
+                corpo.set(campo.getKey(), exemplo(referencia(definicao)));
             } else if ("array".equals(definicao.path("type").asText())) {
                 JsonNode itens = definicao.get("items");
                 corpo.putArray(campo.getKey()).add(itens.has("$ref")
@@ -268,6 +270,15 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
             }
         });
         return corpo;
+    }
+
+    /**
+     * Objeto aninhado (o endereço dentro do endereço do usuário): o springdoc o escreve como
+     * {@code $ref} direto ou, quando o campo tem descrição, dentro de {@code allOf}.
+     */
+    private static String referencia(JsonNode definicao) {
+        JsonNode ref = definicao.has("$ref") ? definicao.get("$ref") : definicao.at("/allOf/0/$ref");
+        return ref.isMissingNode() ? null : ref.asText().replace("#/components/schemas/", "");
     }
 
     private static Set<String> nomesDosCampos(JsonNode no) {

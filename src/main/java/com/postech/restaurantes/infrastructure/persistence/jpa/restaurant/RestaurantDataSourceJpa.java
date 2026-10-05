@@ -5,6 +5,7 @@ import com.postech.restaurantes.adapter.datasource.data.RestaurantData;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
+import com.postech.restaurantes.infrastructure.persistence.jpa.address.AddressJpaMapping;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -74,9 +75,17 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
         restaurants.deleteById(id);
     }
 
+    /**
+     * Copia o registro para a entidade gerenciada. O endereço do restaurante existente é
+     * atualizado na mesma linha (o id não muda); só o restaurante novo ganha uma linha nova.
+     */
     private void apply(RestaurantJpaEntity entity, RestaurantData data) {
         entity.setUserId(data.userId());
-        entity.setAddressId(data.addressId());
+        if (entity.getAddress() == null) {
+            entity.setAddress(AddressJpaMapping.toEntity(data.address()));
+        } else {
+            AddressJpaMapping.copy(data.address(), entity.getAddress());
+        }
         entity.setName(data.name());
         entity.setOfficeHourStart(data.officeHourStart());
         entity.setOfficeHourEnd(data.officeHourEnd());
@@ -86,7 +95,7 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
         return new RestaurantData(
                 entity.getId(),
                 entity.getUserId(),
-                entity.getAddressId(),
+                AddressJpaMapping.toData(entity.getAddress()),
                 entity.getName(),
                 entity.getOfficeHourStart(),
                 entity.getOfficeHourEnd(),

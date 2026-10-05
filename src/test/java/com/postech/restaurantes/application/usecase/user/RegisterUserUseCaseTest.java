@@ -1,6 +1,6 @@
 package com.postech.restaurantes.application.usecase.user;
 
-import static com.postech.restaurantes.application.usecase.UseCaseFixtures.ADDRESS_DTO;
+import static com.postech.restaurantes.application.usecase.UseCaseFixtures.USER_ADDRESS_DTO;
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.CUSTOMER;
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.OWNER;
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.existingUser;
@@ -52,7 +52,7 @@ class RegisterUserUseCaseTest {
 
     private static NewUserDTO dto(Set<RoleName> roles) {
         return new NewUserDTO("João Silva", "Joao.Silva@Email.com", "joao.silva", "senhaSegura123",
-                roles, List.of(ADDRESS_DTO));
+                roles, List.of(USER_ADDRESS_DTO));
     }
 
     @Test

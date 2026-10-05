@@ -39,14 +39,8 @@ public final class UpdateRestaurantUseCase {
             throw new ForbiddenOperationException("O usuário informado não possui papel de dono de restaurante");
         }
 
-        boolean addressBelongsToUser = user.getAddresses().stream()
-                .anyMatch(addr -> addr.getId().equals(dto.addressId()));
-        if (!addressBelongsToUser) {
-            throw new ResourceNotFoundException("Endereço não encontrado ou não pertence ao usuário");
-        }
-
         existing.setUserId(dto.userId());
-        existing.setAddressId(dto.addressId());
+        existing.setAddress(Guard.requireNonNull(dto.address(), "Endereço do restaurante inválido").toEntity());
         existing.setName(dto.name());
         existing.setOfficeHours(dto.officeHourStart(), dto.officeHourEnd());
 

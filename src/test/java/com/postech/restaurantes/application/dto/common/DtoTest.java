@@ -3,12 +3,9 @@ package com.postech.restaurantes.application.dto.common;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.postech.restaurantes.domain.entity.address.Address;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -43,28 +40,6 @@ class DtoTest {
         assertEquals("Rua A", address.getStreet());
         assertEquals("SP", address.getState());
         assertEquals("01001000", address.getZipCode().value());
-    }
-
-    @Test
-    @DisplayName("AddressDTO: lista nula vira lista vazia; lista com itens converte todos")
-    void deveConverterListaDeEnderecos() {
-        assertTrue(AddressDTO.toEntities(null).isEmpty());
-
-        List<Address> entities = AddressDTO.toEntities(List.of(
-                new AddressDTO("Rua A", null, null, null, "Cidade", "SP", "01001000"),
-                new AddressDTO("Rua B", null, null, null, "Cidade", "RJ", "20000000")));
-
-        assertEquals(2, entities.size());
-        assertEquals("RJ", entities.get(1).getState());
-    }
-
-    @Test
-    @DisplayName("AddressDTO: elemento nulo na lista é entrada inválida, não NPE")
-    void deveRecusarElementoNuloNaLista() {
-        List<AddressDTO> comNulo = new ArrayList<>();
-        comNulo.add(null);
-
-        assertThrows(IllegalArgumentException.class, () -> AddressDTO.toEntities(comNulo));
     }
 
     @Test
