@@ -1,9 +1,12 @@
 package com.postech.restaurantes.application.dto.user;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.postech.restaurantes.domain.entity.admin.AdminProfile;
 import com.postech.restaurantes.domain.entity.client.ClientProfile;
 import com.postech.restaurantes.domain.entity.courier.CourierProfile;
 import com.postech.restaurantes.domain.entity.courier.CourierStatus;
@@ -73,5 +76,16 @@ class ProfileDTOTest {
         IllegalArgumentException erro = assertThrows(IllegalArgumentException.class, dto::toEntity);
 
         assertEquals("Tipo de veículo inválido: TRUCK", erro.getMessage());
+    }
+
+    @Test
+    @DisplayName("Perfil de administrador vira entidade; superAdmin ausente vale false")
+    void deveConverterPerfilDeAdministrador() {
+        AdminProfile admin = new AdminProfileDTO("ADM-7", " ", null).toEntity();
+
+        assertEquals("ADM-7", admin.getEmployeeCode());
+        assertNull(admin.getDepartment());
+        assertFalse(admin.isSuperAdmin());
+        assertTrue(new AdminProfileDTO("ADM-8", "Suporte", true).toEntity().isSuperAdmin());
     }
 }

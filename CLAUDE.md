@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (21 até aqui; as Etapas 22
+Architecture**. O projeto está sendo entregue **etapa por etapa** (22 até aqui; as Etapas 23
 a 25, de adequação ao Modelo de Dados v2 em `docs/modelo-dados/`, estão planejadas no
 relatório) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
 `CHANGELOG.md`, e atualização do relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (marcar a etapa
@@ -236,6 +236,13 @@ Pontos que só ficam claros lendo várias camadas:
   entidade JPA com `columnDefinition` e `@ColumnTransformer(write = "?::tipo")`; o gateway converte
   (`CourierVehicleType.from`). Nos ITs, CPF, CNPJ e CNH vêm de `Documentos` (únicos, válidos); no HTTP,
   `perfilDeCliente()`/`perfilDeDono()` da `WebIntegrationTestSupport`.
+- **Perfis de cadastro existente (Etapa 22).** Incluir ou alterar é `PUT /users/{id}/profiles/{owner,client,courier,admin}`
+  (o de admin só por administrador, no `@PreAuthorize`); remover, `DELETE /profiles/{tipo}`; status do
+  entregador, `PATCH /profiles/courier/status`. Um caso de uso para incluir/alterar (`SaveUserProfileUseCase`,
+  entrada `UserProfileDTO` selada): perfil novo de tipo novo exige um `case` lá, e o compilador cobra. Regras
+  entre perfis ficam em `UserProfiles` (`with*`, `without`, `has` devolvem conjunto novo e revalidam). Os
+  papéis do JWT são os do login: perfil novo vale a partir do próximo login. Recurso que não pode sair porque
+  outro depende dele (dono com restaurante) é `ResourceInUseException` → 409.
 
 ### API REST organizada como MVC (Etapa 15, já implementada)
 

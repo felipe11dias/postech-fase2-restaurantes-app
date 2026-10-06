@@ -63,7 +63,7 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Os quatorze endpoints da especificação estão documentados, cada um sob a sua tag")
+    @DisplayName("Os vinte endpoints da especificação estão documentados, cada um sob a sua tag")
     void deveDocumentarTodosOsEndpoints() {
         Set<String> documentados = new TreeSet<>();
         operacoes().forEach(op -> documentados.add(op.metodo() + " " + op.caminho() + " " + op.tag()));
@@ -78,6 +78,12 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
                 "PUT /api/v1/users/{id} Usuários",
                 "PATCH /api/v1/users/{id}/password Usuários",
                 "DELETE /api/v1/users/{id} Usuários",
+                "PUT /api/v1/users/{id}/profiles/owner Usuários",
+                "PUT /api/v1/users/{id}/profiles/client Usuários",
+                "PUT /api/v1/users/{id}/profiles/courier Usuários",
+                "PUT /api/v1/users/{id}/profiles/admin Usuários",
+                "DELETE /api/v1/users/{id}/profiles/{type} Usuários",
+                "PATCH /api/v1/users/{id}/profiles/courier/status Usuários",
                 "POST /api/v1/restaurants Restaurantes",
                 "GET /api/v1/restaurants Restaurantes",
                 "GET /api/v1/restaurants/{id} Restaurantes",
@@ -105,7 +111,7 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
         }
 
         assertTrue(divergencias.isEmpty(), String.join("\n", divergencias));
-        assertEquals(8, operacoes().stream().filter(Operacao::protegida).count());
+        assertEquals(14, operacoes().stream().filter(Operacao::protegida).count());
     }
 
     @Test
@@ -248,7 +254,7 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> requisicao = new HttpEntity<>(op.metodo().equals("GET") || op.metodo().equals("DELETE")
                 ? null : "{}", headers);
-        String caminho = op.caminho().replace("{id}", UUID.randomUUID().toString());
+        String caminho = op.caminho().replace("{id}", UUID.randomUUID().toString()).replace("{type}", "client");
         return HttpStatus.valueOf(rest.exchange(caminho, HttpMethod.valueOf(op.metodo()), requisicao, String.class)
                 .getStatusCode().value());
     }

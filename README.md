@@ -190,6 +190,10 @@ autocadastro não tem perfil de administrador.
      (CPF; CNH e placa para moto e carro) —, nunca o de administrador. O papel de cada um é derivado
      do perfil: `ROLE_OWNER`, `ROLE_CLIENT`, `ROLE_COURIER`.
    - Restaurante só pode ter como dono um usuário com perfil de dono.
+   - Perfis de um cadastro existente se incluem, alteram e removem em `/api/v1/users/{id}/profiles/…`
+     (o próprio usuário ou um administrador; o perfil de administrador, só um administrador). Os
+     papéis do token são os do momento do login: um perfil novo vale para a autorização a partir do
+     próximo login.
 4. **Recuperação de senha:** `POST /api/v1/auth/forgot-password` responde `202` sempre, exista ou
    não o e-mail, e no mesmo tempo: o pedido é processado em segundo plano, então a API não revela
    quais e-mails têm conta nem pela resposta nem pela demora. O token chega **só por e-mail**, em
@@ -210,6 +214,10 @@ autocadastro não tem perfil de administrador.
 | `PUT` | `/api/v1/users/{id}` | dono ou administrador | `200` |
 | `PATCH` | `/api/v1/users/{id}/password` | dono ou administrador | `204` |
 | `DELETE` | `/api/v1/users/{id}` | dono ou administrador | `204` |
+| `PUT` | `/api/v1/users/{id}/profiles/{owner,client,courier}` | dono ou administrador | `200` (inclui ou altera o perfil) |
+| `PUT` | `/api/v1/users/{id}/profiles/admin` | administrador | `200` |
+| `DELETE` | `/api/v1/users/{id}/profiles/{tipo}` | dono ou administrador | `204` (não o último perfil; não o de dono com restaurante) |
+| `PATCH` | `/api/v1/users/{id}/profiles/courier/status` | dono ou administrador | `200` |
 
 **Erros** seguem o `ProblemDetail` da RFC 9457 (`application/problem+json`), com `type`, `title`,
 `status`, `detail`, `instance` e `timestamp`. O `type` identifica a categoria e é estável — é nele
@@ -224,8 +232,8 @@ que o cliente deve se apoiar:
 | `nao-autenticado` | 401 | Sem token ou token inválido/expirado |
 | `operacao-nao-permitida` | 403 | Restaurante indicado para usuário sem perfil de dono |
 | `acesso-negado` | 403 | Cadastro de outro usuário; listagem por não administrador |
-| `recurso-nao-encontrado` | 404 | Usuário inexistente |
-| `conflito-de-dados` | 409 | E-mail, login, CPF ou CNPJ já cadastrado |
+| `recurso-nao-encontrado` | 404 | Usuário inexistente; perfil que o usuário não tem |
+| `conflito-de-dados` | 409 | E-mail, login, CPF ou CNPJ já cadastrado; perfil de dono removido de quem tem restaurante |
 | `erro-inesperado` | 500 | Falha não prevista (detalhe genérico; a causa vai para o log) |
 
 A documentação completa, com exemplos de cada resposta, está no Swagger UI.
@@ -233,7 +241,7 @@ A documentação completa, com exemplos de cada resposta, está no Swagger UI.
 ## Coleção Postman
 
 [`postman/Restaurantes.postman_collection.json`](postman/Restaurantes.postman_collection.json)
-(formato v2.1) tem **76 requests em 15 pastas** (usuários e restaurantes): um por caso de cada endpoint — o sucesso e cada
+(formato v2.1) tem **111 requests em 16 pastas** (usuários e restaurantes): um por caso de cada endpoint — o sucesso e cada
 erro previsto —, na ordem em que rodam de cima a baixo. Os scripts de teste conferem o status e
 o `type` de cada erro e guardam `{{adminToken}}`, `{{token}}` e `{{userId}}` para as requisições
 seguintes; se um login ou cadastro essencial falhar, a execução para ali, com o motivo, em vez de

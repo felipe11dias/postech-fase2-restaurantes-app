@@ -70,6 +70,12 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public boolean existsByUserId(UUID userId) {
+        return restaurants.existsByUserId(userId);
+    }
+
+    @Override
     @Transactional
     public void delete(UUID id) {
         restaurants.deleteById(id);

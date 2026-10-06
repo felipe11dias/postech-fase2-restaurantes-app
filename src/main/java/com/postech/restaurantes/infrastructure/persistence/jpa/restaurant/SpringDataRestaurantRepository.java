@@ -25,4 +25,6 @@ public interface SpringDataRestaurantRepository extends JpaRepository<Restaurant
 
     @EntityGraph(attributePaths = "address")
     List<RestaurantJpaEntity> findByIdIn(Collection<UUID> ids, Sort sort);
+
+    boolean existsByUserId(UUID userId);
 }

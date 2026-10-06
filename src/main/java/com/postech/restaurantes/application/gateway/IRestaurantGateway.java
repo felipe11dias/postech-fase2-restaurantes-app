@@ -20,5 +20,8 @@ public interface IRestaurantGateway {
     /** Persiste alterações de um restaurante existente e devolve a instância atualizada. */
     Restaurant update(Restaurant restaurant);
 
+    /** Se o usuário é dono de algum restaurante — o perfil de dono não sai enquanto for. */
+    boolean existsByUserId(UUID userId);
+
     void delete(UUID id);
 }

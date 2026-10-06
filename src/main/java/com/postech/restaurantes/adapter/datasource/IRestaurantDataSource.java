@@ -17,5 +17,7 @@ public interface IRestaurantDataSource {
 
     RestaurantData update(RestaurantData data);
 
+    boolean existsByUserId(UUID userId);
+
     void delete(UUID id);
 }

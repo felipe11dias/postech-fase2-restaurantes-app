@@ -145,6 +145,15 @@ class RestaurantDataSourceJpaTest {
     }
 
     @Test
+    @DisplayName("Diz se o usuário tem restaurante pelo repositório")
+    void deveDizerSeOUsuarioTemRestaurante() {
+        when(repository.existsByUserId(userId)).thenReturn(true);
+
+        assertTrue(dataSource.existsByUserId(userId));
+        verify(repository).existsByUserId(userId);
+    }
+
+    @Test
     @DisplayName("Delecao")
     void deveDeletar() {
         dataSource.delete(id);

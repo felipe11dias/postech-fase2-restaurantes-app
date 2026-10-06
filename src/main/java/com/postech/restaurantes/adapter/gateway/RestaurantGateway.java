@@ -47,6 +47,11 @@ public final class RestaurantGateway implements IRestaurantGateway {
     }
 
     @Override
+    public boolean existsByUserId(UUID userId) {
+        return dataSource.existsByUserId(userId);
+    }
+
+    @Override
     public void delete(UUID id) {
         dataSource.delete(id);
     }

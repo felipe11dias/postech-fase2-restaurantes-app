@@ -436,3 +436,23 @@
   não é dono; 76 requests e 150 asserções, sem falhas, em duas execuções; 76 prints.
 - `mvn clean verify`: 680 testes unitários e 114 de integração; cobertura unitária 100% (1767
   linhas, 424 ramos, 737 métodos).
+
+## Etapa 22 — Perfis em usuário existente e status do entregador
+- Endpoints novos em `/api/v1/users/{id}/profiles`: `PUT owner`, `PUT client`, `PUT courier` (o
+  próprio usuário ou um administrador), `PUT admin` (só administrador), `DELETE {tipo}` e
+  `PATCH courier/status`. Os papéis do token valem a partir do próximo login.
+- Domínio: `ProfileType`; `UserProfiles` ganha `withOwner`/`withClient`/`withCourier`/`withAdmin`,
+  `without` e `has` (conjunto novo, mesmas regras: ao menos um perfil, o mesmo CPF para cliente e
+  entregador); exceção `ResourceInUseException` (409).
+- Aplicação: `SaveUserProfileUseCase` (entrada `UserProfileDTO`, interface selada; CPF e CNPJ de
+  outro cadastro recusados; alterar o entregador mantém o status), `RemoveUserProfileUseCase` (perfil
+  inexistente 404; último perfil 400; dono com restaurante 409, por `IRestaurantGateway.existsByUserId`)
+  e `ChangeCourierStatusUseCase`; `AdminProfileDTO`.
+- Adaptadores e infraestrutura: `UserController` recebe a origem de dados de restaurante;
+  `existsByUserId` na porta, no gateway e na JPA de restaurante; `AdminProfileRequest`,
+  `CourierStatusRequest`; handler da `ResourceInUseException`.
+- Testes: unitários de cada caso de uso e das regras de `UserProfiles`; `UserProfilesApiIT` por HTTP;
+  `OpenApiDocumentationIT` com as seis operações. Postman: pasta "Perfis" com o sucesso e cada erro
+  documentado; 111 requests e 234 asserções, sem falhas, em duas execuções; 111 prints.
+- `mvn clean verify`: 725 testes unitários e 122 de integração; cobertura unitária 100% (1877
+  linhas, 474 ramos, 784 métodos).

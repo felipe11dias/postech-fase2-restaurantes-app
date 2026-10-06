@@ -77,6 +77,11 @@ O `AuthController` faz o mesmo com os **serviços**: recebe `IMailSender` e `ITo
 `PasswordResetMailGateway` e `TokenGateway` a cada operação. Os controllers de adaptação são objetos
 comuns, criados pela fábrica estática na composição (`CompositionConfig`) — nunca `@Component`.
 
+Quando um caso de uso precisa de outro agregado, o controller recebe a origem de dados dele e cria o
+gateway correspondente: remover o perfil de dono (Etapa 22) pergunta se o usuário tem restaurante, então
+o `UserController` recebe `IRestaurantDataSource` e entrega um `RestaurantGateway` ao
+`RemoveUserProfileUseCase` — o caso de uso só conhece a porta `IRestaurantGateway`.
+
 ### Gateways — [`adapter/gateway`](../../src/main/java/com/postech/restaurantes/adapter/gateway)
 
 | Gateway | Porta do núcleo | Consome | Tradução que faz |

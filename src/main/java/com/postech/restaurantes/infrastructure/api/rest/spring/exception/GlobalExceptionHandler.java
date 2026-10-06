@@ -6,6 +6,7 @@ import com.postech.restaurantes.domain.exception.InvalidCredentialsException;
 import com.postech.restaurantes.domain.exception.InvalidOrExpiredTokenException;
 import com.postech.restaurantes.domain.exception.InvalidPasswordException;
 import com.postech.restaurantes.domain.exception.InvariantViolationException;
+import com.postech.restaurantes.domain.exception.ResourceInUseException;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
 import java.util.List;
 import java.util.Map;
@@ -110,6 +111,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<ProblemDetail> handleDuplicate(DuplicateResourceException ex) {
+        return respond(ProblemType.DATA_CONFLICT, ex.getMessage());
+    }
+
+    /** Remoção recusada porque outro recurso ainda depende do removido: conflito com o estado atual. */
+    @ExceptionHandler(ResourceInUseException.class)
+    public ResponseEntity<ProblemDetail> handleInUse(ResourceInUseException ex) {
         return respond(ProblemType.DATA_CONFLICT, ex.getMessage());
     }
 

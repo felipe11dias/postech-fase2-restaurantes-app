@@ -30,6 +30,56 @@ public record UserProfiles(OwnerProfile owner, ClientProfile client, CourierProf
                 "O CPF do perfil de cliente e o do perfil de entregador devem ser o mesmo");
     }
 
+    /** Os mesmos perfis com o de dono incluído ou trocado; o conjunto novo passa pelas mesmas regras. */
+    public UserProfiles withOwner(OwnerProfile newOwner) {
+        return new UserProfiles(Guard.requireNonNull(newOwner, "Perfil de dono inválido"), client, courier, admin);
+    }
+
+    /** Ver {@link #withOwner}. */
+    public UserProfiles withClient(ClientProfile newClient) {
+        return new UserProfiles(owner, Guard.requireNonNull(newClient, "Perfil de cliente inválido"), courier, admin);
+    }
+
+    /** Ver {@link #withOwner}. */
+    public UserProfiles withCourier(CourierProfile newCourier) {
+        return new UserProfiles(owner, client, Guard.requireNonNull(newCourier, "Perfil de entregador inválido"),
+                admin);
+    }
+
+    /** Ver {@link #withOwner}. */
+    public UserProfiles withAdmin(AdminProfile newAdmin) {
+        return new UserProfiles(owner, client, courier,
+                Guard.requireNonNull(newAdmin, "Perfil de administrador inválido"));
+    }
+
+    /**
+     * Os mesmos perfis sem o do tipo informado. Tirar o último é recusado pela regra "ao menos um
+     * perfil"; tirar um que não existe devolve o mesmo conjunto — quem decide se isso é erro é o caso
+     * de uso, que conhece o pedido.
+     */
+    public UserProfiles without(ProfileType type) {
+        Guard.requireNonNull(type, "Tipo de perfil inválido");
+        return new UserProfiles(
+                type == ProfileType.OWNER ? null : owner,
+                type == ProfileType.CLIENT ? null : client,
+                type == ProfileType.COURIER ? null : courier,
+                type == ProfileType.ADMIN ? null : admin);
+    }
+
+    public boolean has(ProfileType type) {
+        Guard.requireNonNull(type, "Tipo de perfil inválido");
+        if (type == ProfileType.OWNER) {
+            return owner != null;
+        }
+        if (type == ProfileType.CLIENT) {
+            return client != null;
+        }
+        if (type == ProfileType.COURIER) {
+            return courier != null;
+        }
+        return admin != null;
+    }
+
     /** O CPF da pessoa, se algum perfil o tiver — cliente e entregador têm o mesmo, pela regra acima. */
     public Optional<Cpf> cpf() {
         if (client != null) {

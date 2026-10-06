@@ -1,6 +1,7 @@
 package com.postech.restaurantes.adapter.gateway;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -92,6 +93,16 @@ class RestaurantGatewayTest {
         assertNull(captor.getValue().address().id());
         assertEquals("SP", captor.getValue().address().state());
         assertEquals("01000000", captor.getValue().address().zipCode());
+    }
+
+    @Test
+    @DisplayName("Pergunta à origem de dados se o usuário tem restaurante")
+    void deveDelegarSeOUsuarioTemRestaurante() {
+        UUID dono = UUID.randomUUID();
+        when(dataSource.existsByUserId(dono)).thenReturn(true);
+
+        assertTrue(gateway.existsByUserId(dono));
+        assertFalse(gateway.existsByUserId(UUID.randomUUID()));
     }
 
     @Test

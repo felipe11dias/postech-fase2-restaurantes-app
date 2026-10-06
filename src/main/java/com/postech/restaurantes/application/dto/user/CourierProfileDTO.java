@@ -9,7 +9,7 @@ import com.postech.restaurantes.domain.entity.courier.CourierVehicleType;
  * não vem: todo entregador novo começa fora de serviço.
  */
 public record CourierProfileDTO(String cpf, String phone, String vehicleType, String driverLicense,
-                                String vehiclePlate) {
+                                String vehiclePlate) implements UserProfileDTO {
 
     public CourierProfile toEntity() {
         return CourierProfile.create(cpf, phone, CourierVehicleType.from(vehicleType), driverLicense, vehiclePlate);

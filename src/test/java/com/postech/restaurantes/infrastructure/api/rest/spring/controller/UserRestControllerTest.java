@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -18,8 +19,12 @@ import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.application.dto.user.NewUserDTO;
 import com.postech.restaurantes.application.dto.user.UpdateUserDTO;
 import com.postech.restaurantes.infrastructure.api.rest.spring.assembler.UserModelAssembler;
+import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.AdminProfileRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.ChangePasswordRequest;
+import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.CourierProfileRequest;
+import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.CourierStatusRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.NewUserRequest;
+import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.OwnerProfileRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.UpdateUserRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.response.UserResponse;
 import com.postech.restaurantes.infrastructure.api.rest.spring.route.ApiRoutes;
@@ -149,5 +154,30 @@ class UserRestControllerTest {
     void deveLerADirecao() {
         assertEquals(SortDirection.DESC, UserRestController.paginacao(0, 20, "name,DESC").direction());
         assertEquals(SortDirection.ASC, UserRestController.paginacao(0, 20, "name,qualquer").direction());
+    }
+
+    @Test
+    @DisplayName("Cada operação de perfil converte o corpo no DTO do perfil e delega ao controller de adaptação")
+    void deveDelegarAsOperacoesDePerfil() {
+        when(controller.saveProfile(eq(USER_ID), any())).thenReturn(USER_VIEW);
+        when(controller.changeCourierStatus(USER_ID, "AVAILABLE")).thenReturn(USER_VIEW);
+        OwnerProfileRequest dono = new OwnerProfileRequest("11.222.333/0001-81", "Sabor Ltda", "(11) 3123-4567");
+        CourierProfileRequest entregador =
+                new CourierProfileRequest("529.982.247-25", "(11) 91234-5678", "BICYCLE", null, null);
+        AdminProfileRequest admin = new AdminProfileRequest("ADM-7", null, true);
+
+        assertEquals(USER_ID, restController.saveOwnerProfile(USER_ID, dono).getContent().id());
+        restController.saveClientProfile(USER_ID, CLIENT_REQUEST);
+        restController.saveCourierProfile(USER_ID, entregador);
+        restController.saveAdminProfile(USER_ID, admin);
+        assertEquals(USER_ID, restController.changeCourierStatus(USER_ID, new CourierStatusRequest("AVAILABLE"))
+                .getContent().id());
+        restController.removeProfile(USER_ID, "courier");
+
+        verify(controller).saveProfile(USER_ID, dono.toDTO());
+        verify(controller).saveProfile(USER_ID, CLIENT_REQUEST.toDTO());
+        verify(controller).saveProfile(USER_ID, entregador.toDTO());
+        verify(controller).saveProfile(USER_ID, admin.toDTO());
+        verify(controller).removeProfile(USER_ID, "courier");
     }
 }

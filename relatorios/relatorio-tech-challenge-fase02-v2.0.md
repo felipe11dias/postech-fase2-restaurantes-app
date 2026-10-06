@@ -56,13 +56,13 @@
 | 19  | Token de redefinição único por usuário (`password_reset_tokens`) | ✅ |
 | 20  | Perfis de usuário no domínio (`owners`, `clients`, `couriers`, `admins`) | ✅ |
 | 21  | Usuário composto por perfis (papel derivado)       | ✅     |
-| 22  | Perfis em usuário existente e status do entregador | ⏳     |
+| 22  | Perfis em usuário existente e status do entregador | ✅     |
 | 23  | Restaurante alinhado ao modelo v2 e à regra de posse (`restaurants`) | ⏳ |
 | 24  | Horário de funcionamento por dia (`restaurant_office_hours`) | ⏳ |
 | 25  | Revisão de conformidade do modelo de dados v2      | ⏳     |
 
-**Progresso:** 21 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
-Dados v2 (seção "Modelo de Dados v2 — adequação planejada"); da 17 à 21 estão concluídas e as
+**Progresso:** 22 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
+Dados v2 (seção "Modelo de Dados v2 — adequação planejada"); da 17 à 22 estão concluídas e as
 demais, planejadas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
@@ -2730,6 +2730,67 @@ entregador a troca de status.
 Caminhos em `ApiRoutes`, posse com `@userSecurity.isSelf`, `@ErrorResponse` por categoria, um
 request por sucesso e por erro na coleção. **Conceito:** regra que depende do ponto de entrada
 no caso de uso; invariante (ao menos um perfil) na entidade.
+
+### Estrutura
+
+```
+domain/entity/user/        ProfileType (novo); UserProfiles + withOwner/withClient/withCourier/withAdmin,
+                           without(ProfileType), has(ProfileType)
+domain/exception/          ResourceInUseException (nova)
+application/dto/user/      UserProfileDTO (interface selada: Owner/Client/Courier/AdminProfileDTO), AdminProfileDTO
+application/gateway/       IRestaurantGateway + existsByUserId
+application/usecase/user/  SaveUserProfileUseCase, RemoveUserProfileUseCase, ChangeCourierStatusUseCase
+adapter/                   UserController (+ IRestaurantDataSource), RestaurantGateway/IRestaurantDataSource + existsByUserId
+infrastructure/
+  api/rest/spring/         UserRestController: 6 operações; AdminProfileRequest, CourierStatusRequest
+                           GlobalExceptionHandler: ResourceInUseException → 409 conflito-de-dados
+  persistence/jpa/         RestaurantDataSourceJpa + SpringDataRestaurantRepository.existsByUserId
+```
+
+Nenhuma migration: as tabelas de perfil e as restrições vieram na V6.
+
+| Operação | Acesso | Sucesso | Erros |
+| --- | --- | --- | --- |
+| `PUT /api/v1/users/{id}/profiles/owner` | o próprio ou admin | 200 | 400, 401, 403, 404, 409 (CNPJ de outro cadastro) |
+| `PUT /api/v1/users/{id}/profiles/client` | o próprio ou admin | 200 | 400, 401, 403, 404, 409 (CPF) |
+| `PUT /api/v1/users/{id}/profiles/courier` | o próprio ou admin | 200 | 400, 401, 403, 404, 409 (CPF ou CNH) |
+| `PUT /api/v1/users/{id}/profiles/admin` | **só admin** | 200 | 400, 401, 403, 404, 409 (código de funcionário) |
+| `DELETE /api/v1/users/{id}/profiles/{tipo}` | o próprio ou admin | 204 | 400 (tipo desconhecido, último perfil), 401, 403, 404 (sem o perfil), 409 (dono com restaurante) |
+| `PATCH /api/v1/users/{id}/profiles/courier/status` | o próprio ou admin | 200 | 400, 401, 403, 404 (não é entregador) |
+
+**Ajuste do plano.** O plano previa um `PUT /profiles/{tipo}`. Como o corpo muda com o tipo (CNPJ e
+razão social para o dono, CPF e veículo para o entregador), ficou uma operação por tipo, cada uma com o
+seu `*Request` validado e documentado; a remoção, que não tem corpo, ficou com o tipo no caminho.
+
+### O que foi entregue nesta etapa
+
+| Decisão | Conceito que a sustenta |
+| --- | --- |
+| **`UserProfiles` ganha `withOwner`… `withAdmin`, `without` e `has`**, sempre devolvendo um conjunto novo que passa pelas mesmas regras do construtor | Invariante que vale sempre mora na entidade (Etapa 2): "ao menos um perfil" e "o mesmo CPF para cliente e entregador" valem para incluir e para remover sem uma linha de regra no caso de uso. O record imutável garante que um pedido recusado não deixa o usuário pela metade |
+| **Um caso de uso para incluir ou alterar qualquer perfil** (`SaveUserProfileUseCase`), com a entrada como **interface selada** (`UserProfileDTO`) e um `switch` sobre os quatro tipos | Um objetivo do ator — "manter o meu perfil" (Cockburn) — e não quatro casos de uso quase iguais. A interface selada faz o compilador recusar um tipo de perfil novo que o caso de uso não trate |
+| **Alterar o perfil de entregador mantém o status**; o status muda só pelo `PATCH` próprio (`ChangeCourierStatusUseCase`) | Dados cadastrais e disponibilidade são intenções diferentes (SRP): trocar a bicicleta não deve colocar o entregador fora de serviço |
+| **CPF e CNPJ conferidos contra os outros cadastros, ignorando o próprio** | O mesmo tratamento da atualização de e-mail e login (`UpdateUserUseCase`). CNH e código de funcionário ficam com a restrição única do banco, que já responde 409 sem expor o nome da restrição |
+| **O perfil de dono não sai enquanto houver restaurante** (`IRestaurantGateway.existsByUserId`), com a exceção nova `ResourceInUseException` → 409 | Regra de aplicação: depende de outro agregado, então mora no caso de uso, que fala com ele pela porta do restaurante. É conflito com o estado atual (409), e não falta de permissão (403) nem pedido malformado (400) — daí uma exceção com nome próprio (*Clean Code*, cap. 2), traduzida no handler como as demais |
+| **Perfil de administrador só por administrador**, no `@PreAuthorize` da operação | Como a listagem de cadastros (Etapa 7): é decisão sobre *quem* pede, e a autorização por papel mora na borda; o caso de uso continua sem saber quem é o ator |
+| **Os papéis do token são os do login** — um perfil novo vale para a autorização a partir do próximo login | O token é autocontido (sem consulta ao banco a cada requisição, Etapa 7); a mudança é documentada nas operações e mostrada no `UserProfilesApiIT` (o token antigo recebe 403; o novo, 201) |
+
+### Testes
+
+| Teste | O que prova |
+| --- | --- |
+| `UserProfilesTest`, `ProfileTypeTest` | incluir e trocar perfil sem mudar o original; tirar perfil; o último não sai; `has` de cada tipo; tipo pelo nome sem diferenciar maiúsculas |
+| `SaveUserProfileUseCaseTest` | cada um dos quatro perfis; status mantido ao alterar o entregador; CPF e CNPJ de outro cadastro (409) e o próprio aceito; nascimento contra o relógio; recusa não altera o usuário |
+| `RemoveUserProfileUseCaseTest`, `ChangeCourierStatusUseCaseTest` | perfil inexistente (404), último perfil (400), dono com restaurante (409); status desconhecido antes de ir ao banco; quem não é entregador (404) |
+| `UserControllerTest`, `UserRestControllerTest`, `RestaurantGatewayTest`, `RestaurantDataSourceJpaTest`, `GlobalExceptionHandlerTest` | orquestração em uma unidade de trabalho; a remoção do dono consulta a origem de dados de restaurante; cada operação HTTP delega o DTO certo; `ResourceInUseException` → 409 |
+| `UserProfilesApiIT` | por HTTP: dono incluído vale no próximo login; entregador OFFLINE → AVAILABLE, e o status sobrevive à troca de veículo; regras da remoção; admin só por admin; posse; CPF de outro cadastro |
+| `OpenApiDocumentationIT` | as seis operações novas documentadas e o cadeado de cada uma conferido contra a aplicação |
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `mvn clean verify` | **725 testes unitários** e **122 de integração** — BUILD SUCCESS; cobertura unitária **1877/1877 linhas, 474/474 ramos, 784/784 métodos** |
+| Postman (`npx newman@6`) | **111 requests, 234 asserções, 0 falhas**, em duas execuções seguidas contra o mesmo banco; pasta nova "Perfis" com o sucesso e cada erro documentado das seis operações (o 409 da remoção fica na pasta de cadastro de restaurante, logo depois de o dono da seed ter um restaurante); prints regenerados (111) |
 
 ## Etapa 23 — Restaurante alinhado ao modelo v2 e à regra de posse
 
