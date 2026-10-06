@@ -175,12 +175,13 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("Exclusão delega à origem de dados dentro da unidade de trabalho")
+    @DisplayName("Exclusão apaga os restaurantes do usuário e o usuário, dentro da unidade de trabalho")
     void deveExcluir() {
         when(userDataSource.findById(USER_ID)).thenReturn(Optional.of(USER_DATA));
 
         controller.delete(USER_ID);
 
+        verify(restaurantDataSource).deleteByUserId(USER_ID);
         verify(userDataSource).delete(USER_ID);
         assertEquals(1, unitOfWork.executions());
     }

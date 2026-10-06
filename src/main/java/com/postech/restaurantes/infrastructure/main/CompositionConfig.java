@@ -1,6 +1,7 @@
 package com.postech.restaurantes.infrastructure.main;
 
 import com.postech.restaurantes.adapter.controller.AuthController;
+import com.postech.restaurantes.adapter.controller.RestaurantController;
 import com.postech.restaurantes.adapter.controller.UserController;
 import com.postech.restaurantes.adapter.datasource.IPasswordResetTokenDataSource;
 import com.postech.restaurantes.adapter.datasource.IRestaurantDataSource;
@@ -13,6 +14,7 @@ import com.postech.restaurantes.application.gateway.IUnitOfWork;
 import com.postech.restaurantes.infrastructure.persistence.jpa.audit.AuthenticatedAuditorAware;
 import com.postech.restaurantes.infrastructure.api.rest.spring.security.AuthenticatedActor;
 import com.postech.restaurantes.infrastructure.api.rest.spring.security.ICurrentRolesReader;
+import com.postech.restaurantes.infrastructure.api.rest.spring.security.IRestaurantOwnerReader;
 import java.time.Clock;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -72,11 +74,14 @@ public class CompositionConfig {
     }
 
     @Bean
-    public com.postech.restaurantes.adapter.controller.RestaurantController restaurantController(
-            com.postech.restaurantes.adapter.datasource.IRestaurantDataSource restaurantDataSource,
-            IUserDataSource userDataSource,
-            IUnitOfWork unitOfWork) {
-        return com.postech.restaurantes.adapter.controller.RestaurantController.create(
-                restaurantDataSource, userDataSource, unitOfWork);
+    public RestaurantController restaurantController(IRestaurantDataSource restaurantDataSource,
+                                                     IUserDataSource userDataSource, IUnitOfWork unitOfWork) {
+        return RestaurantController.create(restaurantDataSource, userDataSource, unitOfWork);
+    }
+
+    /** A regra de posse do restaurante pergunta o dono pelo núcleo; a API declara a porta, e a composição liga. */
+    @Bean
+    public IRestaurantOwnerReader restaurantOwnerReader(RestaurantController restaurantController) {
+        return restaurantController::ownerOf;
     }
 }

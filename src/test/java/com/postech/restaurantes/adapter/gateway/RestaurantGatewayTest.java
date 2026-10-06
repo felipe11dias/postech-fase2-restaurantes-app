@@ -68,9 +68,10 @@ class RestaurantGatewayTest {
     void deveBuscarPaginado() {
         PageRequest req = PageRequest.of(0, 10);
         PageResult<RestaurantData> page = new PageResult<>(List.of(data), 0, 10, 1);
-        when(dataSource.search("sabor", req)).thenReturn(page);
+        UUID dono = UUID.randomUUID();
+        when(dataSource.search("sabor", dono, req)).thenReturn(page);
 
-        PageResult<Restaurant> result = gateway.search("sabor", req);
+        PageResult<Restaurant> result = gateway.search("sabor", dono, req);
 
         assertEquals(1, result.totalElements());
     }
@@ -103,6 +104,16 @@ class RestaurantGatewayTest {
 
         assertTrue(gateway.existsByUserId(dono));
         assertFalse(gateway.existsByUserId(UUID.randomUUID()));
+    }
+
+    @Test
+    @DisplayName("Exclusão dos restaurantes de um usuário delega à origem")
+    void deveExcluirOsRestaurantesDoUsuario() {
+        UUID dono = UUID.randomUUID();
+
+        gateway.deleteByUserId(dono);
+
+        verify(dataSource).deleteByUserId(dono);
     }
 
     @Test

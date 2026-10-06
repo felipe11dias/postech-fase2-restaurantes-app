@@ -96,6 +96,13 @@ vem do cadastro, a cada requisição. O `BearerTokenAuthenticationFilter` troca 
 composição liga ao `AuthController.currentRoles`. Assim um perfil removido (o de administrador, por exemplo)
 deixa de autorizar na hora, e não só quando o token vence; o custo é uma consulta por requisição autenticada.
 
+**Posse do restaurante (Etapa 23).** A mesma regra contra IDOR do usuário: `PUT` e `DELETE` de restaurante
+exigem administrador ou `@restaurantSecurity.isOwner(#id, authentication)`. Como o dono não está na URL, a
+`RestaurantSecurity` o pergunta pela porta `IRestaurantOwnerReader`, declarada pelo módulo de API e ligada na
+composição ao `RestaurantController.ownerOf`. No cadastro, sem `userId`, o dono é o autenticado; indicar ou trocar o
+dono é do administrador. A V8 deu `ON DELETE CASCADE` a `restaurants.user_id → users`, mas quem apaga os
+restaurantes de um usuário excluído é a aplicação, pelas entidades — só assim o endereço de cada um sai junto.
+
 **Execução.** Docker Compose sobe a aplicação, o PostgreSQL e o Mailpit (SMTP de testes), com
 imagens de versão fixa e portas só em `127.0.0.1`.
 

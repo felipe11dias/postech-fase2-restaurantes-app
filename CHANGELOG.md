@@ -473,3 +473,21 @@
   requests, 236 asserções, sem falhas, em duas execuções; 113 prints.
 - `mvn clean verify`: 740 testes unitários e 125 de integração; cobertura unitária 100% (1914
   linhas, 502 ramos, 795 métodos).
+
+## Etapa 23 — Restaurante alinhado ao modelo v2 e à regra de posse
+- Posse do restaurante no `@PreAuthorize` (`@restaurantSecurity.isOwner`, porta `IRestaurantOwnerReader`
+  ligada em `main` ao `RestaurantController.ownerOf` / `FindRestaurantOwnerUseCase`): o dono altera e
+  exclui só os próprios restaurantes; o administrador, qualquer um.
+- `userId` opcional: no cadastro, sem ele, o dono é quem está autenticado; na alteração, sem ele, o
+  dono continua o mesmo. Indicar outro dono, no cadastro ou na alteração, é só do administrador.
+- Excluir o usuário exclui os restaurantes dele, com o endereço de cada um (`DeleteUserUseCase` →
+  `IRestaurantGateway.deleteByUserId`, pelas entidades JPA).
+- Migration `V8__restaurant_owner_cascade.sql`: `restaurants.user_id → users ON DELETE CASCADE`. A
+  chave para `owners` (V7) continua sem cascata, para o perfil de dono não sair com restaurante.
+- Listagem por dono: `GET /api/v1/restaurants?ownerId=`, com o filtro nos links de navegação.
+- Testes: `RestaurantSecurityTest`, `FindRestaurantOwnerUseCaseTest`, `RestaurantOwnershipIT` e os
+  ajustes das demais camadas. Postman: segundo dono criado pela coleção como alvo dos 403 de posse,
+  cadastro sem `userId`, listagem por dono e exclusão do dono com o restaurante; 123 requests e 253
+  asserções, sem falhas, em duas execuções; 123 prints.
+- `mvn clean verify`: 751 testes unitários e 132 de integração; cobertura unitária 100% (1940
+  linhas, 516 ramos, 804 métodos).

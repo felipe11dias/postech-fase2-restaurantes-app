@@ -10,7 +10,11 @@ import com.postech.restaurantes.domain.entity.user.User;
 import com.postech.restaurantes.domain.exception.ForbiddenOperationException;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
 
-/** Atualização de dados de restaurante existente. */
+/**
+ * Atualização de dados de restaurante existente. Sem {@code userId} no pedido, o dono continua o mesmo;
+ * com ele, o indicado precisa existir e ter perfil de dono. Quem pode trocar o dono é decidido na entrada
+ * (só um administrador).
+ */
 public final class UpdateRestaurantUseCase {
 
     private final IRestaurantGateway restaurantGateway;
@@ -32,14 +36,14 @@ public final class UpdateRestaurantUseCase {
         Restaurant existing = restaurantGateway.findById(dto.id())
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurante não encontrado"));
 
-        User user = userGateway.findById(dto.userId())
-                .orElseThrow(() -> new ResourceNotFoundException("Dono do restaurante não encontrado"));
-
-        if (!user.hasRole(RoleName.ROLE_OWNER)) {
-            throw new ForbiddenOperationException("O usuário informado não tem perfil de dono de restaurante");
+        if (dto.userId() != null) {
+            User user = userGateway.findById(dto.userId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Dono do restaurante não encontrado"));
+            if (!user.hasRole(RoleName.ROLE_OWNER)) {
+                throw new ForbiddenOperationException("O usuário informado não tem perfil de dono de restaurante");
+            }
+            existing.setUserId(dto.userId());
         }
-
-        existing.setUserId(dto.userId());
         existing.setAddress(Guard.requireNonNull(dto.address(), "Endereço do restaurante inválido").toEntity());
         existing.setName(dto.name());
         existing.setOfficeHours(dto.officeHourStart(), dto.officeHourEnd());

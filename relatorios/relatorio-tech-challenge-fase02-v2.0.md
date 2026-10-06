@@ -57,12 +57,12 @@
 | 20  | Perfis de usuário no domínio (`owners`, `clients`, `couriers`, `admins`) | ✅ |
 | 21  | Usuário composto por perfis (papel derivado)       | ✅     |
 | 22  | Perfis em usuário existente e status do entregador | ✅     |
-| 23  | Restaurante alinhado ao modelo v2 e à regra de posse (`restaurants`) | ⏳ |
+| 23  | Restaurante alinhado ao modelo v2 e à regra de posse (`restaurants`) | ✅ |
 | 24  | Horário de funcionamento por dia (`restaurant_office_hours`) | ⏳ |
 | 25  | Revisão de conformidade do modelo de dados v2      | ⏳     |
 
-**Progresso:** 22 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
-Dados v2 (seção "Modelo de Dados v2 — adequação planejada"); da 17 à 22 estão concluídas e as
+**Progresso:** 23 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
+Dados v2 (seção "Modelo de Dados v2 — adequação planejada"); da 17 à 23 estão concluídas e as
 demais, planejadas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
@@ -2093,9 +2093,9 @@ db/migration/                      V3__create_restaurant_schema.sql
 
 | Pendência | Por que importa | Resolve |
 | --- | --- | --- |
-| Escrita autorizada só por papel (`hasRole('OWNER') or hasRole('ADMIN')`), sem regra de posse; o corpo do `PUT` escolhe livremente o `userId` | Um dono altera ou exclui o restaurante de outro dono e pode transferi-lo — o mesmo IDOR que a Etapa 7 fechou para usuários com `@userSecurity.isSelf` | Etapa 23 |
+| Escrita autorizada só por papel (`hasRole('OWNER') or hasRole('ADMIN')`), sem regra de posse; o corpo do `PUT` escolhe livremente o `userId` | Um dono altera ou exclui o restaurante de outro dono e pode transferi-lo — o mesmo IDOR que a Etapa 7 fechou para usuários com `@userSecurity.isSelf` | Etapa 23 ✅ |
 | Administrador aceito como dono do restaurante | No modelo v2, ser dono é ter perfil em `owners` | Etapa 21 |
-| `ON DELETE RESTRICT` em `user_id` | Usuário dono de restaurante não pode ser excluído; o modelo v2 pede `CASCADE` | Etapa 23 |
+| `ON DELETE RESTRICT` em `user_id` | Usuário dono de restaurante não pode ser excluído; o modelo v2 pede `CASCADE` | Etapa 23 ✅ |
 | Restaurante usa um endereço **do dono** | No modelo v2, `restaurants.address_id` é `UNIQUE`: o restaurante tem endereço próprio | Etapa 18 ✅ |
 | Horário único (`office_hour_start/end`) para todos os dias | O modelo v2 tem `restaurant_office_hours`, um intervalo por dia da semana | Etapa 24 |
 | Seção da etapa ausente na v1.0 do relatório | O Sumário marcava a etapa, mas não havia a seção — registrada aqui | — |
@@ -2824,6 +2824,64 @@ duplicada e consultando o que não mudou, a categoria própria do 409 e o caso P
 criado pela própria coleção. **Conceito:** autorização por posse contra IDOR (Etapa 7); a mesma
 regra aceita para usuário vale para restaurante (princípio orientador do projeto).
 
+### Estrutura
+
+```
+application/gateway/            IRestaurantGateway: search(nome, dono, página), deleteByUserId
+application/usecase/restaurant/ FindRestaurantOwnerUseCase (novo); SearchRestaurantsUseCase com dono;
+                                UpdateRestaurantUseCase: sem userId, o dono continua o mesmo
+application/usecase/user/       DeleteUserUseCase apaga os restaurantes do usuário antes dele
+adapter/controller/             RestaurantController.ownerOf; UserController passa o gateway de restaurante à exclusão
+infrastructure/
+  api/rest/spring/security/     RestaurantSecurity (@restaurantSecurity.isOwner) e a porta IRestaurantOwnerReader
+  api/rest/spring/controller/   RestaurantRestController: posse no POST, PUT e DELETE; ?ownerId= na listagem
+  api/rest/spring/dto/request/  Create/UpdateRestaurantRequest: userId opcional
+  main/                         IRestaurantOwnerReader ligado ao RestaurantController
+  persistence/jpa/restaurant/   busca por dono; exclusão dos restaurantes do usuário pelas entidades
+db/migration/V8__restaurant_owner_cascade.sql
+```
+
+| Operação | Quem pode |
+| --- | --- |
+| `POST /api/v1/restaurants` | dono, para si mesmo (sem `userId`, o dono é quem está autenticado); administrador, para qualquer dono |
+| `PUT /api/v1/restaurants/{id}` | dono do restaurante, sem trocar de dono (sem `userId`, o dono continua o mesmo); administrador, qualquer restaurante e qualquer dono |
+| `DELETE /api/v1/restaurants/{id}` | dono do restaurante; administrador, qualquer um |
+| `GET /api/v1/restaurants?ownerId=` | público; só os restaurantes daquele dono, e os links de navegação repetem o filtro |
+
+**Ajuste do plano.** O plano previa `ON DELETE CASCADE` também na chave `restaurants.user_id → owners`
+(V7). Ela ficou **sem** cascata: com cascata, remover o perfil de dono apagaria os restaurantes em silêncio,
+e a V7 existe justamente para recusar essa remoção. A exclusão do usuário direto no banco funciona assim
+mesmo: `users → owners` e `users → restaurants` caem no mesmo comando, e a chave para `owners` (`NO ACTION`)
+é conferida no fim dele, quando já não há restaurante órfão — o `SchemaMigrationIT` prova isso.
+
+### O que foi entregue nesta etapa
+
+| Decisão | Conceito que a sustenta |
+| --- | --- |
+| **Posse do restaurante no `@PreAuthorize`** (`@restaurantSecurity.isOwner`), como a do usuário (`@userSecurity.isSelf`) | A mesma regra aceita para o usuário vale para o restaurante (princípio orientador): ter o papel de dono não basta para alterar o restaurante de outro dono (IDOR, Etapa 7). A decisão sobre *quem* pede fica na borda; o caso de uso continua sem saber quem é o ator |
+| **A regra de posse pergunta o dono por uma porta do próprio módulo de API** (`IRestaurantOwnerReader`), que a composição liga ao `RestaurantController.ownerOf` → `FindRestaurantOwnerUseCase` | Diferente do usuário, o dono não está na URL. A API declara o que precisa e não conhece o núcleo (DIP, como a `IAccessTokenReader` e a `ICurrentRolesReader`); `main` liga as pontas. Restaurante inexistente não tem dono: o dono recebe 403, e só o administrador chega ao 404 — o dono não descobre quais ids existem |
+| **No cadastro, o dono é quem está autenticado; indicar outro dono, no cadastro ou na alteração, é do administrador** (`userId` opcional nos dois corpos) | Fecha a outra metade da pendência da Etapa 16: o corpo não escolhe mais livremente o dono. O padrão (sem `userId`) é o caso comum do dono cadastrando o próprio restaurante, e a regra de quem pode indicar outro é de entrada, na borda |
+| **Excluir o usuário exclui os restaurantes dele**, pelo `IRestaurantGateway.deleteByUserId`, na mesma unidade de trabalho, antes do usuário | O endereço do restaurante só sai pela cascata da JPA (a chave aponta para `addresses`, e o `CASCADE` do banco não o alcança — Etapa 18). Regra que cruza agregados mora no caso de uso, que fala com o outro agregado pela porta dele |
+| **V8: `restaurants.user_id → users ON DELETE CASCADE`**, como o modelo v2 pede | A cascata do banco é a rede de segurança para a remoção que não passe pela aplicação; o endereço, nesse caso, fica — e o teste registra isso |
+| **Listagem por dono** (`?ownerId=`), com o filtro repetido nos links de navegação | Usa o índice existente em `user_id`; a regra dos links de navegação vale para toda listagem (Etapa 7) |
+
+### Testes
+
+| Teste | O que prova |
+| --- | --- |
+| `RestaurantSecurityTest`, `FindRestaurantOwnerUseCaseTest` | o dono é reconhecido; outro dono, restaurante inexistente, id nulo, sem autenticação: não é dono |
+| `UpdateRestaurantUseCaseTest`, `SearchRestaurantsUseCaseTest`, `UserQueryUseCasesTest` | sem `userId`, o dono continua e nenhum usuário é consultado; a busca repassa o dono; a exclusão do usuário apaga os restaurantes antes dele |
+| `RestaurantControllerTest`, `UserControllerTest`, `RestaurantGatewayTest`, `RestaurantDataSourceJpaTest`, `RestaurantModelAssemblerTest`, `RestaurantRestControllerTest`, `RestaurantDtoMappingTest` | dono do restaurante pela unidade de trabalho; busca por dono no repositório; exclusão pelas entidades; o filtro nos links; sem `userId`, o autenticado é o dono |
+| `RestaurantOwnershipIT` | por HTTP: cadastro para si e 403 para outro dono; 403 ao alterar ou excluir o restaurante de outro dono, que continua igual; troca de dono só pelo administrador; 403 × 404 no restaurante inexistente; listagem por dono; excluir o usuário leva os restaurantes e os endereços deles |
+| `SchemaMigrationIT` | oito migrations; excluir o usuário direto no banco leva os restaurantes, mesmo com a chave para `owners`; o perfil de dono continua não saindo com restaurante |
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `mvn clean verify` | **751 testes unitários** e **132 de integração** — BUILD SUCCESS; cobertura unitária **1940/1940 linhas, 516/516 ramos, 804/804 métodos** |
+| Postman (`npx newman@6`) | **123 requests, 253 asserções, 0 falhas**, em duas execuções seguidas contra o mesmo banco. Novos: um segundo dono criado pela coleção (alvo dos casos de posse, excluído no fim — e o restaurante dele sai junto), o cadastro sem `userId`, a listagem por dono e os 403 de cadastrar para outro dono, alterar e excluir o restaurante de outro dono e passar o próprio restaurante adiante. O caso de dono sem perfil na atualização passou ao administrador, o único que indica outro dono; prints regenerados (123) |
+
 ## Etapa 24 — Horário de funcionamento por dia
 
 **Objetivo.** Trocar o horário único por `restaurant_office_hours`: intervalos por dia da semana.
@@ -2874,7 +2932,7 @@ Etapa 14 fez para a base.
   restaurante por `address_id` único; a aplicação remove o endereço, já que o cascade do banco não o
   alcança. Etapas 18 e 23.
 - **Um token de redefinição por usuário:** pedido novo reemite e invalida o anterior. Etapa 19.
-- **Posse também no restaurante:** dono só altera e exclui os próprios restaurantes. Etapa 23.
+- **Posse também no restaurante:** dono só altera e exclui os próprios restaurantes. Etapa 23 (entregue).
 - **Horário por dia da semana** em tabela própria, com invariantes de intervalo no agregado. Etapa 24.
 - **Migrations nunca inventam dado:** o que o modelo exige e o banco não tem só é preenchido para a
   seed; fora dela, a migration falha com mensagem clara.

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -17,11 +18,13 @@ import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.infrastructure.api.rest.spring.assembler.RestaurantModelAssembler;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.CreateRestaurantRequest;
+import com.postech.restaurantes.infrastructure.api.rest.spring.security.AuthenticatedUser;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.UpdateRestaurantRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.response.RestaurantResponse;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -65,7 +68,8 @@ class RestaurantRestControllerTest {
         when(controller.create(any())).thenReturn(view);
 
         CreateRestaurantRequest req = new CreateRestaurantRequest(userId, ADDRESS_REQUEST, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
-        ResponseEntity<EntityModel<RestaurantResponse>> response = restController.create(req);
+        ResponseEntity<EntityModel<RestaurantResponse>> response =
+                restController.create(req, new AuthenticatedUser(userId, "dono", Set.of("ROLE_OWNER")));
 
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertNotNull(response.getHeaders().getLocation());
@@ -85,9 +89,10 @@ class RestaurantRestControllerTest {
     @DisplayName("Search endpoint devolve PagedModel")
     void deveBuscarPaginado() {
         PageResult<RestaurantView> page = new PageResult<>(List.of(view), 0, 10, 1);
-        when(controller.search(any(), any())).thenReturn(page);
+        UUID dono = UUID.randomUUID();
+        when(controller.search(eq("sabor"), eq(dono), any())).thenReturn(page);
 
-        PagedModel<EntityModel<RestaurantResponse>> response = restController.search("sabor", 0, 10, "name,asc");
+        PagedModel<EntityModel<RestaurantResponse>> response = restController.search("sabor", dono, 0, 10, "name,asc");
 
         assertNotNull(response);
     }

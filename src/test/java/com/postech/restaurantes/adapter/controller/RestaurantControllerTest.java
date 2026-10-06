@@ -1,7 +1,9 @@
 package com.postech.restaurantes.adapter.controller;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -103,11 +105,22 @@ class RestaurantControllerTest {
     void deveBuscarPaginado() {
         PageRequest req = PageRequest.of(0, 10);
         PageResult<RestaurantData> page = new PageResult<>(List.of(restaurantData), 0, 10, 1);
-        when(restaurantDataSource.search(any(), any())).thenReturn(page);
+        when(restaurantDataSource.search(any(), any(), any())).thenReturn(page);
 
-        PageResult<RestaurantView> view = controller.search("sabor", req);
+        PageResult<RestaurantView> view = controller.search("sabor", null, req);
 
         assertNotNull(view);
+    }
+
+    @Test
+    @DisplayName("Diz quem é o dono do restaurante; inexistente não tem dono")
+    void deveDizerODono() {
+        when(restaurantDataSource.findById(restaurantId)).thenReturn(Optional.of(restaurantData));
+        UUID outro = UUID.randomUUID();
+        when(restaurantDataSource.findById(outro)).thenReturn(Optional.empty());
+
+        assertEquals(Optional.of(userId), controller.ownerOf(restaurantId));
+        assertTrue(controller.ownerOf(outro).isEmpty());
     }
 
     @Test

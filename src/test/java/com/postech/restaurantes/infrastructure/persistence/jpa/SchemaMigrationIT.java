@@ -33,13 +33,13 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     private IUserDataSource userDataSource;
 
     @Test
-    @DisplayName("As sete migrations foram aplicadas com sucesso e ficaram registradas no histórico")
+    @DisplayName("As oito migrations foram aplicadas com sucesso e ficaram registradas no histórico")
     void deveAplicarAsMigrations() {
         List<String> versoes = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = true AND version IS NOT NULL "
                         + "ORDER BY installed_rank", String.class);
 
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7"), versoes);
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8"), versoes);
     }
 
     @Test
@@ -221,6 +221,33 @@ class SchemaMigrationIT extends IntegrationTestSupport {
                     () -> jdbc.update("DELETE FROM owners WHERE id = ?", usuario));
         } finally {
             jdbc.update("DELETE FROM restaurants WHERE user_id = ?", usuario);
+            jdbc.update("DELETE FROM users WHERE id = ?", usuario);
+            jdbc.update("DELETE FROM addresses WHERE id = ?", endereco);
+        }
+    }
+
+    @Test
+    @DisplayName("Excluir o usuário direto no banco leva os restaurantes dele, mesmo com a chave para owners (V8)")
+    void deveApagarOsRestaurantesDoUsuarioNoBanco() {
+        UUID usuario = UUID.randomUUID();
+        UUID endereco = UUID.randomUUID();
+        try {
+            inserirUsuario(usuario);
+            jdbc.update("INSERT INTO owners (id, cnpj, legal_name, business_phone, created_at, last_updated_at) "
+                    + "VALUES (?, ?, 'Dono Ltda', '1131234567', NOW(), NOW())", usuario, Documentos.cnpj());
+            jdbc.update("INSERT INTO addresses (id, street, number, neighborhood, city, state, zip_code) "
+                    + "VALUES (?, 'Rua A', '1', 'Centro', 'São Paulo', 'SP', '01001000')", endereco);
+            jdbc.update("INSERT INTO restaurants (user_id, address_id, name, office_hour_start, office_hour_end, "
+                    + "created_at, last_updated_at) VALUES (?, ?, 'Cascata', '08:00', '22:00', NOW(), NOW())",
+                    usuario, endereco);
+
+            jdbc.update("DELETE FROM users WHERE id = ?", usuario);
+
+            assertEquals(0, (int) jdbc.queryForObject("SELECT count(*) FROM restaurants WHERE user_id = ?",
+                    Integer.class, usuario));
+            assertEquals(1, EnderecosNoBanco.existentes(jdbc, List.of(endereco)),
+                    "a cascata do banco não alcança o endereço: quem o remove é a aplicação");
+        } finally {
             jdbc.update("DELETE FROM users WHERE id = ?", usuario);
             jdbc.update("DELETE FROM addresses WHERE id = ?", endereco);
         }

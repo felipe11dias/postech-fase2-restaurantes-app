@@ -42,10 +42,13 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResult<RestaurantData> search(String name, PageRequest request) {
+    public PageResult<RestaurantData> search(String name, UUID ownerId, PageRequest request) {
         Sort sort = toSort(request);
         Pageable pageable = org.springframework.data.domain.PageRequest.of(request.page(), request.size(), sort);
-        Page<UUID> ids = restaurants.findIdsByName(name == null ? "" : name, pageable);
+        String nome = name == null ? "" : name;
+        Page<UUID> ids = ownerId == null
+                ? restaurants.findIdsByName(nome, pageable)
+                : restaurants.findIdsByNameAndUserId(nome, ownerId, pageable);
         List<RestaurantData> content = ids.isEmpty()
                 ? List.of()
                 : restaurants.findByIdIn(ids.getContent(), sort).stream().map(RestaurantDataSourceJpa::toData).toList();
@@ -79,6 +82,16 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
     @Transactional
     public void delete(UUID id) {
         restaurants.deleteById(id);
+    }
+
+    /**
+     * Pela entidade, e não por um {@code DELETE} em massa: a remoção passa pela cascata da JPA, que leva o
+     * endereço de cada restaurante junto.
+     */
+    @Override
+    @Transactional
+    public void deleteByUserId(UUID userId) {
+        restaurants.deleteAll(restaurants.findByUserId(userId));
     }
 
     /**

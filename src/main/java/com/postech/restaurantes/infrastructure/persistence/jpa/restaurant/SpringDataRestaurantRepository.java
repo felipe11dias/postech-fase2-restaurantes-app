@@ -23,8 +23,14 @@ public interface SpringDataRestaurantRepository extends JpaRepository<Restaurant
     @Query("select r.id from RestaurantJpaEntity r where lower(r.name) like lower(concat('%', :name, '%'))")
     Page<UUID> findIdsByName(@Param("name") String name, Pageable pageable);
 
+    @Query("select r.id from RestaurantJpaEntity r where r.userId = :userId "
+            + "and lower(r.name) like lower(concat('%', :name, '%'))")
+    Page<UUID> findIdsByNameAndUserId(@Param("name") String name, @Param("userId") UUID userId, Pageable pageable);
+
     @EntityGraph(attributePaths = "address")
     List<RestaurantJpaEntity> findByIdIn(Collection<UUID> ids, Sort sort);
 
     boolean existsByUserId(UUID userId);
+
+    List<RestaurantJpaEntity> findByUserId(UUID userId);
 }

@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -74,7 +75,7 @@ class RestaurantDataSourceJpaTest {
         when(repository.findIdsByName(eq("sabor"), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(id)));
         when(repository.findByIdIn(eq(List.of(id)), any())).thenReturn(List.of(entity));
 
-        PageResult<RestaurantData> result = dataSource.search("sabor", request);
+        PageResult<RestaurantData> result = dataSource.search("sabor", null, request);
 
         assertEquals(1, result.totalElements());
     }
@@ -86,11 +87,25 @@ class RestaurantDataSourceJpaTest {
         when(repository.findIdsByName(eq("sabor"), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(id)));
         when(repository.findByIdIn(eq(List.of(id)), any())).thenReturn(List.of(entity));
 
-        dataSource.search("sabor", request);
+        dataSource.search("sabor", null, request);
 
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
         verify(repository).findIdsByName(eq("sabor"), captor.capture());
         assertEquals(Sort.Direction.DESC, captor.getValue().getSort().getOrderFor("name").getDirection());
+    }
+
+    @Test
+    @DisplayName("Com dono, a busca pagina só os ids dos restaurantes dele")
+    void deveBuscarSoOsRestaurantesDoDono() {
+        PageRequest request = PageRequest.of(0, 10);
+        when(repository.findIdsByNameAndUserId(eq(""), eq(userId), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(id)));
+        when(repository.findByIdIn(eq(List.of(id)), any())).thenReturn(List.of(entity));
+
+        PageResult<RestaurantData> result = dataSource.search(null, userId, request);
+
+        assertEquals(1, result.totalElements());
+        verify(repository, never()).findIdsByName(any(), any());
     }
 
     @Test
@@ -99,7 +114,7 @@ class RestaurantDataSourceJpaTest {
         PageRequest request = PageRequest.of(0, 10);
         when(repository.findIdsByName(eq(""), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
 
-        PageResult<RestaurantData> result = dataSource.search(null, request);
+        PageResult<RestaurantData> result = dataSource.search(null, null, request);
 
         assertEquals(0, result.totalElements());
     }
@@ -151,6 +166,16 @@ class RestaurantDataSourceJpaTest {
 
         assertTrue(dataSource.existsByUserId(userId));
         verify(repository).existsByUserId(userId);
+    }
+
+    @Test
+    @DisplayName("Exclusão dos restaurantes do usuário passa pelas entidades, para a cascata levar o endereço")
+    void deveExcluirOsRestaurantesDoUsuario() {
+        when(repository.findByUserId(userId)).thenReturn(List.of(entity));
+
+        dataSource.deleteByUserId(userId);
+
+        verify(repository).deleteAll(List.of(entity));
     }
 
     @Test

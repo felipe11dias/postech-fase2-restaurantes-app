@@ -9,9 +9,13 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalTime;
 import java.util.UUID;
 
-/** Corpo da requisição para criação de restaurante. */
+/**
+ * Corpo da requisição para criação de restaurante. Sem {@code userId}, o dono é quem está autenticado; só
+ * um administrador indica outro dono (regra de posse, no {@code @PreAuthorize}).
+ */
 public record CreateRestaurantRequest(
-        @Schema(description = "ID do usuário dono do restaurante") @NotNull UUID userId,
+        @Schema(description = "Dono do restaurante. Opcional: ausente, é quem está autenticado; outro, só administrador")
+        UUID userId,
         @Schema(description = "Endereço do próprio restaurante (não é escolhido entre os do dono)")
         @NotNull @Valid AddressRequest address,
         @Schema(example = "Restaurante Sabor & Arte") @NotBlank @Size(max = 150) String name,
@@ -19,7 +23,9 @@ public record CreateRestaurantRequest(
         @Schema(example = "22:00:00") @NotNull LocalTime officeHourEnd
 ) {
 
-    public CreateRestaurantDTO toDTO() {
-        return new CreateRestaurantDTO(userId, address == null ? null : address.toDTO(), name, officeHourStart, officeHourEnd);
+    /** {@code authenticatedUserId} é o dono quando o corpo não indica nenhum. */
+    public CreateRestaurantDTO toDTO(UUID authenticatedUserId) {
+        return new CreateRestaurantDTO(userId != null ? userId : authenticatedUserId,
+                address == null ? null : address.toDTO(), name, officeHourStart, officeHourEnd);
     }
 }

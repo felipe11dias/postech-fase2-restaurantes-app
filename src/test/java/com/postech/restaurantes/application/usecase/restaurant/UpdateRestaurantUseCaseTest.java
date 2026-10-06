@@ -69,6 +69,19 @@ class UpdateRestaurantUseCaseTest {
     }
 
     @Test
+    @DisplayName("Sem dono no pedido, o dono continua o mesmo e nenhum usuário é consultado")
+    void deveManterODonoQuandoNaoInformado() {
+        when(restaurantGateway.findById(restaurantId)).thenReturn(Optional.of(restaurant));
+        when(restaurantGateway.update(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, null, endereco, "Novo Nome", LocalTime.of(9, 0), LocalTime.of(23, 0));
+        Restaurant result = useCase.run(dto);
+
+        assertEquals(userId, result.getUserId());
+        verify(userGateway, never()).findById(any());
+    }
+
+    @Test
     @DisplayName("Recusa administrador sem perfil de dono como dono do restaurante")
     void naoDeveAtualizarQuandoDonoEhSoAdministrador() {
         User admin = User.restore(userId, "Admin", "admin@x.com", "admin", "hash",

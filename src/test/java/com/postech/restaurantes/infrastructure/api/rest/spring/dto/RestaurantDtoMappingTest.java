@@ -27,7 +27,7 @@ class RestaurantDtoMappingTest {
     @Test
     @DisplayName("Cadastro repassa o endereço do corpo ao caso de uso")
     void deveConverterOCadastro() {
-        CreateRestaurantDTO dto = new CreateRestaurantRequest(DONO, ADDRESS_REQUEST, "Sabor", ABRE, FECHA).toDTO();
+        CreateRestaurantDTO dto = new CreateRestaurantRequest(DONO, ADDRESS_REQUEST, "Sabor", ABRE, FECHA).toDTO(UUID.randomUUID());
 
         assertEquals(DONO, dto.userId());
         assertEquals("Rua das Flores", dto.address().street());
@@ -35,9 +35,20 @@ class RestaurantDtoMappingTest {
     }
 
     @Test
+    @DisplayName("Cadastro sem dono no corpo vai para quem está autenticado; atualização sem dono mantém o atual")
+    void deveUsarOAutenticadoQuandoNaoHaDono() {
+        UUID autenticado = UUID.randomUUID();
+
+        assertEquals(autenticado,
+                new CreateRestaurantRequest(null, ADDRESS_REQUEST, "Sabor", ABRE, FECHA).toDTO(autenticado).userId());
+        assertNull(new UpdateRestaurantRequest(null, ADDRESS_REQUEST, "Sabor", ABRE, FECHA).toDTO(UUID.randomUUID())
+                .userId());
+    }
+
+    @Test
     @DisplayName("Sem endereço no corpo, o caso de uso recebe a ausência e decide")
     void deveRepassarAusenciaDeEndereco() {
-        assertNull(new CreateRestaurantRequest(DONO, null, "Sabor", ABRE, FECHA).toDTO().address());
+        assertNull(new CreateRestaurantRequest(DONO, null, "Sabor", ABRE, FECHA).toDTO(DONO).address());
         assertNull(new UpdateRestaurantRequest(DONO, null, "Sabor", ABRE, FECHA).toDTO(UUID.randomUUID()).address());
     }
 

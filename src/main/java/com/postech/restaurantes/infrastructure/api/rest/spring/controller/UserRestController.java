@@ -184,7 +184,8 @@ public class UserRestController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
     @Operation(summary = "Exclui um cadastro",
-            description = "Remove também endereços e tokens de redefinição. Só o próprio usuário ou um administrador.")
+            description = "Remove também perfis, endereços, tokens de redefinição e os restaurantes do usuário (com o "
+                    + "endereço de cada um). Só o próprio usuário ou um administrador.")
     @ApiResponse(responseCode = "204", description = "Cadastro excluído")
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
     @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Cadastro de outro usuário")

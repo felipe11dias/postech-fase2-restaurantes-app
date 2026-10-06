@@ -11,7 +11,7 @@ public interface IRestaurantDataSource {
 
     Optional<RestaurantData> findById(UUID id);
 
-    PageResult<RestaurantData> search(String name, PageRequest request);
+    PageResult<RestaurantData> search(String name, UUID ownerId, PageRequest request);
 
     RestaurantData insert(RestaurantData data);
 
@@ -20,4 +20,6 @@ public interface IRestaurantDataSource {
     boolean existsByUserId(UUID userId);
 
     void delete(UUID id);
+
+    void deleteByUserId(UUID userId);
 }

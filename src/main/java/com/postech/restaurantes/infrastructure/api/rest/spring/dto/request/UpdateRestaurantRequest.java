@@ -9,9 +9,13 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalTime;
 import java.util.UUID;
 
-/** Corpo da requisição para atualização de restaurante. */
+/**
+ * Corpo da requisição para atualização de restaurante. Sem {@code userId}, o dono continua o mesmo; trocar
+ * o dono é operação de administrador (regra de posse, no {@code @PreAuthorize}).
+ */
 public record UpdateRestaurantRequest(
-        @Schema(description = "ID do usuário dono do restaurante") @NotNull UUID userId,
+        @Schema(description = "Novo dono. Opcional: ausente, o dono continua o mesmo; trocar, só administrador")
+        UUID userId,
         @Schema(description = "Endereço do próprio restaurante (não é escolhido entre os do dono)")
         @NotNull @Valid AddressRequest address,
         @Schema(example = "Restaurante Sabor & Arte") @NotBlank @Size(max = 150) String name,

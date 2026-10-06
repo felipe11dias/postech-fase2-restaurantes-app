@@ -189,7 +189,9 @@ autocadastro não tem perfil de administrador.
    - O autocadastro é público e traz um ou mais perfis — `owner` (CNPJ), `client` (CPF) e `courier`
      (CPF; CNH e placa para moto e carro) —, nunca o de administrador. O papel de cada um é derivado
      do perfil: `ROLE_OWNER`, `ROLE_CLIENT`, `ROLE_COURIER`.
-   - Restaurante só pode ter como dono um usuário com perfil de dono.
+   - Restaurante só pode ter como dono um usuário com perfil de dono. O dono cadastra, altera e exclui
+     **só os próprios restaurantes** (sem `userId` no cadastro, o dono é quem está autenticado); indicar
+     ou trocar o dono é do administrador. Excluir um usuário exclui os restaurantes dele.
    - Perfis de um cadastro existente se incluem, alteram e removem em `/api/v1/users/{id}/profiles/…`
      (o próprio usuário ou um administrador; o perfil de administrador, só um administrador). A
      autorização lê os perfis do cadastro a cada requisição: incluir ou remover perfil vale na hora,
@@ -218,6 +220,11 @@ autocadastro não tem perfil de administrador.
 | `PUT` | `/api/v1/users/{id}/profiles/admin` | administrador | `200` |
 | `DELETE` | `/api/v1/users/{id}/profiles/{tipo}` | dono ou administrador | `204` (não o último perfil; não o de dono com restaurante; não o do último administrador) |
 | `PATCH` | `/api/v1/users/{id}/profiles/courier/status` | dono ou administrador | `200` |
+| `POST` | `/api/v1/restaurants` | dono (para si) ou administrador (para qualquer dono) | `201` + `Location` |
+| `GET` | `/api/v1/restaurants?name=&ownerId=&page=&size=&sort=` | público | `200` página com links de navegação |
+| `GET` | `/api/v1/restaurants/{id}` | público | `200` |
+| `PUT` | `/api/v1/restaurants/{id}` | dono do restaurante (sem trocar de dono) ou administrador | `200` |
+| `DELETE` | `/api/v1/restaurants/{id}` | dono do restaurante ou administrador | `204` |
 
 **Erros** seguem o `ProblemDetail` da RFC 9457 (`application/problem+json`), com `type`, `title`,
 `status`, `detail`, `instance` e `timestamp`. O `type` identifica a categoria e é estável — é nele
@@ -231,7 +238,7 @@ que o cliente deve se apoiar:
 | `falha-na-autenticacao` | 401 | Login ou senha incorretos (mesma resposta para os dois) |
 | `nao-autenticado` | 401 | Sem token ou token inválido/expirado |
 | `operacao-nao-permitida` | 403 | Restaurante indicado para usuário sem perfil de dono |
-| `acesso-negado` | 403 | Cadastro de outro usuário; listagem por não administrador |
+| `acesso-negado` | 403 | Cadastro de outro usuário; listagem por não administrador; restaurante de outro dono |
 | `recurso-nao-encontrado` | 404 | Usuário inexistente; perfil que o usuário não tem |
 | `conflito-de-dados` | 409 | E-mail, login, CPF ou CNPJ já cadastrado |
 | `recurso-em-uso` | 409 | Perfil de dono de quem tem restaurante; perfil de administrador do último administrador |
@@ -242,7 +249,7 @@ A documentação completa, com exemplos de cada resposta, está no Swagger UI.
 ## Coleção Postman
 
 [`postman/Restaurantes.postman_collection.json`](postman/Restaurantes.postman_collection.json)
-(formato v2.1) tem **113 requests em 16 pastas** (usuários e restaurantes): um por caso de cada endpoint — o sucesso e cada
+(formato v2.1) tem **123 requests em 16 pastas** (usuários e restaurantes): um por caso de cada endpoint — o sucesso e cada
 erro previsto —, na ordem em que rodam de cima a baixo. Os scripts de teste conferem o status e
 o `type` de cada erro e guardam `{{adminToken}}`, `{{token}}` e `{{userId}}` para as requisições
 seguintes; se um login ou cadastro essencial falhar, a execução para ali, com o motivo, em vez de

@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (22 até aqui; as Etapas 23
+Architecture**. O projeto está sendo entregue **etapa por etapa** (23 até aqui; as Etapas 24
 a 25, de adequação ao Modelo de Dados v2 em `docs/modelo-dados/`, estão planejadas no
 relatório) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
 `CHANGELOG.md`, e atualização do relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (marcar a etapa
@@ -108,7 +108,7 @@ infrastructure/
     doc/               OpenApiConfig, ApiDocumentation, @ErrorResponse, customizers
     validation/        @ValidPassword
     security/          SecurityConfig, BearerTokenAuthenticationFilter, 401, AuthenticatedUser,
-                       UserSecurity, AuthenticatedActor, IAccessTokenReader e ICurrentRolesReader (portas do módulo)
+                       UserSecurity, AuthenticatedActor, IAccessTokenReader, ICurrentRolesReader e IRestaurantOwnerReader (portas do módulo), RestaurantSecurity
   persistence/jpa/     PersistenceConfig, TransactionalUnitOfWork; audit/; um subpacote por agregado
   token/jwt/           ITokenEncoder + IAccessTokenReader (jjwt): JwtTokenEncoder, JwtProperties, JwtConfig
   crypto/              IPasswordEncoder (BCrypt), ISecureTokenGenerator (SecureRandom)
@@ -251,7 +251,17 @@ Pontos que só ficam claros lendo várias camadas:
 - **Integridade dos perfis no banco (V7).** Gatilho `cpf_de_uma_so_pessoa` (trava consultiva por CPF) impede o
   mesmo CPF em dois usuários entre `clients` e `couriers`; `restaurants.user_id → owners` impede restaurante sem
   perfil de dono. Regra que a aplicação confere antes de gravar e que duas requisições simultâneas podem furar
-  ganha garantia no schema. Na Etapa 23, a cascata de `restaurants.user_id` vale também para `fk_restaurants_owner`.
+  ganha garantia no schema.
+- **Restaurante: posse e exclusão do dono (Etapa 23, V8).** `PUT`/`DELETE` de restaurante exigem
+  `hasRole('ADMIN') or @restaurantSecurity.isOwner(#id, authentication)`; a `RestaurantSecurity` pergunta o dono
+  pela porta `IRestaurantOwnerReader` (ligada em `main` ao `RestaurantController.ownerOf`). `userId` é opcional:
+  no cadastro, ausente, o dono é o autenticado (`@AuthenticationPrincipal`); indicar ou trocar o dono é do
+  administrador (SpEL com `@userSecurity.isSelf(#request.userId(), authentication)`). Restaurante inexistente
+  dá 403 ao dono e 404 ao administrador. Excluir o usuário apaga os restaurantes antes (`DeleteUserUseCase` →
+  `IRestaurantGateway.deleteByUserId`, pelas entidades, para a cascata JPA levar o endereço); a V8 pôs
+  `ON DELETE CASCADE` em `restaurants.user_id → users` como rede de segurança. `fk_restaurants_owner` (V7) fica
+  **sem** cascata: removê-la faria o perfil de dono sair levando os restaurantes. Casos de posse na coleção
+  miram o segundo dono criado por ela (`outroDonoUserId`), nunca a seed.
 
 ### API REST organizada como MVC (Etapa 15, já implementada)
 

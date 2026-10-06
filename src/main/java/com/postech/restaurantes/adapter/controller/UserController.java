@@ -80,7 +80,7 @@ public final class UserController {
     }
 
     public void delete(UUID id) {
-        var useCase = DeleteUserUseCase.create(userGateway());
+        var useCase = DeleteUserUseCase.create(userGateway(), RestaurantGateway.create(restaurantDataSource));
         unitOfWork.execute(() -> useCase.run(id));
     }
 

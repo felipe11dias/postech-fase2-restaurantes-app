@@ -32,8 +32,8 @@ public final class RestaurantGateway implements IRestaurantGateway {
     }
 
     @Override
-    public PageResult<Restaurant> search(String name, PageRequest request) {
-        return dataSource.search(name, request).map(RestaurantGateway::toEntity);
+    public PageResult<Restaurant> search(String name, UUID ownerId, PageRequest request) {
+        return dataSource.search(name, ownerId, request).map(RestaurantGateway::toEntity);
     }
 
     @Override
@@ -54,6 +54,11 @@ public final class RestaurantGateway implements IRestaurantGateway {
     @Override
     public void delete(UUID id) {
         dataSource.delete(id);
+    }
+
+    @Override
+    public void deleteByUserId(UUID userId) {
+        dataSource.deleteByUserId(userId);
     }
 
     static Restaurant toEntity(RestaurantData data) {
