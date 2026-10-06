@@ -1,5 +1,6 @@
 package com.postech.restaurantes.infrastructure.api.rest.spring.assembler;
 
+import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.OFFICE_HOURS_VIEW;
 import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.ADDRESS_VIEW;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -10,7 +11,6 @@ import com.postech.restaurantes.adapter.presenter.view.RestaurantView;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.response.RestaurantResponse;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,8 +33,7 @@ class RestaurantModelAssemblerTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
-        view = new RestaurantView(UUID.randomUUID(), UUID.randomUUID(), ADDRESS_VIEW, "Sabor",
-                LocalTime.of(8, 0), LocalTime.of(22, 0), LocalDateTime.now(), LocalDateTime.now());
+        view = new RestaurantView(UUID.randomUUID(), UUID.randomUUID(), ADDRESS_VIEW, "Sabor", OFFICE_HOURS_VIEW, LocalDateTime.now(), LocalDateTime.now());
     }
 
     @Test

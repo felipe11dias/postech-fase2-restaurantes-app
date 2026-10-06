@@ -1,5 +1,7 @@
 package com.postech.restaurantes.adapter.gateway;
 
+import static com.postech.restaurantes.adapter.AdapterFixtures.OFFICE_HOURS;
+import static com.postech.restaurantes.adapter.AdapterFixtures.OFFICE_HOURS_DATA;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -19,7 +21,6 @@ import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.domain.entity.address.Address;
 import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,7 +47,7 @@ class RestaurantGatewayTest {
         id = UUID.randomUUID();
         userId = UUID.randomUUID();
         addressData = new AddressData(UUID.randomUUID(), "Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
-        data = new RestaurantData(id, userId, addressData, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0),
+        data = new RestaurantData(id, userId, addressData, "Sabor", OFFICE_HOURS_DATA,
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
@@ -82,7 +83,7 @@ class RestaurantGatewayTest {
         when(dataSource.insert(any())).thenReturn(data);
         when(dataSource.update(any())).thenReturn(data);
         Address endereco = Address.create("Rua A", "10", null, "Bairro", "Cidade", "sp", "01000-000");
-        Restaurant r = Restaurant.restore(id, userId, endereco, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0), null, null);
+        Restaurant r = Restaurant.restore(id, userId, endereco, "Sabor", OFFICE_HOURS, null, null);
 
         Restaurant inserted = gateway.insert(r);
         Restaurant updated = gateway.update(r);

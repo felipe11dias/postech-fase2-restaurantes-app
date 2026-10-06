@@ -52,8 +52,7 @@ class RestaurantLifecycleIT extends WebIntegrationTestSupport {
                         "userId", userId,
                         "address", endereco("Rua do Restaurante"),
                         "name", "Restaurante Teste IT",
-                        "officeHourStart", "08:00:00",
-                        "officeHourEnd", "22:00:00"
+                        "officeHours", List.of(Map.of("dayOfWeek", "MONDAY", "startTime", "08:00:00", "endTime", "22:00:00"))
                 ), tokenDono), JsonNode.class);
 
         assertEquals(HttpStatus.CREATED, cadastroRestaurante.getStatusCode());
@@ -75,8 +74,7 @@ class RestaurantLifecycleIT extends WebIntegrationTestSupport {
                         "userId", userId,
                         "address", endereco("Avenida Nova"),
                         "name", "Restaurante Atualizado IT",
-                        "officeHourStart", "09:00:00",
-                        "officeHourEnd", "23:00:00"
+                        "officeHours", List.of(Map.of("dayOfWeek", "MONDAY", "startTime", "09:00:00", "endTime", "23:00:00"))
                 ), tokenDono), JsonNode.class);
         assertEquals(HttpStatus.OK, atualizacao.getStatusCode());
         assertEquals("Restaurante Atualizado IT", atualizacao.getBody().get("name").asText());
@@ -107,8 +105,7 @@ class RestaurantLifecycleIT extends WebIntegrationTestSupport {
                 corpoAutenticado(Map.of(
                         "userId", userId,
                         "name", "Sem Endereço",
-                        "officeHourStart", "08:00:00",
-                        "officeHourEnd", "22:00:00"
+                        "officeHours", List.of(Map.of("dayOfWeek", "MONDAY", "startTime", "08:00:00", "endTime", "22:00:00"))
                 ), autenticar(loginDono, "senhaSegura123")), JsonNode.class);
 
         assertEquals(HttpStatus.BAD_REQUEST, resposta.getStatusCode());

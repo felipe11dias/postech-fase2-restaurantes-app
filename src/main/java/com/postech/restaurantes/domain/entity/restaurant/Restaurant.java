@@ -3,7 +3,9 @@ package com.postech.restaurantes.domain.entity.restaurant;
 import com.postech.restaurantes.domain.Guard;
 import com.postech.restaurantes.domain.entity.address.Address;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -12,16 +14,19 @@ import java.util.UUID;
  *
  * <p>Invariantes: nome não vazio; dono (userId) informado; endereço próprio presente — o
  * {@link Address} é parte deste agregado, e nenhum outro restaurante ou usuário o compartilha;
- * horários de funcionamento informados e distintos.
+ * ao menos um horário de funcionamento ({@link OfficeHour}), sem dois que se sobreponham. A
+ * sobreposição é regra do conjunto, e não de um horário isolado: por isso mora na raiz.
  */
 public final class Restaurant {
+
+    private static final Comparator<OfficeHour> ORDEM_DA_SEMANA =
+            Comparator.comparing(OfficeHour::dayOfWeek).thenComparing(OfficeHour::startTime);
 
     private final UUID id;
     private UUID userId;
     private Address address;
     private String name;
-    private LocalTime officeHourStart;
-    private LocalTime officeHourEnd;
+    private List<OfficeHour> officeHours;
     private final LocalDateTime createdAt;
     private final LocalDateTime lastUpdatedAt;
 
@@ -32,28 +37,27 @@ public final class Restaurant {
     }
 
     /** Restaurante novo, ainda sem id nem auditoria. */
-    public static Restaurant create(UUID userId, Address address, String name,
-                                    LocalTime officeHourStart, LocalTime officeHourEnd) {
-        return fill(new Restaurant(null, null, null), userId, address, name, officeHourStart, officeHourEnd);
+    public static Restaurant create(UUID userId, Address address, String name, List<OfficeHour> officeHours) {
+        return fill(new Restaurant(null, null, null), userId, address, name, officeHours);
     }
 
     /** Restaurante reconstruído a partir da origem de dados, com id e auditoria conhecidos. */
     public static Restaurant restore(UUID id, UUID userId, Address address, String name,
-                                     LocalTime officeHourStart, LocalTime officeHourEnd,
-                                     LocalDateTime createdAt, LocalDateTime lastUpdatedAt) {
+                                     List<OfficeHour> officeHours, LocalDateTime createdAt,
+                                     LocalDateTime lastUpdatedAt) {
         Restaurant restaurant = new Restaurant(
                 Guard.requireNonNull(id, "Id do restaurante inválido"),
                 createdAt,
                 lastUpdatedAt);
-        return fill(restaurant, userId, address, name, officeHourStart, officeHourEnd);
+        return fill(restaurant, userId, address, name, officeHours);
     }
 
     private static Restaurant fill(Restaurant restaurant, UUID userId, Address address, String name,
-                                   LocalTime officeHourStart, LocalTime officeHourEnd) {
+                                   List<OfficeHour> officeHours) {
         restaurant.setUserId(userId);
         restaurant.setAddress(address);
         restaurant.setName(name);
-        restaurant.setOfficeHours(officeHourStart, officeHourEnd);
+        restaurant.replaceOfficeHours(officeHours);
         return restaurant;
     }
 
@@ -69,11 +73,22 @@ public final class Restaurant {
         this.name = Guard.requireNonBlank(name, "Nome do restaurante inválido");
     }
 
-    public void setOfficeHours(LocalTime officeHourStart, LocalTime officeHourEnd) {
-        this.officeHourStart = Guard.requireNonNull(officeHourStart, "Horário de abertura inválido");
-        this.officeHourEnd = Guard.requireNonNull(officeHourEnd, "Horário de fechamento inválido");
-        Guard.require(!officeHourStart.equals(officeHourEnd),
-                "Horários de abertura e fechamento não podem ser iguais");
+    /**
+     * Troca a lista inteira de horários. Cada horário já é válido por si; aqui vale a regra do conjunto:
+     * ao menos um, e nenhum par sobreposto — inclusive o que vira a meia-noite e invade o dia seguinte.
+     * A lista fica na ordem da semana (dia, depois abertura).
+     */
+    public void replaceOfficeHours(List<OfficeHour> newOfficeHours) {
+        Guard.requireNonNull(newOfficeHours, "Horários de funcionamento inválidos");
+        Guard.require(newOfficeHours.stream().noneMatch(Objects::isNull), "Horário de funcionamento inválido");
+        Guard.require(!newOfficeHours.isEmpty(), "Restaurante deve ter ao menos um horário de funcionamento");
+        for (int i = 0; i < newOfficeHours.size(); i++) {
+            for (int j = i + 1; j < newOfficeHours.size(); j++) {
+                Guard.require(!newOfficeHours.get(i).overlaps(newOfficeHours.get(j)),
+                        "Os horários de funcionamento não podem se sobrepor");
+            }
+        }
+        this.officeHours = newOfficeHours.stream().sorted(ORDEM_DA_SEMANA).toList();
     }
 
     public UUID getId() {
@@ -92,12 +107,9 @@ public final class Restaurant {
         return name;
     }
 
-    public LocalTime getOfficeHourStart() {
-        return officeHourStart;
-    }
-
-    public LocalTime getOfficeHourEnd() {
-        return officeHourEnd;
+    /** Lista imutável, na ordem da semana. */
+    public List<OfficeHour> getOfficeHours() {
+        return officeHours;
     }
 
     public LocalDateTime getCreatedAt() {

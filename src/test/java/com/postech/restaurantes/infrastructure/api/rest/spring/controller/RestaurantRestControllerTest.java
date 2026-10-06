@@ -1,5 +1,7 @@
 package com.postech.restaurantes.infrastructure.api.rest.spring.controller;
 
+import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.OFFICE_HOURS_REQUEST;
+import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.OFFICE_HOURS_VIEW;
 import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.ADDRESS_REQUEST;
 import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.ADDRESS_VIEW;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,7 +24,6 @@ import com.postech.restaurantes.infrastructure.api.rest.spring.security.Authenti
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.UpdateRestaurantRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.response.RestaurantResponse;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -58,7 +59,7 @@ class RestaurantRestControllerTest {
 
         restaurantId = UUID.randomUUID();
         userId = UUID.randomUUID();
-        view = new RestaurantView(restaurantId, userId, ADDRESS_VIEW, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0),
+        view = new RestaurantView(restaurantId, userId, ADDRESS_VIEW, "Sabor", OFFICE_HOURS_VIEW,
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
@@ -67,7 +68,7 @@ class RestaurantRestControllerTest {
     void deveCriar() {
         when(controller.create(any())).thenReturn(view);
 
-        CreateRestaurantRequest req = new CreateRestaurantRequest(userId, ADDRESS_REQUEST, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        CreateRestaurantRequest req = new CreateRestaurantRequest(userId, ADDRESS_REQUEST, "Sabor", OFFICE_HOURS_REQUEST);
         ResponseEntity<EntityModel<RestaurantResponse>> response =
                 restController.create(req, new AuthenticatedUser(userId, "dono", Set.of("ROLE_OWNER")));
 
@@ -102,7 +103,7 @@ class RestaurantRestControllerTest {
     void deveAtualizar() {
         when(controller.update(any())).thenReturn(view);
 
-        UpdateRestaurantRequest req = new UpdateRestaurantRequest(userId, ADDRESS_REQUEST, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        UpdateRestaurantRequest req = new UpdateRestaurantRequest(userId, ADDRESS_REQUEST, "Sabor", OFFICE_HOURS_REQUEST);
         EntityModel<RestaurantResponse> response = restController.update(restaurantId, req);
 
         assertNotNull(response.getContent());

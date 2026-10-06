@@ -2,9 +2,11 @@ package com.postech.restaurantes.infrastructure.persistence.jpa.restaurant;
 
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ADDRESS_DATA;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ADDRESS_ID;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.OFFICE_HOURS_DATA;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.addressEntity;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -15,10 +17,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.postech.restaurantes.adapter.datasource.data.AddressData;
+import com.postech.restaurantes.adapter.datasource.data.OfficeHourData;
 import com.postech.restaurantes.adapter.datasource.data.RestaurantData;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
+import com.postech.restaurantes.infrastructure.persistence.jpa.restaurant.officehour.OfficeHourJpaEntity;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +43,7 @@ class RestaurantDataSourceJpaTest {
     private UUID id;
     private UUID userId;
     private RestaurantJpaEntity entity;
+    private OfficeHourJpaEntity segunda;
 
     @BeforeEach
     void setUp() {
@@ -53,8 +58,12 @@ class RestaurantDataSourceJpaTest {
         entity.setUserId(userId);
         entity.setAddress(addressEntity());
         entity.setName("Sabor");
-        entity.setOfficeHourStart(LocalTime.of(8, 0));
-        entity.setOfficeHourEnd(LocalTime.of(22, 0));
+        segunda = new OfficeHourJpaEntity();
+        segunda.setId(UUID.randomUUID());
+        segunda.setDayOfWeek("MONDAY");
+        segunda.setStartTime(LocalTime.of(8, 0));
+        segunda.setEndTime(LocalTime.of(22, 0));
+        entity.replaceOfficeHours(List.of(segunda));
     }
 
     @Test
@@ -123,8 +132,7 @@ class RestaurantDataSourceJpaTest {
     @DisplayName("Inserção grava o restaurante com uma linha de endereço nova, sem id")
     void deveInserirComEnderecoNovo() {
         when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        RestaurantData data = new RestaurantData(null, userId, ADDRESS_DATA, "Sabor", LocalTime.of(8, 0),
-                LocalTime.of(22, 0), null, null);
+        RestaurantData data = new RestaurantData(null, userId, ADDRESS_DATA, "Sabor", OFFICE_HOURS_DATA, null, null);
 
         RestaurantData inserted = dataSource.insert(data);
 
@@ -140,8 +148,7 @@ class RestaurantDataSourceJpaTest {
         when(repository.findById(id)).thenReturn(Optional.of(entity));
         when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
         AddressData outro = new AddressData(UUID.randomUUID(), "Av. B", null, null, null, "Rio", "RJ", "20000000");
-        RestaurantData data = new RestaurantData(id, userId, outro, "Novo", LocalTime.of(8, 0), LocalTime.of(22, 0),
-                null, null);
+        RestaurantData data = new RestaurantData(id, userId, outro, "Novo", OFFICE_HOURS_DATA, null, null);
 
         RestaurantData updated = dataSource.update(data);
 
@@ -151,10 +158,28 @@ class RestaurantDataSourceJpaTest {
     }
 
     @Test
+    @DisplayName("Atualização mantém na mesma linha o horário que continua (dia e abertura), cria o novo e tira o ausente")
+    void deveReconciliarOsHorarios() {
+        when(repository.findById(id)).thenReturn(Optional.of(entity));
+        when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        RestaurantData data = new RestaurantData(id, userId, ADDRESS_DATA, "Sabor", List.of(
+                new OfficeHourData("MONDAY", LocalTime.of(8, 0), LocalTime.of(23, 0)),
+                new OfficeHourData("TUESDAY", LocalTime.of(10, 0), LocalTime.of(14, 0))), null, null);
+
+        RestaurantData updated = dataSource.update(data);
+
+        assertEquals(2, entity.getOfficeHours().size());
+        assertSame(segunda, entity.getOfficeHours().get(0));
+        assertEquals(LocalTime.of(23, 0), segunda.getEndTime());
+        assertNull(entity.getOfficeHours().get(1).getId());
+        assertEquals(new OfficeHourData("TUESDAY", LocalTime.of(10, 0), LocalTime.of(14, 0)), updated.officeHours().get(1));
+    }
+
+    @Test
     @DisplayName("Lanca excecao ao atualizar inexistente")
     void deveLancarExcecaoAoAtualizarInexistente() {
         when(repository.findById(id)).thenReturn(Optional.empty());
-        RestaurantData data = new RestaurantData(id, userId, ADDRESS_DATA, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0), null, null);
+        RestaurantData data = new RestaurantData(id, userId, ADDRESS_DATA, "Sabor", OFFICE_HOURS_DATA, null, null);
 
         assertThrows(IllegalStateException.class, () -> dataSource.update(data));
     }

@@ -96,6 +96,12 @@ vem do cadastro, a cada requisição. O `BearerTokenAuthenticationFilter` troca 
 composição liga ao `AuthController.currentRoles`. Assim um perfil removido (o de administrador, por exemplo)
 deixa de autorizar na hora, e não só quando o token vence; o custo é uma consulta por requisição autenticada.
 
+**Horário por dia (Etapa 24, V9).** O horário único virou `restaurant_office_hours` (1FN: atributo multivalorado em
+tabela própria), e a V9 converteu cada restaurante em sete linhas, uma por dia. A entidade JPA do horário fica em
+`persistence/jpa/restaurant/officehour`, ligada só do lado do restaurante; `day_of_week` é texto com
+`@ColumnTransformer`, como os enums do entregador. A atualização reconcilia por (dia, abertura): o Hibernate insere
+antes de apagar, e regravar o mesmo horário violaria a unicidade da tabela.
+
 **Posse do restaurante (Etapa 23).** A mesma regra contra IDOR do usuário: `PUT` e `DELETE` de restaurante
 exigem administrador ou `@restaurantSecurity.isOwner(#id, authentication)`. Como o dono não está na URL, a
 `RestaurantSecurity` o pergunta pela porta `IRestaurantOwnerReader`, declarada pelo módulo de API e ligada na

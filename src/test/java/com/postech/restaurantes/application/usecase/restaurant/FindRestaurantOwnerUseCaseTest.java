@@ -1,5 +1,6 @@
 package com.postech.restaurantes.application.usecase.restaurant;
 
+import static com.postech.restaurantes.application.usecase.UseCaseFixtures.OFFICE_HOURS;
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.address;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -9,7 +10,6 @@ import static org.mockito.Mockito.when;
 
 import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
-import java.time.LocalTime;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -26,7 +26,7 @@ class FindRestaurantOwnerUseCaseTest {
         UUID id = UUID.randomUUID();
         UUID dono = UUID.randomUUID();
         when(restaurantGateway.findById(id)).thenReturn(Optional.of(Restaurant.restore(id, dono, address(), "Sabor",
-                LocalTime.of(8, 0), LocalTime.of(22, 0), null, null)));
+                OFFICE_HOURS, null, null)));
 
         assertEquals(Optional.of(dono), useCase.run(id));
     }

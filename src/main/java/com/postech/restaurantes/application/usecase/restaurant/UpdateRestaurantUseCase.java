@@ -1,5 +1,6 @@
 package com.postech.restaurantes.application.usecase.restaurant;
 
+import com.postech.restaurantes.application.dto.restaurant.OfficeHourDTO;
 import com.postech.restaurantes.application.dto.restaurant.UpdateRestaurantDTO;
 import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.application.gateway.IUserGateway;
@@ -46,7 +47,7 @@ public final class UpdateRestaurantUseCase {
         }
         existing.setAddress(Guard.requireNonNull(dto.address(), "Endereço do restaurante inválido").toEntity());
         existing.setName(dto.name());
-        existing.setOfficeHours(dto.officeHourStart(), dto.officeHourEnd());
+        existing.replaceOfficeHours(OfficeHourDTO.toEntities(dto.officeHours()));
 
         return restaurantGateway.update(existing);
     }

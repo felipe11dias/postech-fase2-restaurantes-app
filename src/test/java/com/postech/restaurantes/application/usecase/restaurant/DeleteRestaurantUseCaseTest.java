@@ -1,5 +1,6 @@
 package com.postech.restaurantes.application.usecase.restaurant;
 
+import static com.postech.restaurantes.application.usecase.UseCaseFixtures.OFFICE_HOURS;
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.address;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
@@ -9,7 +10,6 @@ import static org.mockito.Mockito.when;
 import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
-import java.time.LocalTime;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +31,7 @@ class DeleteRestaurantUseCaseTest {
     @DisplayName("Exclui restaurante quando id existe")
     void deveExcluirQuandoExiste() {
         UUID id = UUID.randomUUID();
-        Restaurant r = Restaurant.restore(id, UUID.randomUUID(), address(), "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0), null, null);
+        Restaurant r = Restaurant.restore(id, UUID.randomUUID(), address(), "Sabor", OFFICE_HOURS, null, null);
         when(restaurantGateway.findById(id)).thenReturn(Optional.of(r));
 
         useCase.run(id);

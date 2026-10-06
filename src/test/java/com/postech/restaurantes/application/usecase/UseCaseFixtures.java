@@ -1,17 +1,21 @@
 package com.postech.restaurantes.application.usecase;
 
 import com.postech.restaurantes.application.dto.common.AddressDTO;
+import com.postech.restaurantes.application.dto.restaurant.OfficeHourDTO;
 import com.postech.restaurantes.application.dto.user.UserAddressDTO;
 import com.postech.restaurantes.domain.entity.address.Address;
 import com.postech.restaurantes.domain.entity.admin.AdminProfile;
 import com.postech.restaurantes.domain.entity.client.ClientProfile;
 import com.postech.restaurantes.domain.entity.owner.OwnerProfile;
+import com.postech.restaurantes.domain.entity.restaurant.OfficeHour;
 import com.postech.restaurantes.domain.entity.user.User;
 import com.postech.restaurantes.domain.entity.user.UserAddress;
 import com.postech.restaurantes.domain.entity.user.UserProfiles;
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -35,6 +39,10 @@ public final class UseCaseFixtures {
     public static final AddressDTO ADDRESS_DTO =
             new AddressDTO("Rua das Flores", "100", "Apto 21", "Centro", "São Paulo", "SP", "01001-000");
     public static final UserAddressDTO USER_ADDRESS_DTO = new UserAddressDTO(null, "Casa", true, ADDRESS_DTO);
+    public static final List<OfficeHour> OFFICE_HOURS =
+            List.of(new OfficeHour(DayOfWeek.MONDAY, LocalTime.of(8, 0), LocalTime.of(22, 0)));
+    public static final List<OfficeHourDTO> OFFICE_HOURS_DTO =
+            List.of(new OfficeHourDTO("TUESDAY", LocalTime.of(9, 0), LocalTime.of(23, 0)));
 
     private UseCaseFixtures() {
     }

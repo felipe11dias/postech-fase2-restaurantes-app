@@ -217,8 +217,7 @@ class UserProfilesApiIT extends WebIntegrationTestSupport {
     }
 
     private static Map<String, Object> restaurante(Usuario dono) {
-        return Map.of("userId", dono.id(), "name", "Restaurante " + dono.login(), "officeHourStart", "08:00:00",
-                "officeHourEnd", "22:00:00", "address", Map.of("street", "Rua A", "number", "1",
+        return Map.of("userId", dono.id(), "name", "Restaurante " + dono.login(), "officeHours", List.of(Map.of("dayOfWeek", "MONDAY", "startTime", "08:00:00", "endTime", "22:00:00")), "address", Map.of("street", "Rua A", "number", "1",
                         "neighborhood", "Centro", "city", "São Paulo", "state", "SP", "zipCode", "01001000"));
     }
 

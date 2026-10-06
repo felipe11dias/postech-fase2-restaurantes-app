@@ -5,9 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (23 até aqui; as Etapas 24
-a 25, de adequação ao Modelo de Dados v2 em `docs/modelo-dados/`, estão planejadas no
-relatório) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
+Architecture**. O projeto está sendo entregue **etapa por etapa** (24 até aqui; a Etapa 25, de revisão da adequação ao Modelo de Dados v2 em
+`docs/modelo-dados/`, está planejada no relatório) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
 `CHANGELOG.md`, e atualização do relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (marcar a etapa
 como ✅ no Sumário de Progresso, atualizar o contador e acrescentar a subseção
 "O que foi entregue nesta etapa" com o resultado real do build). O relatório é a
@@ -118,7 +117,7 @@ infrastructure/
 Regras (verificadas pelo `InfrastructureModulesTest`):
 - **Nenhum ciclo entre pacotes no projeto inteiro** (ADP). Entidade JPA de parte de um agregado
   fica num subpacote do agregado (`persistence/jpa/user/{address,password,owner,client,courier,admin}`; `user/address` é
-  o vínculo `user_addresses`), e a dependência só vai do agregado para a parte: a parte não referencia
+  o vínculo `user_addresses`) — o mesmo vale para `persistence/jpa/restaurant/officehour`, e a dependência só vai do agregado para a parte: a parte não referencia
   a raiz (`@OneToMany` + `@JoinColumn` unidirecional do lado do `UserJpaEntity`), senão os dois
   pacotes formam ciclo. Entidade compartilhada por agregados fica em pacote próprio que não conhece
   nenhum deles: o endereço está em `persistence/jpa/address` (com `AddressJpaMapping`), usado pelo
@@ -262,6 +261,12 @@ Pontos que só ficam claros lendo várias camadas:
   `ON DELETE CASCADE` em `restaurants.user_id → users` como rede de segurança. `fk_restaurants_owner` (V7) fica
   **sem** cascata: removê-la faria o perfil de dono sair levando os restaurantes. Casos de posse na coleção
   miram o segundo dono criado por ela (`outroDonoUserId`), nunca a seed.
+- **Horário de funcionamento (Etapa 24, V9).** `OfficeHour` é valor (`record`, `java.time.DayOfWeek`) na lista do
+  `Restaurant`; ao menos um e sem sobreposição — conferida na semana circular (o expediente que vira a meia-noite
+  invade o dia seguinte; o de domingo, a segunda). A JPA fica em `persistence/jpa/restaurant/officehour`, ligada
+  só do lado do restaurante, com `day_of_week` como texto (`?::day_of_week`); a atualização reconcilia por (dia,
+  abertura), senão o Hibernate inseriria antes de apagar e violaria `UNIQUE (restaurant_id, day_of_week,
+  start_time)`. O dia vem como texto e passa por `OfficeHour.dayOf` (mensagem do domínio).
 
 ### API REST organizada como MVC (Etapa 15, já implementada)
 

@@ -1,5 +1,7 @@
 package com.postech.restaurantes.adapter.controller;
 
+import static com.postech.restaurantes.adapter.AdapterFixtures.OFFICE_HOURS_DTO;
+import static com.postech.restaurantes.adapter.AdapterFixtures.OFFICE_HOURS_DATA;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -24,7 +26,6 @@ import com.postech.restaurantes.application.dto.restaurant.CreateRestaurantDTO;
 import com.postech.restaurantes.application.dto.restaurant.UpdateRestaurantDTO;
 import com.postech.restaurantes.application.gateway.IUnitOfWork;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -74,7 +75,7 @@ class RestaurantControllerTest {
         userData = new UserData(userId, "Dono", "dono@x.com", "dono", "hash",
                 new OwnerData("11222333000181", "Sabor Ltda", "1131234567"), null, null, null, List.of(), null, null);
 
-        restaurantData = new RestaurantData(restaurantId, userId, addressData, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0),
+        restaurantData = new RestaurantData(restaurantId, userId, addressData, "Sabor", OFFICE_HOURS_DATA,
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
@@ -84,7 +85,7 @@ class RestaurantControllerTest {
         when(userDataSource.findById(userId)).thenReturn(Optional.of(userData));
         when(restaurantDataSource.insert(any())).thenReturn(restaurantData);
 
-        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", OFFICE_HOURS_DTO);
         RestaurantView view = controller.create(dto);
 
         assertNotNull(view);
@@ -130,7 +131,7 @@ class RestaurantControllerTest {
         when(userDataSource.findById(userId)).thenReturn(Optional.of(userData));
         when(restaurantDataSource.update(any())).thenReturn(restaurantData);
 
-        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo", LocalTime.of(9, 0), LocalTime.of(23, 0));
+        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo", OFFICE_HOURS_DTO);
         RestaurantView view = controller.update(dto);
 
         assertNotNull(view);

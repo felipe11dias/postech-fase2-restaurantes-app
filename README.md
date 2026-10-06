@@ -192,6 +192,8 @@ autocadastro não tem perfil de administrador.
    - Restaurante só pode ter como dono um usuário com perfil de dono. O dono cadastra, altera e exclui
      **só os próprios restaurantes** (sem `userId` no cadastro, o dono é quem está autenticado); indicar
      ou trocar o dono é do administrador. Excluir um usuário exclui os restaurantes dele.
+   - O restaurante tem horários por dia da semana (`officeHours`: dia, abertura, fechamento), ao menos
+     um e sem sobreposição; fechamento antes da abertura é expediente que vira a meia-noite.
    - Perfis de um cadastro existente se incluem, alteram e removem em `/api/v1/users/{id}/profiles/…`
      (o próprio usuário ou um administrador; o perfil de administrador, só um administrador). A
      autorização lê os perfis do cadastro a cada requisição: incluir ou remover perfil vale na hora,
@@ -249,7 +251,7 @@ A documentação completa, com exemplos de cada resposta, está no Swagger UI.
 ## Coleção Postman
 
 [`postman/Restaurantes.postman_collection.json`](postman/Restaurantes.postman_collection.json)
-(formato v2.1) tem **123 requests em 16 pastas** (usuários e restaurantes): um por caso de cada endpoint — o sucesso e cada
+(formato v2.1) tem **124 requests em 16 pastas** (usuários e restaurantes): um por caso de cada endpoint — o sucesso e cada
 erro previsto —, na ordem em que rodam de cima a baixo. Os scripts de teste conferem o status e
 o `type` de cada erro e guardam `{{adminToken}}`, `{{token}}` e `{{userId}}` para as requisições
 seguintes; se um login ou cadastro essencial falhar, a execução para ali, com o motivo, em vez de

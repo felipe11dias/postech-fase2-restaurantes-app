@@ -1,6 +1,7 @@
 package com.postech.restaurantes.application.usecase.restaurant;
 
 import com.postech.restaurantes.application.dto.restaurant.CreateRestaurantDTO;
+import com.postech.restaurantes.application.dto.restaurant.OfficeHourDTO;
 import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.application.gateway.IUserGateway;
 import com.postech.restaurantes.domain.Guard;
@@ -44,8 +45,7 @@ public final class CreateRestaurantUseCase {
                 dto.userId(),
                 Guard.requireNonNull(dto.address(), "Endereço do restaurante inválido").toEntity(),
                 dto.name(),
-                dto.officeHourStart(),
-                dto.officeHourEnd()
+                OfficeHourDTO.toEntities(dto.officeHours())
         );
 
         return restaurantGateway.insert(restaurant);

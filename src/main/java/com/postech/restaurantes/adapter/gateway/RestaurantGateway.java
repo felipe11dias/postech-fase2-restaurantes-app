@@ -1,12 +1,14 @@
 package com.postech.restaurantes.adapter.gateway;
 
 import com.postech.restaurantes.adapter.datasource.IRestaurantDataSource;
+import com.postech.restaurantes.adapter.datasource.data.OfficeHourData;
 import com.postech.restaurantes.adapter.datasource.data.RestaurantData;
 import com.postech.restaurantes.adapter.gateway.mapping.AddressMapping;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.domain.Guard;
+import com.postech.restaurantes.domain.entity.restaurant.OfficeHour;
 import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
 import java.util.Optional;
 import java.util.UUID;
@@ -67,8 +69,7 @@ public final class RestaurantGateway implements IRestaurantGateway {
                 data.userId(),
                 AddressMapping.toEntity(data.address()),
                 data.name(),
-                data.officeHourStart(),
-                data.officeHourEnd(),
+                data.officeHours().stream().map(RestaurantGateway::toEntity).toList(),
                 data.createdAt(),
                 data.lastUpdatedAt()
         );
@@ -80,10 +81,18 @@ public final class RestaurantGateway implements IRestaurantGateway {
                 restaurant.getUserId(),
                 AddressMapping.toData(restaurant.getAddress()),
                 restaurant.getName(),
-                restaurant.getOfficeHourStart(),
-                restaurant.getOfficeHourEnd(),
+                restaurant.getOfficeHours().stream().map(RestaurantGateway::toData).toList(),
                 restaurant.getCreatedAt(),
                 restaurant.getLastUpdatedAt()
         );
+    }
+
+    /** O dia volta pelo nome, e passa pelo domínio: valor desconhecido na origem é recusado com a mensagem dele. */
+    private static OfficeHour toEntity(OfficeHourData data) {
+        return new OfficeHour(OfficeHour.dayOf(data.dayOfWeek()), data.startTime(), data.endTime());
+    }
+
+    private static OfficeHourData toData(OfficeHour officeHour) {
+        return new OfficeHourData(officeHour.dayOfWeek().name(), officeHour.startTime(), officeHour.endTime());
     }
 }

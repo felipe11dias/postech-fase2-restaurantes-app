@@ -3,6 +3,7 @@ package com.postech.restaurantes.infrastructure.persistence.jpa;
 import com.postech.restaurantes.adapter.datasource.data.AddressData;
 import com.postech.restaurantes.adapter.datasource.data.PasswordResetTokenData;
 import com.postech.restaurantes.adapter.datasource.data.ClientData;
+import com.postech.restaurantes.adapter.datasource.data.OfficeHourData;
 import com.postech.restaurantes.adapter.datasource.data.UserAddressData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
 import com.postech.restaurantes.infrastructure.persistence.jpa.address.AddressJpaEntity;
@@ -15,6 +16,7 @@ import com.postech.restaurantes.infrastructure.persistence.jpa.user.courier.Cour
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.owner.OwnerJpaEntity;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,6 +31,9 @@ public final class PersistenceFixtures {
     public static final String HASH = "$2a$10$hashDeExemploComTamanhoSuficienteParaBCrypt";
 
     public static final ClientData CLIENT_DATA = new ClientData("52998224725", "11912345678", LocalDate.of(1990, 5, 20));
+
+    public static final List<OfficeHourData> OFFICE_HOURS_DATA =
+            List.of(new OfficeHourData("MONDAY", LocalTime.of(8, 0), LocalTime.of(22, 0)));
 
     public static final AddressData ADDRESS_DATA = new AddressData(ADDRESS_ID, "Rua das Flores", "100", "Apto 21",
             "Centro", "São Paulo", "SP", "01001000");

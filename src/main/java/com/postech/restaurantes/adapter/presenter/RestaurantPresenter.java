@@ -1,5 +1,6 @@
 package com.postech.restaurantes.adapter.presenter;
 
+import com.postech.restaurantes.adapter.presenter.view.OfficeHourView;
 import com.postech.restaurantes.adapter.presenter.view.RestaurantView;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.domain.Guard;
@@ -18,8 +19,9 @@ public final class RestaurantPresenter {
                 restaurant.getUserId(),
                 AddressPresenter.toView(restaurant.getAddress()),
                 restaurant.getName(),
-                restaurant.getOfficeHourStart(),
-                restaurant.getOfficeHourEnd(),
+                restaurant.getOfficeHours().stream()
+                        .map(hour -> new OfficeHourView(hour.dayOfWeek().name(), hour.startTime(), hour.endTime()))
+                        .toList(),
                 restaurant.getCreatedAt(),
                 restaurant.getLastUpdatedAt()
         );

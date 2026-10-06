@@ -2,11 +2,14 @@ package com.postech.restaurantes.infrastructure.api.rest.spring;
 
 import com.postech.restaurantes.adapter.presenter.view.AddressView;
 import com.postech.restaurantes.adapter.presenter.view.ClientProfileView;
+import com.postech.restaurantes.adapter.presenter.view.OfficeHourView;
 import com.postech.restaurantes.adapter.presenter.view.UserAddressView;
 import com.postech.restaurantes.adapter.presenter.view.UserView;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.AddressRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.ClientProfileRequest;
+import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.OfficeHourRequest;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,6 +25,11 @@ public final class WebFixtures {
             "Centro", "São Paulo", "SP", "01001000");
     public static final AddressRequest ADDRESS_REQUEST =
             new AddressRequest("Rua das Flores", "100", "Apto 21", "Centro", "São Paulo", "SP", "01001-000");
+
+    public static final List<OfficeHourView> OFFICE_HOURS_VIEW =
+            List.of(new OfficeHourView("MONDAY", LocalTime.of(8, 0), LocalTime.of(22, 0)));
+    public static final List<OfficeHourRequest> OFFICE_HOURS_REQUEST =
+            List.of(new OfficeHourRequest("TUESDAY", LocalTime.of(9, 0), LocalTime.of(23, 0)));
 
     public static final ClientProfileRequest CLIENT_REQUEST =
             new ClientProfileRequest("529.982.247-25", "(11) 91234-5678", null);

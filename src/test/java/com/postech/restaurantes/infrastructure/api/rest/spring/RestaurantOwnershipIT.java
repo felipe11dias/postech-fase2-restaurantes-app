@@ -147,8 +147,7 @@ class RestaurantOwnershipIT extends WebIntegrationTestSupport {
     }
 
     private static Map<String, Object> corpo(String nome, UUID userId) {
-        Map<String, Object> corpo = new HashMap<>(Map.of("name", nome, "officeHourStart", "08:00:00",
-                "officeHourEnd", "22:00:00", "address", Map.of("street", "Rua do Restaurante", "number", "1",
+        Map<String, Object> corpo = new HashMap<>(Map.of("name", nome, "officeHours", List.of(Map.of("dayOfWeek", "MONDAY", "startTime", "08:00:00", "endTime", "22:00:00")), "address", Map.of("street", "Rua do Restaurante", "number", "1",
                         "neighborhood", "Centro", "city", "São Paulo", "state", "SP", "zipCode", "01001000")));
         if (userId != null) {
             corpo.put("userId", userId);

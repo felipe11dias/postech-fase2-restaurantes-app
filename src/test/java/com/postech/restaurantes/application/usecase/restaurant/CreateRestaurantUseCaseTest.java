@@ -1,5 +1,6 @@
 package com.postech.restaurantes.application.usecase.restaurant;
 
+import static com.postech.restaurantes.application.usecase.UseCaseFixtures.OFFICE_HOURS_DTO;
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.ADMIN;
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.CLIENT;
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.OWNER;
@@ -20,7 +21,6 @@ import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
 import com.postech.restaurantes.domain.entity.user.User;
 import com.postech.restaurantes.domain.exception.ForbiddenOperationException;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -56,7 +56,7 @@ class CreateRestaurantUseCaseTest {
         when(userGateway.findById(userId)).thenReturn(Optional.of(owner));
         when(restaurantGateway.insert(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", OFFICE_HOURS_DTO);
         Restaurant result = useCase.run(dto);
 
         assertNotNull(result);
@@ -71,7 +71,7 @@ class CreateRestaurantUseCaseTest {
                 ADMIN, List.of(), null, null);
         when(userGateway.findById(userId)).thenReturn(Optional.of(admin));
 
-        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", OFFICE_HOURS_DTO);
         ForbiddenOperationException erro = assertThrows(ForbiddenOperationException.class, () -> useCase.run(dto));
 
         assertEquals("O usuário informado não tem perfil de dono de restaurante", erro.getMessage());
@@ -83,7 +83,7 @@ class CreateRestaurantUseCaseTest {
     void deveRecusarQuandoDonoNaoEncontrado() {
         when(userGateway.findById(userId)).thenReturn(Optional.empty());
 
-        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", OFFICE_HOURS_DTO);
         assertThrows(ResourceNotFoundException.class, () -> useCase.run(dto));
     }
 
@@ -94,7 +94,7 @@ class CreateRestaurantUseCaseTest {
                 CLIENT, List.of(), null, null);
         when(userGateway.findById(userId)).thenReturn(Optional.of(cliente));
 
-        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", OFFICE_HOURS_DTO);
         assertThrows(ForbiddenOperationException.class, () -> useCase.run(dto));
     }
 
@@ -103,7 +103,7 @@ class CreateRestaurantUseCaseTest {
     void deveRecusarQuandoEnderecoAusente() {
         when(userGateway.findById(userId)).thenReturn(Optional.of(owner));
 
-        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, null, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, null, "Sabor", OFFICE_HOURS_DTO);
         assertThrows(IllegalArgumentException.class, () -> useCase.run(dto));
         verify(restaurantGateway, never()).insert(any());
     }

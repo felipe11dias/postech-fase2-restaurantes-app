@@ -33,13 +33,13 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     private IUserDataSource userDataSource;
 
     @Test
-    @DisplayName("As oito migrations foram aplicadas com sucesso e ficaram registradas no histórico")
+    @DisplayName("As nove migrations foram aplicadas com sucesso e ficaram registradas no histórico")
     void deveAplicarAsMigrations() {
         List<String> versoes = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = true AND version IS NOT NULL "
                         + "ORDER BY installed_rank", String.class);
 
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8"), versoes);
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9"), versoes);
     }
 
     @Test
@@ -50,15 +50,16 @@ class SchemaMigrationIT extends IntegrationTestSupport {
                         + "AND table_name <> 'flyway_schema_history' ORDER BY table_name", String.class);
 
         assertEquals(List.of("addresses", "admins", "clients", "couriers", "owners", "password_reset_tokens",
-                "restaurants", "user_addresses", "users"), tabelas);
+                "restaurant_office_hours", "restaurants", "user_addresses", "users"), tabelas);
     }
 
     @ParameterizedTest(name = "{0}")
     @CsvSource({
             "courier_vehicle_type, ON_FOOT;BICYCLE;MOTORCYCLE;CAR",
-            "courier_status,       OFFLINE;AVAILABLE;BUSY"
+            "courier_status,       OFFLINE;AVAILABLE;BUSY",
+            "day_of_week,          MONDAY;TUESDAY;WEDNESDAY;THURSDAY;FRIDAY;SATURDAY;SUNDAY"
     })
-    @DisplayName("Os tipos ENUM do entregador têm os valores do modelo, na ordem do modelo")
+    @DisplayName("Os tipos ENUM do modelo têm os valores do modelo, na ordem do modelo")
     void deveCriarOsEnums(String tipo, String valores) {
         List<String> rotulos = jdbc.queryForList("SELECT e.enumlabel FROM pg_enum e JOIN pg_type t "
                 + "ON t.oid = e.enumtypid WHERE t.typname = ? ORDER BY e.enumsortorder", String.class, tipo);
@@ -206,8 +207,8 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     void deveExigirPerfilDeDonoParaORestaurante() {
         UUID usuario = UUID.randomUUID();
         UUID endereco = UUID.randomUUID();
-        String restaurante = "INSERT INTO restaurants (user_id, address_id, name, office_hour_start, office_hour_end, "
-                + "created_at, last_updated_at) VALUES (?, ?, 'Sem Dono', '08:00', '22:00', NOW(), NOW())";
+        String restaurante = "INSERT INTO restaurants (user_id, address_id, name, "
+                + "created_at, last_updated_at) VALUES (?, ?, 'Sem Dono', NOW(), NOW())";
         try {
             inserirUsuario(usuario);
             jdbc.update("INSERT INTO addresses (id, street, number, neighborhood, city, state, zip_code) "
@@ -237,8 +238,8 @@ class SchemaMigrationIT extends IntegrationTestSupport {
                     + "VALUES (?, ?, 'Dono Ltda', '1131234567', NOW(), NOW())", usuario, Documentos.cnpj());
             jdbc.update("INSERT INTO addresses (id, street, number, neighborhood, city, state, zip_code) "
                     + "VALUES (?, 'Rua A', '1', 'Centro', 'São Paulo', 'SP', '01001000')", endereco);
-            jdbc.update("INSERT INTO restaurants (user_id, address_id, name, office_hour_start, office_hour_end, "
-                    + "created_at, last_updated_at) VALUES (?, ?, 'Cascata', '08:00', '22:00', NOW(), NOW())",
+            jdbc.update("INSERT INTO restaurants (user_id, address_id, name, "
+                    + "created_at, last_updated_at) VALUES (?, ?, 'Cascata', NOW(), NOW())",
                     usuario, endereco);
 
             jdbc.update("DELETE FROM users WHERE id = ?", usuario);

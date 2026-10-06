@@ -196,7 +196,7 @@ class ErrorHandlingIT extends WebIntegrationTestSupport {
 
         ResponseEntity<JsonNode> resposta = rest.exchange("/api/v1/restaurants", HttpMethod.POST,
                 corpoAutenticado(Map.of("userId", cliente.id(), "name", "Não É Dono",
-                        "officeHourStart", "08:00:00", "officeHourEnd", "22:00:00",
+                        "officeHours", List.of(Map.of("dayOfWeek", "MONDAY", "startTime", "08:00:00", "endTime", "22:00:00")),
                         "address", Map.of("street", "Rua A", "number", "1", "neighborhood", "Centro",
                                 "city", "São Paulo", "state", "SP", "zipCode", "01001000")), admin()),
                 JsonNode.class);

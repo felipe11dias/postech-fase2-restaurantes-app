@@ -58,11 +58,11 @@
 | 21  | Usuário composto por perfis (papel derivado)       | ✅     |
 | 22  | Perfis em usuário existente e status do entregador | ✅     |
 | 23  | Restaurante alinhado ao modelo v2 e à regra de posse (`restaurants`) | ✅ |
-| 24  | Horário de funcionamento por dia (`restaurant_office_hours`) | ⏳ |
+| 24  | Horário de funcionamento por dia (`restaurant_office_hours`) | ✅ |
 | 25  | Revisão de conformidade do modelo de dados v2      | ⏳     |
 
-**Progresso:** 23 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
-Dados v2 (seção "Modelo de Dados v2 — adequação planejada"); da 17 à 23 estão concluídas e as
+**Progresso:** 24 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
+Dados v2 (seção "Modelo de Dados v2 — adequação planejada"); da 17 à 24 estão concluídas e as
 demais, planejadas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
@@ -2097,7 +2097,7 @@ db/migration/                      V3__create_restaurant_schema.sql
 | Administrador aceito como dono do restaurante | No modelo v2, ser dono é ter perfil em `owners` | Etapa 21 |
 | `ON DELETE RESTRICT` em `user_id` | Usuário dono de restaurante não pode ser excluído; o modelo v2 pede `CASCADE` | Etapa 23 ✅ |
 | Restaurante usa um endereço **do dono** | No modelo v2, `restaurants.address_id` é `UNIQUE`: o restaurante tem endereço próprio | Etapa 18 ✅ |
-| Horário único (`office_hour_start/end`) para todos os dias | O modelo v2 tem `restaurant_office_hours`, um intervalo por dia da semana | Etapa 24 |
+| Horário único (`office_hour_start/end`) para todos os dias | O modelo v2 tem `restaurant_office_hours`, um intervalo por dia da semana | Etapa 24 ✅ |
 | Seção da etapa ausente na v1.0 do relatório | O Sumário marcava a etapa, mas não havia a seção — registrada aqui | — |
 
 ---
@@ -2904,6 +2904,66 @@ mesmo: `users → owners` e `users → restaurants` caem no mesmo comando, e a c
 **Conceito:** 1FN — um atributo multivalorado (horário por dia) vira tabela própria (Date);
 invariante do agregado na raiz.
 
+### Estrutura
+
+```
+domain/entity/restaurant/       OfficeHour (record: dia, abertura, fechamento; overlaps, crossesMidnight, dayOf);
+                                Restaurant com List<OfficeHour> (replaceOfficeHours)
+application/dto/restaurant/     OfficeHourDTO; Create/UpdateRestaurantDTO com a lista
+adapter/                        OfficeHourData, OfficeHourView; RestaurantGateway e RestaurantPresenter
+infrastructure/
+  api/rest/spring/dto/          OfficeHourRequest, OfficeHourResponse; Create/UpdateRestaurantRequest com a lista
+  persistence/jpa/restaurant/   officehour/OfficeHourJpaEntity (novo subpacote); RestaurantJpaEntity com @OneToMany;
+                                reconciliação por (dia, abertura) na RestaurantDataSourceJpa
+db/migration/V9__restaurant_office_hours.sql
+```
+
+O corpo do restaurante troca `officeHourStart`/`officeHourEnd` por
+`officeHours: [{ "dayOfWeek": "MONDAY", "startTime": "08:00:00", "endTime": "22:00:00" }, …]`.
+
+**Ajustes do plano.**
+- **Horário como valor, não como entidade com id.** O plano chamava o horário de "parte"; ele virou um
+  `record`, porque no domínio dois horários com o mesmo dia, abertura e fechamento são o mesmo horário — não
+  há identidade a guardar. A linha da tabela tem id, mas ele é da persistência: a origem de dados mantém na
+  mesma linha o horário que continua (mesmo dia e abertura) e só cria ou apaga o que mudou.
+- **A sobreposição considera a semana inteira, não só o mesmo dia.** O plano falava em "sem sobreposição no
+  dia"; mas segunda das 22h às 2h colide com terça à 1h. A conta é feita em segundos a partir de segunda 0h,
+  numa semana circular — e o expediente de domingo que vira a meia-noite invade a segunda.
+- **Entidade JPA num subpacote** (`restaurant/officehour`), e não ao lado do restaurante, como as partes do
+  usuário (Etapa 17): a associação é unidirecional do lado do restaurante, e os pacotes não formam ciclo.
+
+### O que foi entregue nesta etapa
+
+| Decisão | Conceito que a sustenta |
+| --- | --- |
+| **Tabela própria para o horário por dia** (`restaurant_office_hours`), com a conversão do horário único em sete linhas na V9 | Atributo multivalorado vira tabela (1FN, Date). A conversão preserva o comportamento de antes ("o mesmo horário todos os dias") e a autoria das linhas; foi conferida aplicando V1 a V8 num PostgreSQL descartável, com um restaurante das 18h às 2h, e rodando a V9: sete linhas de segunda a domingo, colunas antigas removidas |
+| **`OfficeHour` é valor (`record`) e usa `java.time.DayOfWeek`** | Sem identidade no domínio, igualdade por valor; o JDK já tem os sete dias com os nomes do tipo `day_of_week` — criar um enum igual seria duplicação (decisão da seção "Enums") |
+| **"Sem sobreposição" e "ao menos um horário" na raiz** (`Restaurant.replaceOfficeHours`); abertura ≠ fechamento no próprio horário | Invariante do conjunto mora na raiz do agregado; a do item, no item. Fechamento antes da abertura é virar a meia-noite, a mesma leitura do horário único de antes |
+| **Sobreposição na semana circular** | A regra é sobre o tempo real de funcionamento: o expediente que vira a meia-noite ocupa o começo do dia seguinte. Conferir só "no mesmo dia" deixaria passar dois expedientes simultâneos |
+| **Dia pelo nome, convertido pelo domínio** (`OfficeHour.dayOf`) na entrada e na leitura | Valor desconhecido produz a mensagem do domínio ("Dia da semana inválido: X"), e não um erro de formato do parser — como o tipo de veículo do entregador |
+| **`day_of_week` como texto na JPA**, com `columnDefinition` e `@ColumnTransformer(write = "?::day_of_week")` | A infraestrutura não importa tipo do domínio (`infraestrutura_so_conhece_portas_tecnicas`); o mesmo mapeamento dos enums do entregador |
+| **Reconciliação por (dia, abertura) na atualização** | Evita apagar e regravar tudo a cada `PUT`, e evita violar `UNIQUE (restaurant_id, day_of_week, start_time)` no meio da descarga: o Hibernate insere os novos antes de apagar os antigos, e regravar o mesmo horário seria um conflito |
+| **Ordem da semana na lista** (domínio ordena; a JPA lê com `@OrderBy` pelo tipo `day_of_week`, que o PostgreSQL ordena de segunda a domingo) | A resposta é estável e legível; quem consome não precisa ordenar |
+
+### Testes
+
+| Teste | O que prova |
+| --- | --- |
+| `OfficeHourTest`, `RestaurantTest` | horário inválido recusado; virada da meia-noite; sobreposição no mesmo dia, na virada para o dia seguinte e de domingo para segunda; intervalos que só se encostam não colidem; ao menos um horário; ordem da semana; lista imutável |
+| `OfficeHourDTOTest`, `RestaurantDtoMappingTest` | dia convertido pelo domínio, desconhecido recusado com a mensagem dele; a lista atravessa request → DTO e view → response |
+| `RestaurantGatewayTest`, `RestaurantPresenterTest`, `RestaurantControllerTest`, `RestaurantRestControllerTest`, `RestaurantModelAssemblerTest` | os horários vão e voltam entre domínio, registro, view e resposta |
+| `RestaurantDataSourceJpaTest`, `OfficeHourJpaEntityTest` | o horário que continua fica na mesma instância (e linha), o novo nasce sem id, o ausente sai |
+| `RestaurantOfficeHoursIT` | por HTTP: horários diferentes por dia, devolvidos na ordem da semana; sobreposição (inclusive na virada da meia-noite), dia desconhecido e lista vazia recusados com a mensagem do domínio; atualização mantém a linha do horário que continua |
+| `SchemaMigrationIT` | nove migrations; a tabela nova; o tipo `day_of_week` com os sete valores, na ordem do modelo |
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `mvn clean verify` | **766 testes unitários** e **136 de integração** — BUILD SUCCESS; cobertura unitária **2000/2000 linhas, 544/544 ramos, 836/836 métodos** |
+| Conversão da V9 | aplicada sobre um banco na V8 com um restaurante das 18h às 2h: sete linhas, de segunda a domingo, com a autoria original; `office_hour_start/end` removidas |
+| Postman (`npx newman@6`) | **124 requests, 257 asserções, 0 falhas**, em duas execuções seguidas contra o mesmo banco. Todos os corpos de restaurante passaram para a lista de horários; o cadastro do dono da seed traz horários diferentes por dia (dois turnos na segunda, sexta virando a meia-noite, domingo); novo caso de horários sobrepostos (400); prints regenerados (124) |
+
 ## Etapa 25 — Revisão de conformidade do modelo de dados v2
 
 **Objetivo.** Conferir as Etapas 17 a 24 contra o modelo e contra as referências, como a
@@ -2933,7 +2993,7 @@ Etapa 14 fez para a base.
   alcança. Etapas 18 e 23.
 - **Um token de redefinição por usuário:** pedido novo reemite e invalida o anterior. Etapa 19.
 - **Posse também no restaurante:** dono só altera e exclui os próprios restaurantes. Etapa 23 (entregue).
-- **Horário por dia da semana** em tabela própria, com invariantes de intervalo no agregado. Etapa 24.
+- **Horário por dia da semana** em tabela própria, com invariantes de intervalo no agregado. Etapa 24 (entregue).
 - **Migrations nunca inventam dado:** o que o modelo exige e o banco não tem só é preenchido para a
   seed; fora dela, a migration falha com mensagem clara.
 

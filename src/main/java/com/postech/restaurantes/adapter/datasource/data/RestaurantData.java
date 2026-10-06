@@ -1,7 +1,7 @@
 package com.postech.restaurantes.adapter.datasource.data;
 
 import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -13,8 +13,7 @@ public record RestaurantData(
         UUID userId,
         AddressData address,
         String name,
-        LocalTime officeHourStart,
-        LocalTime officeHourEnd,
+        List<OfficeHourData> officeHours,
         LocalDateTime createdAt,
         LocalDateTime lastUpdatedAt
 ) {

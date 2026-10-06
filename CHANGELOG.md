@@ -491,3 +491,23 @@
   asserções, sem falhas, em duas execuções; 123 prints.
 - `mvn clean verify`: 751 testes unitários e 132 de integração; cobertura unitária 100% (1940
   linhas, 516 ramos, 804 métodos).
+
+## Etapa 24 — Horário de funcionamento por dia
+- Migration `V9__restaurant_office_hours.sql`: tipo `day_of_week`; tabela `restaurant_office_hours`
+  (`ON DELETE CASCADE`, auditoria, `UNIQUE (restaurant_id, day_of_week, start_time)`, abertura ≠
+  fechamento); o horário único de cada restaurante vira sete linhas, uma por dia; saem
+  `office_hour_start` e `office_hour_end`.
+- Domínio: `OfficeHour` (valor: dia `java.time.DayOfWeek`, abertura, fechamento; virada da meia-noite;
+  sobreposição na semana circular); `Restaurant` com a lista (ao menos um horário, sem sobreposição,
+  na ordem da semana).
+- Aplicação, adaptadores e API: `OfficeHourDTO`, `OfficeHourData`, `OfficeHourView`,
+  `OfficeHourRequest`, `OfficeHourResponse`; o corpo do restaurante troca `officeHourStart`/
+  `officeHourEnd` por `officeHours`.
+- Persistência: `restaurant/officehour/OfficeHourJpaEntity` (`day_of_week` como texto com
+  `@ColumnTransformer`); a atualização reconcilia por (dia, abertura).
+- Testes: `OfficeHourTest`, `OfficeHourDTOTest`, `OfficeHourJpaEntityTest`, `RestaurantOfficeHoursIT` e os
+  ajustes das demais camadas; conversão da V9 conferida num banco na V8. Postman: corpos com a lista,
+  cadastro com horários diferentes por dia e caso de horários sobrepostos; 124 requests e 257
+  asserções, sem falhas, em duas execuções; 124 prints.
+- `mvn clean verify`: 766 testes unitários e 136 de integração; cobertura unitária 100% (2000
+  linhas, 544 ramos, 836 métodos).

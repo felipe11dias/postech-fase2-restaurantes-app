@@ -1,5 +1,7 @@
 package com.postech.restaurantes.application.usecase.restaurant;
 
+import static com.postech.restaurantes.application.usecase.UseCaseFixtures.OFFICE_HOURS;
+import static com.postech.restaurantes.application.usecase.UseCaseFixtures.OFFICE_HOURS_DTO;
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.ADMIN;
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.CLIENT;
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.OWNER;
@@ -19,7 +21,6 @@ import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
 import com.postech.restaurantes.domain.entity.user.User;
 import com.postech.restaurantes.domain.exception.ForbiddenOperationException;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -50,7 +51,7 @@ class UpdateRestaurantUseCaseTest {
         endereco = new AddressDTO("Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
         owner = User.restore(userId, "Dono", "dono@x.com", "dono", "hash",
                 OWNER, List.of(), null, null);
-        restaurant = Restaurant.restore(restaurantId, userId, endereco.toEntity(), "Antigo", LocalTime.of(8, 0), LocalTime.of(22, 0), null, null);
+        restaurant = Restaurant.restore(restaurantId, userId, endereco.toEntity(), "Antigo", OFFICE_HOURS, null, null);
     }
 
     @Test
@@ -60,7 +61,7 @@ class UpdateRestaurantUseCaseTest {
         when(userGateway.findById(userId)).thenReturn(Optional.of(owner));
         when(restaurantGateway.update(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo Nome", LocalTime.of(9, 0), LocalTime.of(23, 0));
+        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo Nome", OFFICE_HOURS_DTO);
         Restaurant result = useCase.run(dto);
 
         assertEquals("Novo Nome", result.getName());
@@ -74,7 +75,7 @@ class UpdateRestaurantUseCaseTest {
         when(restaurantGateway.findById(restaurantId)).thenReturn(Optional.of(restaurant));
         when(restaurantGateway.update(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, null, endereco, "Novo Nome", LocalTime.of(9, 0), LocalTime.of(23, 0));
+        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, null, endereco, "Novo Nome", OFFICE_HOURS_DTO);
         Restaurant result = useCase.run(dto);
 
         assertEquals(userId, result.getUserId());
@@ -89,7 +90,7 @@ class UpdateRestaurantUseCaseTest {
         when(restaurantGateway.findById(restaurantId)).thenReturn(Optional.of(restaurant));
         when(userGateway.findById(userId)).thenReturn(Optional.of(admin));
 
-        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo Nome", LocalTime.of(9, 0), LocalTime.of(23, 0));
+        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo Nome", OFFICE_HOURS_DTO);
         ForbiddenOperationException erro = assertThrows(ForbiddenOperationException.class, () -> useCase.run(dto));
 
         assertEquals("O usuário informado não tem perfil de dono de restaurante", erro.getMessage());
@@ -101,7 +102,7 @@ class UpdateRestaurantUseCaseTest {
     void deveRecusarQuandoRestauranteNaoExiste() {
         when(restaurantGateway.findById(restaurantId)).thenReturn(Optional.empty());
 
-        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo Nome", LocalTime.of(9, 0), LocalTime.of(23, 0));
+        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo Nome", OFFICE_HOURS_DTO);
         assertThrows(ResourceNotFoundException.class, () -> useCase.run(dto));
     }
 
@@ -111,7 +112,7 @@ class UpdateRestaurantUseCaseTest {
         when(restaurantGateway.findById(restaurantId)).thenReturn(Optional.of(restaurant));
         when(userGateway.findById(userId)).thenReturn(Optional.empty());
 
-        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo Nome", LocalTime.of(9, 0), LocalTime.of(23, 0));
+        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo Nome", OFFICE_HOURS_DTO);
         assertThrows(ResourceNotFoundException.class, () -> useCase.run(dto));
     }
 
@@ -123,7 +124,7 @@ class UpdateRestaurantUseCaseTest {
         when(restaurantGateway.findById(restaurantId)).thenReturn(Optional.of(restaurant));
         when(userGateway.findById(userId)).thenReturn(Optional.of(cliente));
 
-        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo Nome", LocalTime.of(9, 0), LocalTime.of(23, 0));
+        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo Nome", OFFICE_HOURS_DTO);
         assertThrows(ForbiddenOperationException.class, () -> useCase.run(dto));
     }
 
@@ -133,7 +134,7 @@ class UpdateRestaurantUseCaseTest {
         when(restaurantGateway.findById(restaurantId)).thenReturn(Optional.of(restaurant));
         when(userGateway.findById(userId)).thenReturn(Optional.of(owner));
 
-        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, null, "Novo Nome", LocalTime.of(9, 0), LocalTime.of(23, 0));
+        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, null, "Novo Nome", OFFICE_HOURS_DTO);
         assertThrows(IllegalArgumentException.class, () -> useCase.run(dto));
         verify(restaurantGateway, never()).update(any());
     }
@@ -142,7 +143,7 @@ class UpdateRestaurantUseCaseTest {
     @DisplayName("Recusa DTO nulo ou ID nulo")
     void deveRecusarDtoOuIdNulo() {
         assertThrows(IllegalArgumentException.class, () -> useCase.run(null));
-        UpdateRestaurantDTO dtoSemId = new UpdateRestaurantDTO(null, userId, endereco, "Nome", LocalTime.of(9, 0), LocalTime.of(23, 0));
+        UpdateRestaurantDTO dtoSemId = new UpdateRestaurantDTO(null, userId, endereco, "Nome", OFFICE_HOURS_DTO);
         assertThrows(IllegalArgumentException.class, () -> useCase.run(dtoSemId));
     }
 }

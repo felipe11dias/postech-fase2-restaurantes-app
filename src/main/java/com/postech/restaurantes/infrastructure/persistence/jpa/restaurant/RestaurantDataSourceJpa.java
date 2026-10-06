@@ -1,15 +1,19 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa.restaurant;
 
 import com.postech.restaurantes.adapter.datasource.IRestaurantDataSource;
+import com.postech.restaurantes.adapter.datasource.data.OfficeHourData;
 import com.postech.restaurantes.adapter.datasource.data.RestaurantData;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.infrastructure.persistence.jpa.address.AddressJpaMapping;
+import com.postech.restaurantes.infrastructure.persistence.jpa.restaurant.officehour.OfficeHourJpaEntity;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -106,8 +110,33 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
             AddressJpaMapping.copy(data.address(), entity.getAddress());
         }
         entity.setName(data.name());
-        entity.setOfficeHourStart(data.officeHourStart());
-        entity.setOfficeHourEnd(data.officeHourEnd());
+        entity.replaceOfficeHours(reconcile(entity.getOfficeHours(), data.officeHours()));
+    }
+
+    /**
+     * O horário que continua (mesmo dia e mesma abertura) fica na mesma linha, com o fechamento do registro;
+     * o novo ganha linha nova; o que não vier sai pelo {@code orphanRemoval}. Assim a unicidade
+     * {@code (restaurant_id, day_of_week, start_time)} não é violada no meio da descarga — o Hibernate
+     * insere os novos antes de apagar os antigos, e um horário regravado com a mesma chave seria um conflito.
+     */
+    private static List<OfficeHourJpaEntity> reconcile(List<OfficeHourJpaEntity> current,
+                                                       List<OfficeHourData> wanted) {
+        Map<String, OfficeHourJpaEntity> byKey = current.stream()
+                .collect(Collectors.toMap(RestaurantDataSourceJpa::key, Function.identity()));
+        return wanted.stream().map(data -> {
+            OfficeHourJpaEntity entity = byKey.get(data.dayOfWeek() + "@" + data.startTime());
+            if (entity == null) {
+                entity = new OfficeHourJpaEntity();
+            }
+            entity.setDayOfWeek(data.dayOfWeek());
+            entity.setStartTime(data.startTime());
+            entity.setEndTime(data.endTime());
+            return entity;
+        }).toList();
+    }
+
+    private static String key(OfficeHourJpaEntity entity) {
+        return entity.getDayOfWeek() + "@" + entity.getStartTime();
     }
 
     static RestaurantData toData(RestaurantJpaEntity entity) {
@@ -116,8 +145,9 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
                 entity.getUserId(),
                 AddressJpaMapping.toData(entity.getAddress()),
                 entity.getName(),
-                entity.getOfficeHourStart(),
-                entity.getOfficeHourEnd(),
+                entity.getOfficeHours().stream()
+                        .map(hour -> new OfficeHourData(hour.getDayOfWeek(), hour.getStartTime(), hour.getEndTime()))
+                        .toList(),
                 entity.getCreatedAt(),
                 entity.getLastUpdatedAt()
         );

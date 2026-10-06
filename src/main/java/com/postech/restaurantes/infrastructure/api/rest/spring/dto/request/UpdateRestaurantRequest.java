@@ -6,7 +6,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -19,11 +19,12 @@ public record UpdateRestaurantRequest(
         @Schema(description = "Endereço do próprio restaurante (não é escolhido entre os do dono)")
         @NotNull @Valid AddressRequest address,
         @Schema(example = "Restaurante Sabor & Arte") @NotBlank @Size(max = 150) String name,
-        @Schema(example = "08:00:00") @NotNull LocalTime officeHourStart,
-        @Schema(example = "22:00:00") @NotNull LocalTime officeHourEnd
+        @Schema(description = "Horários de funcionamento por dia da semana; ao menos um, sem sobreposição")
+        @NotNull @Valid List<OfficeHourRequest> officeHours
 ) {
 
     public UpdateRestaurantDTO toDTO(UUID id) {
-        return new UpdateRestaurantDTO(id, userId, address == null ? null : address.toDTO(), name, officeHourStart, officeHourEnd);
+        return new UpdateRestaurantDTO(id, userId, address == null ? null : address.toDTO(), name,
+                OfficeHourRequest.toDTOs(officeHours));
     }
 }
