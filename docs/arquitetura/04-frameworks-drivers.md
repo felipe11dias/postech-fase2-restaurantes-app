@@ -84,6 +84,18 @@ perfil, e o `DELETE` do perfil não acharia a linha. Os `ENUM`s do entregador (`
 `@ColumnTransformer(write = "?::tipo")`: a infraestrutura não importa enum do domínio, e quem converte
 é o gateway.
 
+**Integridade dos perfis no banco (Etapa 22, V7).** O que a aplicação confere antes de gravar e duas
+requisições simultâneas poderiam furar ganha garantia no schema: um gatilho com trava consultiva por CPF
+impede o mesmo CPF em dois usuários entre `clients` e `couriers` (a unicidade de cada tabela não cobre o
+par), e `restaurants.user_id → owners` impede restaurante de quem não tem perfil de dono. As violações
+saem como violação de unicidade ou de chave estrangeira, e o handler responde 409 sem o nome da restrição.
+
+**Autorização com os papéis atuais (Etapa 22).** O token prova quem é o portador; o que ele pode fazer
+vem do cadastro, a cada requisição. O `BearerTokenAuthenticationFilter` troca os papéis do token pelos de
+`ICurrentRolesReader` — porta declarada pelo próprio módulo de API, como a `IAccessTokenReader` —, que a
+composição liga ao `AuthController.currentRoles`. Assim um perfil removido (o de administrador, por exemplo)
+deixa de autorizar na hora, e não só quando o token vence; o custo é uma consulta por requisição autenticada.
+
 **Execução.** Docker Compose sobe a aplicação, o PostgreSQL e o Mailpit (SMTP de testes), com
 imagens de versão fixa e portas só em `127.0.0.1`.
 

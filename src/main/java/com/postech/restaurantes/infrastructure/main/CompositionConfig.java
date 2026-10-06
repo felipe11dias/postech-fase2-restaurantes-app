@@ -12,6 +12,7 @@ import com.postech.restaurantes.application.gateway.ISecureTokenGenerator;
 import com.postech.restaurantes.application.gateway.IUnitOfWork;
 import com.postech.restaurantes.infrastructure.persistence.jpa.audit.AuthenticatedAuditorAware;
 import com.postech.restaurantes.infrastructure.api.rest.spring.security.AuthenticatedActor;
+import com.postech.restaurantes.infrastructure.api.rest.spring.security.ICurrentRolesReader;
 import java.time.Clock;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -59,6 +60,15 @@ public class CompositionConfig {
                                          PasswordResetProperties passwordReset, Clock clock, IUnitOfWork unitOfWork) {
         return AuthController.create(userDataSource, tokenDataSource, passwordEncoder, tokenEncoder, tokenGenerator,
                 mailSender, passwordReset.tokenValidity(), clock, unitOfWork);
+    }
+
+    /**
+     * Os papéis de cada requisição saem do cadastro, pelo caso de uso de autenticação: a cadeia HTTP declara a
+     * porta ({@link ICurrentRolesReader}) e não conhece o núcleo; a composição liga as pontas.
+     */
+    @Bean
+    public ICurrentRolesReader currentRolesReader(AuthController authController) {
+        return authController::currentRoles;
     }
 
     @Bean

@@ -80,6 +80,12 @@ public class UserDataSourceJpa implements IUserDataSource {
         return users.findByCnpj(cnpj).map(UserDataSourceJpa::toData);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public long countAdmins() {
+        return users.countAdmins();
+    }
+
     /**
      * Duas consultas: a primeira pagina os ids no banco, a segunda carrega os usuários da
      * página com perfis e endereços. O hash da senha vem junto porque o registro é traduzido

@@ -117,7 +117,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     /** Remoção recusada porque outro recurso ainda depende do removido: conflito com o estado atual. */
     @ExceptionHandler(ResourceInUseException.class)
     public ResponseEntity<ProblemDetail> handleInUse(ResourceInUseException ex) {
-        return respond(ProblemType.DATA_CONFLICT, ex.getMessage());
+        return respond(ProblemType.RESOURCE_IN_USE, ex.getMessage());
     }
 
     // --- Segurança e persistência -----------------------------------------------------------

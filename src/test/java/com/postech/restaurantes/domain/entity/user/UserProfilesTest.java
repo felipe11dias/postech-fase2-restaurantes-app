@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.postech.restaurantes.domain.entity.admin.AdminProfile;
 import com.postech.restaurantes.domain.entity.client.ClientProfile;
 import com.postech.restaurantes.domain.entity.courier.CourierProfile;
+import com.postech.restaurantes.domain.entity.courier.CourierStatus;
 import com.postech.restaurantes.domain.entity.courier.CourierVehicleType;
 import com.postech.restaurantes.domain.entity.owner.OwnerProfile;
 import com.postech.restaurantes.domain.entity.role.RoleName;
@@ -126,5 +127,47 @@ class UserProfilesTest {
         assertFalse(new UserProfiles(null, CLIENTE, ENTREGADOR, null).has(ProfileType.ADMIN));
         assertFalse(new UserProfiles(null, CLIENTE, ENTREGADOR, null).has(ProfileType.OWNER));
         assertThrows(IllegalArgumentException.class, () -> donoEAdmin.has(null));
+    }
+
+    @Test
+    @DisplayName("Alterar o CPF do cliente corrige o do entregador (e vice-versa), sem mudar os perfis originais")
+    void deveCorrigirOCpfDaPessoaNosDoisPerfis() {
+        CourierProfile entregador =
+                CourierProfile.restore("52998224725", "11912345678", CourierVehicleType.CAR, "02650306461", "ABC1D23",
+                        CourierStatus.BUSY);
+        UserProfiles ambos = new UserProfiles(null, CLIENTE, entregador, null);
+        ClientProfile clienteCorrigido = ClientProfile.restore("11144477735", "11912345678", null);
+        CourierProfile entregadorCorrigido =
+                CourierProfile.create("11144477735", "11912345678", CourierVehicleType.BICYCLE, null, null);
+
+        UserProfiles porCliente = ambos.withClient(clienteCorrigido);
+        UserProfiles porEntregador = ambos.withCourier(entregadorCorrigido);
+
+        assertEquals(Cpf.of("11144477735"), porCliente.courier().getCpf());
+        assertEquals(CourierVehicleType.CAR, porCliente.courier().getVehicleType());
+        assertEquals("ABC1D23", porCliente.courier().getVehiclePlate().value());
+        assertEquals(CourierStatus.BUSY, porCliente.courier().getStatus());
+        assertEquals(Cpf.of("11144477735"), porEntregador.client().getCpf());
+        assertEquals("11912345678", porEntregador.client().getPhone().value());
+        assertEquals(Cpf.of("52998224725"), entregador.getCpf(), "o perfil original não muda");
+        assertEquals(Cpf.of("52998224725"), CLIENTE.getCpf(), "o perfil original não muda");
+    }
+
+    @Test
+    @DisplayName("Alterar o perfil com o mesmo CPF não copia o outro perfil; o entregador a pé vai sem CNH nem placa")
+    void naoDeveCopiarQuandoOCpfNaoMuda() {
+        CourierProfile aPe = CourierProfile.create("52998224725", "11912345678", CourierVehicleType.ON_FOOT, null, null);
+        UserProfiles ambos = new UserProfiles(null, CLIENTE, aPe, null);
+
+        assertSame(aPe, ambos.withClient(ClientProfile.restore("52998224725", "1133334444", null)).courier());
+        assertSame(CLIENTE, ambos.withCourier(aPe).client());
+        assertNull(ambos.withClient(ClientProfile.restore("11144477735", "1133334444", null)).courier()
+                .getDriverLicense());
+        assertSame(ENTREGADOR, new UserProfiles(DONO, null, ENTREGADOR, null)
+                .withClient(ClientProfile.restore("52998224725", "11912345678", null)).courier());
+        assertNull(new UserProfiles(null, null, ENTREGADOR, null).withCourier(
+                CourierProfile.create("11144477735", "11912345678", CourierVehicleType.ON_FOOT, null, null)).client());
+        assertNull(new UserProfiles(null, CLIENTE, null, null)
+                .withClient(ClientProfile.restore("11144477735", "11912345678", null)).courier());
     }
 }

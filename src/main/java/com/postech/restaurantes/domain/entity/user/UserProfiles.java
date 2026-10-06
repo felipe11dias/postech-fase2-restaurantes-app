@@ -35,15 +35,22 @@ public record UserProfiles(OwnerProfile owner, ClientProfile client, CourierProf
         return new UserProfiles(Guard.requireNonNull(newOwner, "Perfil de dono inválido"), client, courier, admin);
     }
 
-    /** Ver {@link #withOwner}. */
+    /**
+     * Ver {@link #withOwner}. O CPF é da pessoa: <em>alterar</em> o perfil de cliente com outro CPF corrige o
+     * CPF também no de entregador. <em>Incluir</em> o perfil de cliente com CPF diferente do entregador
+     * continua recusado — ali a divergência é engano, não correção.
+     */
     public UserProfiles withClient(ClientProfile newClient) {
-        return new UserProfiles(owner, Guard.requireNonNull(newClient, "Perfil de cliente inválido"), courier, admin);
+        Guard.requireNonNull(newClient, "Perfil de cliente inválido");
+        CourierProfile alignedCourier = client != null ? withCpf(courier, newClient.getCpf()) : courier;
+        return new UserProfiles(owner, newClient, alignedCourier, admin);
     }
 
-    /** Ver {@link #withOwner}. */
+    /** Ver {@link #withClient}, do lado do entregador. */
     public UserProfiles withCourier(CourierProfile newCourier) {
-        return new UserProfiles(owner, client, Guard.requireNonNull(newCourier, "Perfil de entregador inválido"),
-                admin);
+        Guard.requireNonNull(newCourier, "Perfil de entregador inválido");
+        ClientProfile alignedClient = courier != null ? withCpf(client, newCourier.getCpf()) : client;
+        return new UserProfiles(owner, alignedClient, newCourier, admin);
     }
 
     /** Ver {@link #withOwner}. */
@@ -78,6 +85,23 @@ public record UserProfiles(OwnerProfile owner, ClientProfile client, CourierProf
             return courier != null;
         }
         return admin != null;
+    }
+
+    /** Cópia do perfil com outro CPF; o original não muda, para um pedido recusado não deixar rastro. */
+    private static CourierProfile withCpf(CourierProfile courier, Cpf cpf) {
+        if (courier == null || courier.getCpf().equals(cpf)) {
+            return courier;
+        }
+        return CourierProfile.restore(cpf.value(), courier.getPhone().value(), courier.getVehicleType(),
+                courier.getDriverLicense() == null ? null : courier.getDriverLicense().value(),
+                courier.getVehiclePlate() == null ? null : courier.getVehiclePlate().value(), courier.getStatus());
+    }
+
+    private static ClientProfile withCpf(ClientProfile client, Cpf cpf) {
+        if (client == null || client.getCpf().equals(cpf)) {
+            return client;
+        }
+        return ClientProfile.restore(cpf.value(), client.getPhone().value(), client.getBirthDate());
     }
 
     /** O CPF da pessoa, se algum perfil o tiver — cliente e entregador têm o mesmo, pela regra acima. */

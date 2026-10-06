@@ -272,14 +272,15 @@ public class UserRestController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
     @Operation(summary = "Remove um perfil",
-            description = "O último perfil não sai, nem o de dono enquanto houver restaurante do usuário. Só o "
-                    + "próprio usuário ou um administrador.")
+            description = "O último perfil não sai, nem o de dono enquanto houver restaurante do usuário, nem o de "
+                    + "administrador do último administrador. Só o próprio usuário ou um administrador.")
     @ApiResponse(responseCode = "204", description = "Perfil removido")
     @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Tipo de perfil desconhecido ou último perfil")
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
     @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Cadastro de outro usuário")
     @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Usuário não encontrado ou sem esse perfil")
-    @ErrorResponse(type = ProblemType.DATA_CONFLICT, description = "Perfil de dono de quem tem restaurante")
+    @ErrorResponse(type = ProblemType.RESOURCE_IN_USE,
+            description = "Perfil de dono de quem tem restaurante, ou de administrador do último administrador")
     public void removeProfile(@Parameter(description = "Id do usuário") @PathVariable UUID id,
                               @Parameter(description = "Tipo de perfil",
                                       schema = @Schema(allowableValues = {"owner", "client", "courier", "admin"}))

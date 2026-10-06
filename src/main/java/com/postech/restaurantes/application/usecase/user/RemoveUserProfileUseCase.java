@@ -12,7 +12,8 @@ import java.util.UUID;
 /**
  * Remove um perfil do usuário. "Ao menos um perfil" é invariante do domínio — tirar o último é
  * recusado pelo próprio {@code UserProfiles}. As regras de aplicação ficam aqui: o perfil precisa
- * existir, e o de dono não sai enquanto houver restaurante do usuário (o restaurante perderia o dono).
+ * existir; o de dono não sai enquanto houver restaurante do usuário (o restaurante perderia o dono); e o de
+ * administrador não sai do último administrador — sem ele, ninguém mais concederia o perfil.
  */
 public final class RemoveUserProfileUseCase {
 
@@ -38,6 +39,9 @@ public final class RemoveUserProfileUseCase {
         if (profileType == ProfileType.OWNER && restaurantGateway.existsByUserId(id)) {
             throw new ResourceInUseException(
                     "O perfil de dono não pode ser removido enquanto o usuário tiver restaurantes");
+        }
+        if (profileType == ProfileType.ADMIN && userGateway.countAdmins() <= 1) {
+            throw new ResourceInUseException("O último administrador não pode deixar de ser administrador");
         }
         user.replaceProfiles(user.getProfiles().without(profileType));
         return userGateway.update(user);

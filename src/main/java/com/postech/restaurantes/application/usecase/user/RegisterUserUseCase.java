@@ -4,6 +4,7 @@ import com.postech.restaurantes.application.dto.user.NewUserDTO;
 import com.postech.restaurantes.application.dto.user.UserAddressDTO;
 import com.postech.restaurantes.application.gateway.IPasswordEncoder;
 import com.postech.restaurantes.application.gateway.IUserGateway;
+import com.postech.restaurantes.application.policy.user.UniqueDocumentsPolicy;
 import com.postech.restaurantes.domain.Guard;
 import com.postech.restaurantes.domain.entity.client.ClientProfile;
 import com.postech.restaurantes.domain.entity.courier.CourierProfile;
@@ -26,11 +27,13 @@ public final class RegisterUserUseCase {
     private final IUserGateway userGateway;
     private final IPasswordEncoder passwordEncoder;
     private final Clock clock;
+    private final UniqueDocumentsPolicy uniqueDocuments;
 
     private RegisterUserUseCase(IUserGateway userGateway, IPasswordEncoder passwordEncoder, Clock clock) {
         this.userGateway = userGateway;
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
+        this.uniqueDocuments = UniqueDocumentsPolicy.create(userGateway);
     }
 
     public static RegisterUserUseCase create(IUserGateway userGateway, IPasswordEncoder passwordEncoder, Clock clock) {
@@ -48,7 +51,7 @@ public final class RegisterUserUseCase {
         if (userGateway.findByLogin(login).isPresent()) {
             throw new DuplicateResourceException("Login já cadastrado");
         }
-        requireUniqueDocuments(profiles);
+        uniqueDocuments.requireUnique(null, profiles, null);
         String rawPassword = Guard.requireNonBlank(dto.password(), "Senha inválida");
         User user = User.create(dto.name(), email.value(), login, passwordEncoder.encode(rawPassword),
                 profiles, UserAddressDTO.toEntities(dto.addresses()));
@@ -60,18 +63,5 @@ public final class RegisterUserUseCase {
         ClientProfile client = dto.client() == null ? null : dto.client().toEntity(LocalDate.now(clock));
         CourierProfile courier = dto.courier() == null ? null : dto.courier().toEntity();
         return new UserProfiles(owner, client, courier, null);
-    }
-
-    /**
-     * CPF e CNPJ identificam a pessoa e a empresa: outro cadastro com o mesmo documento é conflito,
-     * com a mensagem certa — como e-mail e login —, e não a recusa genérica da restrição do banco.
-     */
-    private void requireUniqueDocuments(UserProfiles profiles) {
-        if (profiles.cpf().flatMap(userGateway::findByCpf).isPresent()) {
-            throw new DuplicateResourceException("CPF já cadastrado");
-        }
-        if (profiles.owner() != null && userGateway.findByCnpj(profiles.owner().getCnpj()).isPresent()) {
-            throw new DuplicateResourceException("CNPJ já cadastrado");
-        }
     }
 }

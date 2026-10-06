@@ -85,7 +85,7 @@ class GlobalExceptionHandlerTest {
                             ProblemType.RESOURCE_NOT_FOUND),
                     Arguments.of(new DuplicateResourceException("E-mail já cadastrado"), ProblemType.DATA_CONFLICT),
                     Arguments.of(new ResourceInUseException("O perfil de dono não pode ser removido"),
-                            ProblemType.DATA_CONFLICT));
+                            ProblemType.RESOURCE_IN_USE));
         }
 
         @ParameterizedTest(name = "{1}")

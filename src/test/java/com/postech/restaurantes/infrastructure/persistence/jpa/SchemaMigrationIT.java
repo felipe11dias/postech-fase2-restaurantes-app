@@ -33,13 +33,13 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     private IUserDataSource userDataSource;
 
     @Test
-    @DisplayName("As seis migrations foram aplicadas com sucesso e ficaram registradas no histórico")
+    @DisplayName("As sete migrations foram aplicadas com sucesso e ficaram registradas no histórico")
     void deveAplicarAsMigrations() {
         List<String> versoes = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = true AND version IS NOT NULL "
                         + "ORDER BY installed_rank", String.class);
 
-        assertEquals(List.of("1", "2", "3", "4", "5", "6"), versoes);
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7"), versoes);
     }
 
     @Test
@@ -178,6 +178,57 @@ class SchemaMigrationIT extends IntegrationTestSupport {
             jdbc.update("DELETE FROM addresses WHERE id IN ('c0000000-0000-4000-8000-0000000000a1', "
                     + "'c0000000-0000-4000-8000-0000000000a2')");
         }
+    }
+
+    @Test
+    @DisplayName("O banco recusa o mesmo CPF em dois usuários, mesmo um sendo cliente e o outro entregador (V7)")
+    void deveRecusarOMesmoCpfEmDuasPessoas() {
+        UUID cliente = UUID.randomUUID();
+        UUID entregador = UUID.randomUUID();
+        String cpf = Documentos.cpf();
+        String comoEntregador = "INSERT INTO couriers (id, cpf, phone, vehicle_type, created_at, last_updated_at) "
+                + "VALUES (?, ?, '11912345678', 'ON_FOOT', NOW(), NOW())";
+        try {
+            inserirUsuario(cliente);
+            inserirUsuario(entregador);
+            jdbc.update("INSERT INTO clients (id, cpf, phone, created_at, last_updated_at) "
+                    + "VALUES (?, ?, '11912345678', NOW(), NOW())", cliente, cpf);
+
+            assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(comoEntregador, entregador, cpf));
+            assertEquals(1, jdbc.update(comoEntregador, cliente, cpf), "a mesma pessoa pode ser cliente e entregador");
+        } finally {
+            jdbc.update("DELETE FROM users WHERE id IN (?, ?)", cliente, entregador);
+        }
+    }
+
+    @Test
+    @DisplayName("O restaurante só pode ser de quem tem perfil de dono, e o perfil não sai com restaurante (V7)")
+    void deveExigirPerfilDeDonoParaORestaurante() {
+        UUID usuario = UUID.randomUUID();
+        UUID endereco = UUID.randomUUID();
+        String restaurante = "INSERT INTO restaurants (user_id, address_id, name, office_hour_start, office_hour_end, "
+                + "created_at, last_updated_at) VALUES (?, ?, 'Sem Dono', '08:00', '22:00', NOW(), NOW())";
+        try {
+            inserirUsuario(usuario);
+            jdbc.update("INSERT INTO addresses (id, street, number, neighborhood, city, state, zip_code) "
+                    + "VALUES (?, 'Rua A', '1', 'Centro', 'São Paulo', 'SP', '01001000')", endereco);
+
+            assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(restaurante, usuario, endereco));
+            jdbc.update("INSERT INTO owners (id, cnpj, legal_name, business_phone, created_at, last_updated_at) "
+                    + "VALUES (?, ?, 'Dono Ltda', '1131234567', NOW(), NOW())", usuario, Documentos.cnpj());
+            jdbc.update(restaurante, usuario, endereco);
+            assertThrows(DataIntegrityViolationException.class,
+                    () -> jdbc.update("DELETE FROM owners WHERE id = ?", usuario));
+        } finally {
+            jdbc.update("DELETE FROM restaurants WHERE user_id = ?", usuario);
+            jdbc.update("DELETE FROM users WHERE id = ?", usuario);
+            jdbc.update("DELETE FROM addresses WHERE id = ?", endereco);
+        }
+    }
+
+    private void inserirUsuario(UUID id) {
+        jdbc.update("INSERT INTO users (id, name, email, login, password, created_at, last_updated_at) "
+                + "VALUES (?, 'Usuário', ?, ?, '$2a$10$hash', NOW(), NOW())", id, id + "@email.com", id.toString());
     }
 
     private int contar(String tabela, String userId) {

@@ -354,6 +354,14 @@ class UserDataSourceJpaTest {
     }
 
     @Test
+    @DisplayName("Contagem de administradores vem do repositório")
+    void deveContarOsAdministradores() {
+        when(users.countAdmins()).thenReturn(2L);
+
+        assertEquals(2L, dataSource.countAdmins());
+    }
+
+    @Test
     @DisplayName("Exclusão tira e descarrega os perfis antes de apagar o usuário")
     void deveExcluir() {
         UserJpaEntity existente = userEntity();

@@ -456,3 +456,20 @@
   documentado; 111 requests e 234 asserções, sem falhas, em duas execuções; 111 prints.
 - `mvn clean verify`: 725 testes unitários e 122 de integração; cobertura unitária 100% (1877
   linhas, 474 ramos, 784 métodos).
+
+### Etapa 22 — correções da revisão de código
+- Autorização com os papéis do cadastro a cada requisição (`FindCurrentRolesUseCase`,
+  `AuthController.currentRoles`, porta `ICurrentRolesReader` no filtro): perfil removido deixa de
+  autorizar na hora, com o mesmo token.
+- O último administrador não perde o perfil de administrador (`IUserGateway.countAdmins`).
+- `ResourceInUseException` ganha categoria própria: 409 `recurso-em-uso`.
+- O CPF é da pessoa: alterar o CPF do perfil de cliente corrige o do entregador e vice-versa.
+- CPF e CNPJ únicos numa regra só (`application/policy/user/UniqueDocumentsPolicy`), consultando só o
+  documento que mudou.
+- Migration `V7__profile_integrity.sql`: gatilho que impede o mesmo CPF em dois usuários entre
+  `clients` e `couriers` e chave estrangeira `restaurants.user_id → owners`. As migrations planejadas
+  das Etapas 23 e 24 passam a V8 e V9.
+- Postman: o 409 da remoção do perfil de dono usa o dono criado pela coleção, nunca a seed; 113
+  requests, 236 asserções, sem falhas, em duas execuções; 113 prints.
+- `mvn clean verify`: 740 testes unitários e 125 de integração; cobertura unitária 100% (1914
+  linhas, 502 ramos, 795 métodos).

@@ -108,7 +108,7 @@ infrastructure/
     doc/               OpenApiConfig, ApiDocumentation, @ErrorResponse, customizers
     validation/        @ValidPassword
     security/          SecurityConfig, BearerTokenAuthenticationFilter, 401, AuthenticatedUser,
-                       UserSecurity, AuthenticatedActor, IAccessTokenReader (porta do módulo)
+                       UserSecurity, AuthenticatedActor, IAccessTokenReader e ICurrentRolesReader (portas do módulo)
   persistence/jpa/     PersistenceConfig, TransactionalUnitOfWork; audit/; um subpacote por agregado
   token/jwt/           ITokenEncoder + IAccessTokenReader (jjwt): JwtTokenEncoder, JwtProperties, JwtConfig
   crypto/              IPasswordEncoder (BCrypt), ISecureTokenGenerator (SecureRandom)
@@ -240,9 +240,18 @@ Pontos que só ficam claros lendo várias camadas:
   (o de admin só por administrador, no `@PreAuthorize`); remover, `DELETE /profiles/{tipo}`; status do
   entregador, `PATCH /profiles/courier/status`. Um caso de uso para incluir/alterar (`SaveUserProfileUseCase`,
   entrada `UserProfileDTO` selada): perfil novo de tipo novo exige um `case` lá, e o compilador cobra. Regras
-  entre perfis ficam em `UserProfiles` (`with*`, `without`, `has` devolvem conjunto novo e revalidam). Os
-  papéis do JWT são os do login: perfil novo vale a partir do próximo login. Recurso que não pode sair porque
-  outro depende dele (dono com restaurante) é `ResourceInUseException` → 409.
+  entre perfis ficam em `UserProfiles` (`with*`, `without`, `has` devolvem conjunto novo e revalidam). A autorização
+  usa os papéis **do cadastro, a cada requisição** (`BearerTokenAuthenticationFilter` troca os do token pelos de
+  `ICurrentRolesReader`, ligado em `main` ao `AuthController.currentRoles`): perfil incluído ou removido vale na
+  hora, com o mesmo token. Recurso que não pode sair porque outro depende dele (dono com restaurante, último
+  administrador) é `ResourceInUseException` → 409 `recurso-em-uso` (categoria própria). CPF e CNPJ únicos: uma
+  regra só, `application/policy/user/UniqueDocumentsPolicy` (consulta só o documento que mudou); regra de
+  aplicação compartilhada por casos de uso vai para `application/policy/<agregado>`, não copiada. O CPF é da
+  pessoa: alterar o de um perfil corrige o do outro (`UserProfiles.withClient`/`withCourier`).
+- **Integridade dos perfis no banco (V7).** Gatilho `cpf_de_uma_so_pessoa` (trava consultiva por CPF) impede o
+  mesmo CPF em dois usuários entre `clients` e `couriers`; `restaurants.user_id → owners` impede restaurante sem
+  perfil de dono. Regra que a aplicação confere antes de gravar e que duas requisições simultâneas podem furar
+  ganha garantia no schema. Na Etapa 23, a cascata de `restaurants.user_id` vale também para `fk_restaurants_owner`.
 
 ### API REST organizada como MVC (Etapa 15, já implementada)
 

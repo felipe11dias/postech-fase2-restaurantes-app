@@ -41,6 +41,7 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.function.Function;
@@ -233,5 +234,16 @@ class AuthControllerTest {
         verify(userDataSource).update(user.capture());
         assertEquals("novoHash", user.getValue().passwordHash());
         assertEquals(1, unitOfWork.executions());
+    }
+
+    @Test
+    @DisplayName("Papéis atuais: os nomes derivados dos perfis gravados, numa unidade de trabalho; inexistente não tem papel")
+    void deveDevolverOsPapeisAtuais() {
+        when(userDataSource.findById(USER_ID)).thenReturn(Optional.of(USER_DATA));
+
+        assertEquals(Set.of("ROLE_CLIENT"), controller.currentRoles(USER_ID));
+        when(userDataSource.findById(USER_ID)).thenReturn(Optional.empty());
+        assertTrue(controller.currentRoles(USER_ID).isEmpty());
+        assertEquals(2, unitOfWork.executions());
     }
 }

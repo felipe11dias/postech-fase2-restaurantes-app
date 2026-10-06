@@ -16,11 +16,16 @@ import com.postech.restaurantes.application.gateway.IPasswordEncoder;
 import com.postech.restaurantes.application.gateway.ISecureTokenGenerator;
 import com.postech.restaurantes.application.gateway.IUnitOfWork;
 import com.postech.restaurantes.application.usecase.auth.AuthenticateUseCase;
+import com.postech.restaurantes.application.usecase.auth.FindCurrentRolesUseCase;
 import com.postech.restaurantes.application.usecase.auth.ForgotPasswordUseCase;
 import com.postech.restaurantes.application.usecase.auth.ResetPasswordUseCase;
 import com.postech.restaurantes.domain.Guard;
+import com.postech.restaurantes.domain.entity.role.RoleName;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Controller de adaptação de autenticação e recuperação de senha. Recebe por interface as origens
@@ -84,6 +89,14 @@ public final class AuthController {
     public void resetPassword(ResetPasswordDTO dto) {
         var useCase = ResetPasswordUseCase.create(userGateway(), tokenGateway(), tokenGenerator, passwordEncoder, clock);
         unitOfWork.execute(() -> useCase.run(dto));
+    }
+
+    /** Os papéis atuais do usuário, pelo nome — o que a autorização de cada requisição confere. */
+    public Set<String> currentRoles(UUID id) {
+        var useCase = FindCurrentRolesUseCase.create(userGateway());
+        return unitOfWork.execute(() -> useCase.run(id)).stream()
+                .map(RoleName::name)
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     private UserGateway userGateway() {

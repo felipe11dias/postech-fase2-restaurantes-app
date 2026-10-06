@@ -70,6 +70,11 @@ public final class UserGateway implements IUserGateway {
     }
 
     @Override
+    public long countAdmins() {
+        return dataSource.countAdmins();
+    }
+
+    @Override
     public PageResult<User> search(String name, PageRequest request) {
         return dataSource.search(name, request).map(UserGateway::toEntity);
     }

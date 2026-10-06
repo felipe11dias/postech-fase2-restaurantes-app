@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.application.gateway.IUserGateway;
+import com.postech.restaurantes.domain.entity.admin.AdminProfile;
 import com.postech.restaurantes.domain.entity.owner.OwnerProfile;
 import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.entity.user.User;
@@ -112,5 +113,19 @@ class RemoveUserProfileUseCaseTest {
 
         assertThrows(ResourceNotFoundException.class, () -> useCase.run(USER_ID, "client"));
         assertThrows(IllegalArgumentException.class, () -> useCase.run(null, "client"));
+    }
+
+    @Test
+    @DisplayName("O último administrador não perde o perfil de administrador; havendo outro, perde")
+    void naoDeveTirarOAdministradorDoUltimoAdministrador() {
+        clienteEDono.replaceProfiles(clienteEDono.getProfiles().withAdmin(AdminProfile.restore("ADM-1", null, true)));
+        when(userGateway.countAdmins()).thenReturn(1L);
+
+        ResourceInUseException erro = assertThrows(ResourceInUseException.class, () -> useCase.run(USER_ID, "admin"));
+        when(userGateway.countAdmins()).thenReturn(2L);
+        User result = useCase.run(USER_ID, "admin");
+
+        assertEquals("O último administrador não pode deixar de ser administrador", erro.getMessage());
+        assertNull(result.getProfiles().admin());
     }
 }

@@ -37,6 +37,9 @@ public interface SpringDataUserRepository extends JpaRepository<UserJpaEntity, U
     @Query("select u from UserJpaEntity u join u.owner o where o.cnpj = :cnpj")
     Optional<UserJpaEntity> findByCnpj(@Param("cnpj") String cnpj);
 
+    @Query("select count(u) from UserJpaEntity u join u.admin a")
+    long countAdmins();
+
     /**
      * Primeiro passo da busca paginada: só os ids da página. Paginar junto com o
      * {@code join fetch} das coleções faria o Hibernate trazer todas as linhas e recortar a

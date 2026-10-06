@@ -24,6 +24,9 @@ public interface IUserGateway {
     /** Usuário cujo perfil de dono tem este CNPJ. */
     Optional<User> findByCnpj(Cnpj cnpj);
 
+    /** Quantos usuários têm o perfil de administrador — o último não pode deixar de ser. */
+    long countAdmins();
+
     /** Busca parcial por nome (sem diferenciar maiúsculas); nome nulo lista todos. */
     PageResult<User> search(String name, PageRequest request);
 

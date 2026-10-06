@@ -220,6 +220,14 @@ class UserGatewayTest {
     }
 
     @Test
+    @DisplayName("Contagem de administradores delega à origem")
+    void deveDelegarAContagemDeAdministradores() {
+        when(dataSource.countAdmins()).thenReturn(3L);
+
+        assertEquals(3L, gateway.countAdmins());
+    }
+
+    @Test
     @DisplayName("Exclusão delega à origem")
     void deveDelegarExclusao() {
         gateway.delete(USER_ID);

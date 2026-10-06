@@ -33,8 +33,8 @@ class UserProfilesApiIT extends WebIntegrationTestSupport {
     private JdbcTemplate jdbc;
 
     @Test
-    @DisplayName("Cliente inclui o perfil de dono; o papel novo vale para a autorização a partir do próximo login")
-    void deveIncluirPerfilDeDonoQueValeNoProximoLogin() {
+    @DisplayName("Cliente inclui o perfil de dono; o papel novo vale na hora, com o mesmo token")
+    void deveIncluirPerfilDeDonoQueValeNaHora() {
         Usuario cliente = cadastrar(Map.of("client", perfilDeCliente()));
 
         ResponseEntity<JsonNode> resposta = rest.exchange(perfil(cliente, "owner"), HttpMethod.PUT,
@@ -43,9 +43,8 @@ class UserProfilesApiIT extends WebIntegrationTestSupport {
         assertEquals(HttpStatus.OK, resposta.getStatusCode());
         assertEquals(List.of("ROLE_OWNER", "ROLE_CLIENT"), papeis(resposta.getBody()));
         assertEquals(14, resposta.getBody().at("/owner/cnpj").asText().length());
-        assertEquals(HttpStatus.FORBIDDEN, criarRestaurante(cliente, cliente.token()),
-                "o token antigo ainda não tem ROLE_OWNER");
-        assertEquals(HttpStatus.CREATED, criarRestaurante(cliente, autenticar(cliente.login(), "senhaSegura123")));
+        assertEquals(HttpStatus.CREATED, criarRestaurante(cliente, cliente.token()),
+                "os papéis vêm do cadastro a cada requisição, não do token do login");
     }
 
     @Test
@@ -105,7 +104,7 @@ class UserProfilesApiIT extends WebIntegrationTestSupport {
         ResponseEntity<Void> aceito = rest.exchange(perfil(dono, "owner"), HttpMethod.DELETE,
                 autenticado(dono.token()), Void.class);
 
-        problema(recusado, HttpStatus.CONFLICT, "conflito-de-dados",
+        problema(recusado, HttpStatus.CONFLICT, "recurso-em-uso",
                 "O perfil de dono não pode ser removido enquanto o usuário tiver restaurantes");
         assertEquals(HttpStatus.NO_CONTENT, aceito.getStatusCode());
     }
@@ -129,6 +128,21 @@ class UserProfilesApiIT extends WebIntegrationTestSupport {
         assertEquals(List.of("ROLE_CLIENT", "ROLE_ADMIN"), papeis(peloAdmin.getBody()));
         assertTrue(peloAdmin.getBody().at("/admin/superAdmin").isBoolean());
         problema(codigoRepetido, HttpStatus.CONFLICT, "conflito-de-dados", null);
+    }
+
+    @Test
+    @DisplayName("Perfil de administrador removido deixa de autorizar na hora, mesmo com o token emitido antes")
+    void deveRevogarOAdministradorNaHora() {
+        Usuario usuario = cadastrar(Map.of("client", perfilDeCliente()));
+        rest.exchange(perfil(usuario, "admin"), HttpMethod.PUT, corpoAutenticado(Map.of("employeeCode",
+                "ADM-" + UUID.randomUUID().toString().substring(0, 8)), admin()), JsonNode.class);
+
+        HttpStatus comoAdmin = listar(usuario.token());
+        rest.exchange(perfil(usuario, "admin"), HttpMethod.DELETE, autenticado(admin()), Void.class);
+        HttpStatus depoisDeRemovido = listar(usuario.token());
+
+        assertEquals(HttpStatus.OK, comoAdmin, "o perfil incluído já vale com o token antigo");
+        assertEquals(HttpStatus.FORBIDDEN, depoisDeRemovido, "o perfil removido já não vale com o mesmo token");
     }
 
     @Test
@@ -190,6 +204,11 @@ class UserProfilesApiIT extends WebIntegrationTestSupport {
         assertEquals(HttpStatus.CREATED, criado.getStatusCode(), String.valueOf(criado.getBody()));
         return new Usuario(UUID.fromString(criado.getBody().get("id").asText()), login,
                 autenticar(login, "senhaSegura123"));
+    }
+
+    private HttpStatus listar(String token) {
+        return HttpStatus.valueOf(rest.exchange(USERS, HttpMethod.GET, autenticado(token), JsonNode.class)
+                .getStatusCode().value());
     }
 
     private HttpStatus criarRestaurante(Usuario dono, String token) {

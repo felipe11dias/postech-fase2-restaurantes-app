@@ -97,6 +97,8 @@ public final class RegisterUserUseCase {
 | Extensões como exceções de domínio | `DomainException` e subclasses | cada desvio do cenário principal tem nome de negócio e vira uma categoria de erro HTTP no handler |
 | Regra de negócio × regra de aplicação | entidade × caso de uso | o que vale sempre fica na entidade; o que depende do ponto de entrada fica no caso de uso |
 | Relógio e validade por parâmetro | `ForgotPasswordUseCase.create(..., validity, clock)`, `RegisterUserUseCase.create(..., clock)` | vencimento e "nascimento não futuro" testáveis com `Clock.fixed`, sem esperar o tempo passar |
+| Regra de aplicação compartilhada (Etapa 22) | `application/policy/user/UniqueDocumentsPolicy`, usada por `RegisterUserUseCase` e `SaveUserProfileUseCase` | a regra "CPF e CNPJ únicos" existe uma vez só (DRY); não é caso de uso — não é objetivo do ator nem tem `run` —, então mora num pacote de políticas da camada, que depende só do domínio e das portas |
+| Papéis atuais a cada requisição (Etapa 22) | `FindCurrentRolesUseCase` | a autorização usa os perfis gravados agora, não os do token: perfil removido deixa de valer na hora |
 
 ## 5. Desvios conscientes
 

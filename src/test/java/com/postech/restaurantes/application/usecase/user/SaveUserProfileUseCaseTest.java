@@ -136,23 +136,24 @@ class SaveUserProfileUseCaseTest {
     }
 
     @Test
-    @DisplayName("O próprio CPF e o próprio CNPJ não são conflito")
+    @DisplayName("Documento que não mudou não é consultado; o que já está com o próprio usuário não é conflito")
     void deveAceitarOsDocumentosDoProprioUsuario() {
-        when(userGateway.findByCpf(Cpf.of("52998224725"))).thenReturn(Optional.of(usuario));
         when(userGateway.findByCnpj(Cnpj.of("11222333000181"))).thenReturn(Optional.of(usuario));
 
         User result = useCase.run(USER_ID, DONO);
 
         assertEquals(Set.of(RoleName.ROLE_OWNER, RoleName.ROLE_CLIENT), result.getRoles());
+        verify(userGateway, never()).findByCpf(any());
     }
 
     @Test
-    @DisplayName("Recusa CPF de outro cadastro")
+    @DisplayName("Recusa CPF de outro cadastro ao trocar o CPF")
     void deveRecusarCpfDeOutroCadastro() {
-        when(userGateway.findByCpf(Cpf.of("52998224725"))).thenReturn(Optional.of(otherUser()));
+        when(userGateway.findByCpf(Cpf.of("11144477735"))).thenReturn(Optional.of(otherUser()));
+        ClientProfileDTO outroCpf = new ClientProfileDTO("111.444.777-35", "11912345678", null);
 
         DuplicateResourceException erro =
-                assertThrows(DuplicateResourceException.class, () -> useCase.run(USER_ID, ENTREGADOR));
+                assertThrows(DuplicateResourceException.class, () -> useCase.run(USER_ID, outroCpf));
 
         assertEquals("CPF já cadastrado", erro.getMessage());
         verify(userGateway, never()).update(any());
@@ -209,5 +210,18 @@ class SaveUserProfileUseCaseTest {
 
         assertSame(antes, usuario.getProfiles().client());
         assertNull(usuario.getProfiles().owner());
+    }
+
+    @Test
+    @DisplayName("Corrigir o CPF do cliente corrige o do entregador, e o CPF novo é conferido contra os outros cadastros")
+    void deveCorrigirOCpfDaPessoa() {
+        usuario.replaceProfiles(usuario.getProfiles().withCourier(
+                CourierProfile.create("52998224725", "11912345678", CourierVehicleType.ON_FOOT, null, null)));
+
+        User result = useCase.run(USER_ID, new ClientProfileDTO("111.444.777-35", "11912345678", null));
+
+        assertEquals(Cpf.of("11144477735"), result.getProfiles().client().getCpf());
+        assertEquals(Cpf.of("11144477735"), result.getProfiles().courier().getCpf());
+        verify(userGateway).findByCpf(Cpf.of("11144477735"));
     }
 }
