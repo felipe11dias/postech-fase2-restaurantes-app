@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (20 até aqui; as Etapas 21
+Architecture**. O projeto está sendo entregue **etapa por etapa** (21 até aqui; as Etapas 22
 a 25, de adequação ao Modelo de Dados v2 em `docs/modelo-dados/`, estão planejadas no
 relatório) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
 `CHANGELOG.md`, e atualização do relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (marcar a etapa
@@ -117,8 +117,8 @@ infrastructure/
 
 Regras (verificadas pelo `InfrastructureModulesTest`):
 - **Nenhum ciclo entre pacotes no projeto inteiro** (ADP). Entidade JPA de parte de um agregado
-  fica num subpacote do agregado (`persistence/jpa/user/{address,role,password}`; `user/address` é o
-  vínculo `user_addresses`), e a dependência só vai do agregado para a parte: a parte não referencia
+  fica num subpacote do agregado (`persistence/jpa/user/{address,password,owner,client,courier,admin}`; `user/address` é
+  o vínculo `user_addresses`), e a dependência só vai do agregado para a parte: a parte não referencia
   a raiz (`@OneToMany` + `@JoinColumn` unidirecional do lado do `UserJpaEntity`), senão os dois
   pacotes formam ciclo. Entidade compartilhada por agregados fica em pacote próprio que não conhece
   nenhum deles: o endereço está em `persistence/jpa/address` (com `AddressJpaMapping`), usado pelo
@@ -164,9 +164,10 @@ Pontos que só ficam claros lendo várias camadas:
   em `infrastructure`).
 - **Paginação no núcleo é própria** (`application/dto` `PageRequest`/`PageResult`); `Pageable`
   /`Page` do Spring só existem em `infrastructure`.
-- **Onde mora cada regra:** invariante que vale sempre (e-mail válido, ≥1 papel, CEP 8
-  dígitos) → entidade; regra que depende do ponto de entrada (`ROLE_ADMIN` proibido no
-  autocadastro, resposta idêntica no "esqueci minha senha") → caso de uso.
+- **Onde mora cada regra:** invariante que vale sempre (e-mail válido, ≥1 perfil, CPF igual
+  entre cliente e entregador, CEP 8 dígitos) → entidade; regra que depende do ponto de entrada
+  (perfil de administrador fora do autocadastro, CPF/CNPJ únicos, resposta idêntica no "esqueci
+  minha senha") → caso de uso.
 - **Interfaces de gateway ficam em `application`** (quem as consome as declara);
   interfaces de origem de dados (`I*DataSource`) ficam em `adapter/datasource`, com os records
   `*Data` em `adapter/datasource/data`, e são implementadas em `infrastructure/persistence/jpa`.
@@ -223,7 +224,18 @@ Pontos que só ficam claros lendo várias camadas:
   antigos, e um índice único parcial recusaria essa troca válida. Restrição nova que o Hibernate
   pode violar no meio da descarga segue o mesmo desenho.
 - **Nunca buscar um `Set` e uma `List` (bag) no mesmo `@EntityGraph`**: o produto cartesiano repete
-  os itens da lista. Os papéis do usuário vêm por `@Fetch(FetchMode.SUBSELECT)`, fora do grafo.
+  os itens da lista. Os perfis são `@OneToOne` (não repetem linhas) e entram no grafo com os endereços.
+- **Perfis do usuário (Etapa 21, V6).** O papel é derivado dos perfis (`owners`, `clients`, `couriers`,
+  `admins`) e não é gravado; não há `roles` nem `user_roles`. Os perfis JPA ficam em
+  `persistence/jpa/user/{owner,client,courier,admin}`, ligados só do lado do usuário (`@OneToOne(cascade =
+  ALL, orphanRemoval = true)` + `@PrimaryKeyJoinColumn`; perfil sem referência ao usuário, senão há
+  ciclo), com `@Id` atribuído pela origem de dados (`ProfileJpaMapping`). Por isso: no cadastro, o
+  usuário é gravado (`save`) antes dos perfis; na exclusão, os perfis saem e há `flush` **antes** de
+  apagar o usuário — o Hibernate apagaria o usuário primeiro, o `ON DELETE CASCADE` levaria o perfil e o
+  `DELETE` do perfil falharia (`StaleObjectStateException`). `ENUM` do PostgreSQL é `String` na
+  entidade JPA com `columnDefinition` e `@ColumnTransformer(write = "?::tipo")`; o gateway converte
+  (`CourierVehicleType.from`). Nos ITs, CPF, CNPJ e CNH vêm de `Documentos` (únicos, válidos); no HTTP,
+  `perfilDeCliente()`/`perfilDeDono()` da `WebIntegrationTestSupport`.
 
 ### API REST organizada como MVC (Etapa 15, já implementada)
 
@@ -249,8 +261,8 @@ Pontos que só ficam claros lendo várias camadas:
 - `controller` + `dto/request`/`dto/response` + `assembler`: `@RestController` fino, DTOs e
   assembler HATEOAS. Bean Validation só aqui, e só **sintática** (`@NotBlank`, `@Email`,
   `@Size`); consistência e comparação de campos ("as senhas conferem") ficam no domínio/caso de
-  uso. Conversão por `toDTO()` no próprio record; papel vem como `String` e passa por
-  `RoleName.from`, para o erro ser a mensagem do domínio.
+  uso. Conversão por `toDTO()` no próprio record; enum (tipo de veículo) vem como `String` e passa
+  por `CourierVehicleType.from`, para o erro ser a mensagem do domínio.
 - `SecurityConfig`: stateless, sem CSRF, lista de rotas públicas em um lugar só.
   **Liberar `DispatcherType.ERROR`/`FORWARD`** — sem isso todo erro vira `403` sem corpo e a
   causa real some. `ProblemDetailAuthenticationEntryPoint` dá `401` sem credenciais e o
@@ -370,6 +382,9 @@ Pontos que só ficam claros lendo várias camadas:
   status e `type`. O JSON da coleção é a fonte de verdade — edite no Postman ou à mão.
 - Casos de acesso negado miram um cadastro **descartável criado pela coleção**, nunca a seed; a
   coleção exclui o que cria. Ela precisa poder rodar várias vezes contra o mesmo banco.
+- CPF, CNPJ e CNH são únicos: o pré-request **da coleção** gera `{{cpfGerado}}`, `{{cnpjGerado}}` e
+  `{{cnhGerada}}` válidos e novos a cada request. Corpo com documento usa essas variáveis, nunca um
+  valor fixo (exceto o caso que quer o conflito, que reusa um já gravado).
 - Request que produz variável essencial (token, id) confere o status **antes** de ler o corpo e,
   se falhar, faz `postman.setNextRequest(null)` — nada de gravar `undefined` e seguir.
 - Efeito de um pedido processado em segundo plano (o e-mail do `forgot-password` no Mailpit) é
@@ -392,8 +407,8 @@ Pontos que só ficam claros lendo várias camadas:
   (`requireNonNull`, `requireNonBlank`, `require`, `trimToNull`) — a mensagem dela chega ao
   cliente, então é escrita para ele. Violação de estado (ex.: token já usado) é
   `IllegalStateException`.
-- VOs (`Email`, `ZipCode`) são `record`s com construtor compacto que valida e normaliza.
-- `Role` tem igualdade pelo `RoleName` (ignora id) para funcionar em `Set`.
+- VOs (`Email`, `ZipCode`, `Cpf`, `Cnpj`, `Phone`, `LicensePlate`, `DriverLicense`) são `record`s com
+  construtor compacto que valida e normaliza.
 - O domínio recebe o **hash** da senha, nunca a senha; entidades não chamam
   `LocalDateTime.now()` — o instante vem por parâmetro.
 - Nenhuma string ou constante de tecnologia no núcleo (hash BCrypt, nome de coluna, JWT).

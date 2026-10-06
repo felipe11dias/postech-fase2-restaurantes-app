@@ -410,3 +410,29 @@
   para a Etapa 21, junto com o fim do catálogo `roles`.
 - Só o domínio mudou. `mvn clean verify`: 662 testes unitários e 101 de integração; cobertura
   unitária 100% (1600 linhas, 354 ramos, 666 métodos).
+
+## Etapa 21 — Usuário composto por perfis (papel derivado)
+- Migration `V6__user_profiles.sql`: tipos `courier_vehicle_type` e `courier_status`; tabelas
+  `owners`, `clients`, `couriers` e `admins` (chave primária = usuário, `ON DELETE CASCADE`,
+  auditoria), com o `CHECK` de CNH e placa por veículo; perfis dos usuários da seed; falha com
+  mensagem se sobrar usuário sem perfil (não inventa CPF nem CNPJ); remove `roles` e `user_roles`.
+- Domínio: `UserProfiles` (ao menos um perfil; CPF igual entre cliente e entregador; papéis
+  derivados); `User` guarda os perfis; `RoleName` passa a `ROLE_OWNER`, `ROLE_CLIENT`,
+  `ROLE_COURIER`, `ROLE_ADMIN`; sai a entidade `Role`.
+- Aplicação: DTOs de perfil; `RegisterUserUseCase` recebe o relógio e recusa CPF e CNPJ já
+  cadastrados (409); `IUserGateway` ganha `findByCpf` e `findByCnpj`; sai `IRoleGateway`. Criar ou
+  alterar restaurante exige perfil de dono (administrador sem esse perfil recebe 403).
+- Adaptadores e API: `OwnerData`, `ClientData`, `CourierData`, `AdminData`; views e respostas com
+  os perfis e `roles` como lista de nomes; cadastro com os blocos `owner`, `client` e `courier` (o
+  autocadastro não tem perfil de administrador); saem `RoleGateway`, `IRoleDataSource`, `RoleData`,
+  `RoleView` e `RoleResponse`.
+- Persistência: entidades JPA de cada perfil em `persistence/jpa/user/{owner,client,courier,admin}`,
+  ligadas só do lado do usuário (sem ciclo de pacotes); `ENUM`s como texto com `@ColumnTransformer`;
+  a exclusão tira e descarrega os perfis antes do usuário (o Hibernate apagaria o usuário primeiro e
+  o `DELETE` do perfil falharia). Sai o pacote `persistence/jpa/user/role`.
+- Testes: `Documentos` gera CPF, CNPJ e CNH válidos para os ITs; testes novos de perfis em todas as
+  camadas. Postman: gerador de documentos no nível da coleção, cadastro de dono e de entregador,
+  casos de CPF inválido, nenhum perfil, moto sem CNH, CPF e CNPJ duplicados e restaurante para quem
+  não é dono; 76 requests e 150 asserções, sem falhas, em duas execuções; 76 prints.
+- `mvn clean verify`: 680 testes unitários e 114 de integração; cobertura unitária 100% (1767
+  linhas, 424 ramos, 737 métodos).

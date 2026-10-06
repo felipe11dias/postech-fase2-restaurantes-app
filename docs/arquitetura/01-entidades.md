@@ -34,9 +34,10 @@
 
 | Elemento | Onde | Regra que carrega |
 |---|---|---|
-| [`User`](../../src/main/java/com/postech/restaurantes/domain/entity/user/User.java) | `domain/entity/user` | nome, e-mail e login válidos; **ao menos um papel**; endereços válidos e, havendo endereços, **exatamente um padrão**; endereço com id só se já for do usuário; recebe o *hash* da senha, nunca a senha |
+| [`User`](../../src/main/java/com/postech/restaurantes/domain/entity/user/User.java) | `domain/entity/user` | nome, e-mail e login válidos; **os perfis** (`UserProfiles`); o papel é **derivado** dos perfis (`getRoles()`), nunca guardado; endereços válidos e, havendo endereços, **exatamente um padrão**; endereço com id só se já for do usuário; recebe o *hash* da senha, nunca a senha |
 | [`UserAddress`](../../src/main/java/com/postech/restaurantes/domain/entity/user/UserAddress.java) | `domain/entity/user` | parte do agregado de usuário: rótulo opcional, marca de padrão e o `Address`; quantos são padrão é regra do `User`, não de um endereço isolado |
-| [`Role`](../../src/main/java/com/postech/restaurantes/domain/entity/role/Role.java) / [`RoleName`](../../src/main/java/com/postech/restaurantes/domain/entity/role/RoleName.java) | `domain/entity/role` | papel é um dos três reconhecidos (dono, cliente, administrador); igualdade pelo nome |
+| [`UserProfiles`](../../src/main/java/com/postech/restaurantes/domain/entity/user/UserProfiles.java) | `domain/entity/user` | os perfis do usuário (Etapa 21): cada um opcional, **ao menos um** (especialização total) e vários ao mesmo tempo (sobreposta); cliente e entregador com **o mesmo CPF**; calcula os papéis, sempre na mesma ordem |
+| [`RoleName`](../../src/main/java/com/postech/restaurantes/domain/entity/role/RoleName.java) | `domain/entity/role` | os quatro papéis de autorização (`ROLE_OWNER`, `ROLE_CLIENT`, `ROLE_COURIER`, `ROLE_ADMIN`), um por perfil; não há mais catálogo de papéis nem entidade `Role` |
 | [`PasswordResetToken`](../../src/main/java/com/postech/restaurantes/domain/entity/password/PasswordResetToken.java) | `domain/entity/password` | vence no instante informado; usável só uma vez (`markUsed`); **um por usuário**: o pedido novo o reemite (`reissue`: hash e validade novos, uso zerado, tudo validado antes de mudar); o **instante vem por parâmetro** — a entidade não consulta o relógio |
 | [`Address`](../../src/main/java/com/postech/restaurantes/domain/entity/address/Address.java) | `domain/entity/address` | campos obrigatórios, UF com 2 letras, CEP válido; pacote próprio porque é compartilhado: o usuário o tem por `UserAddress`, o restaurante, diretamente — e não conhece nenhum dos dois |
 | [`OwnerProfile`](../../src/main/java/com/postech/restaurantes/domain/entity/owner/OwnerProfile.java), [`ClientProfile`](../../src/main/java/com/postech/restaurantes/domain/entity/client/ClientProfile.java), [`CourierProfile`](../../src/main/java/com/postech/restaurantes/domain/entity/courier/CourierProfile.java), [`AdminProfile`](../../src/main/java/com/postech/restaurantes/domain/entity/admin/AdminProfile.java) | `domain/entity/{owner,client,courier,admin}` | perfis do usuário (especializações do modelo v2), sem id próprio — a identidade é a do usuário. Cliente: nascimento não futuro, com o dia **por parâmetro**; entregador: CNH e placa andam com o veículo (`changeVehicle`) e começa `OFFLINE`; admin: código de funcionário obrigatório |
@@ -49,30 +50,30 @@ Exemplo — as duas fábricas de `User`, o equivalente direto do `Estudante` da 
 
 ```java
 public static User create(String name, String email, String login, String passwordHash,
-                          Set<Role> roles, List<UserAddress> addresses) {     // novo, sem id
-    return fill(new User(null, null, null), name, email, login, passwordHash, roles, addresses);
+                          UserProfiles profiles, List<UserAddress> addresses) { // novo, sem id
+    return fill(new User(null, null, null), name, email, login, passwordHash, profiles, addresses);
 }
 
 public static User restore(UUID id, String name, String email, String login, String passwordHash,
-                           Set<Role> roles, List<UserAddress> addresses,
+                           UserProfiles profiles, List<UserAddress> addresses,
                            LocalDateTime createdAt, LocalDateTime lastUpdatedAt) { // já existe
     Guard.requireNonNull(id, "Id do usuário inválido");
     ...
-    return fill(user, name, email, login, passwordHash, roles, addresses);   // mesma validação
+    return fill(user, name, email, login, passwordHash, profiles, addresses); // mesma validação
 }
 ```
 
 **Regra de negócio × regra de aplicação.** O que vale em qualquer contexto (e-mail válido, ao menos
-um papel, CEP de 8 dígitos) mora na entidade. O que depende do ponto de entrada (`ROLE_ADMIN`
-proibido no *autocadastro*, resposta idêntica no "esqueci minha senha") mora no caso de uso — ver
+um perfil, CPF igual entre cliente e entregador, CEP de 8 dígitos) mora na entidade. O que depende do
+ponto de entrada (perfil de administrador fora do *autocadastro*, CPF e CNPJ únicos, resposta idêntica no "esqueci minha senha") mora no caso de uso — ver
 [Casos de uso](02-casos-de-uso.md).
 
 ## 4. Padrões adotados e por quê
 
 | Padrão | Onde | Problema que resolve |
 |---|---|---|
-| Fábricas estáticas `create` / `restore` com construtor privado | `User`, `Role`, `PasswordResetToken`, `Address` | toda instância passa por validação; não existe `new User()` inválido (Aula 03) |
-| *Value Object* como `record` | `Email`, `ZipCode` | o valor é validado e normalizado uma vez, e dois e-mails iguais são iguais |
+| Fábricas estáticas `create` / `restore` com construtor privado | `User`, os perfis, `PasswordResetToken`, `Address` | toda instância passa por validação; não existe `new User()` inválido (Aula 03) |
+| *Value Object* como `record` | `Email`, `ZipCode`, `Cpf`, `Cnpj`, `Phone`, `LicensePlate`, `DriverLicense`; `UserProfiles` | o valor é validado e normalizado uma vez, e dois e-mails iguais são iguais |
 | Cláusula de guarda | `Guard` | a validação lê como uma frase e sempre lança a mesma exceção, cuja mensagem é escrita para o usuário final |
 | Setter que revalida | `User.setName`, `setEmail`, … | a entidade continua consistente depois de criada (Aula 03, p. 8) |
 | Tempo por parâmetro | `PasswordResetToken.create(..., now)`, `isUsable(now)` | a regra de vencimento é testável sem relógio e sem mocks |
@@ -92,7 +93,7 @@ proibido no *autocadastro*, resposta idêntica no "esqueci minha senha") mora no
   (só o JDK).
 - Testes unitários sem mocks, um por invariante (aceita o válido, recusa o inválido):
   [`UserTest`](../../src/test/java/com/postech/restaurantes/domain/entity/user/UserTest.java),
-  `UserAddressTest`, `RoleTest`, `RoleNameTest`, `PasswordResetTokenTest`, `AddressTest`,
+  `UserAddressTest`, `UserProfilesTest`, `PasswordResetTokenTest`, `AddressTest`,
   `RestaurantTest`, `OwnerProfileTest`, `ClientProfileTest`, `CourierProfileTest`, `AdminProfileTest`,
   `CourierEnumsTest`, `CpfTest`, `CnpjTest`, `PhoneLicensePlateDriverLicenseTest`, `EmailTest`,
   `ZipCodeTest`, `GuardTest`, `DomainExceptionsTest`.

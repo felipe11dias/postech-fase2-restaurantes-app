@@ -1,16 +1,19 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.postech.restaurantes.Documentos;
 import com.postech.restaurantes.EnderecosNoBanco;
 import com.postech.restaurantes.IntegrationTestSupport;
-import com.postech.restaurantes.adapter.datasource.IRoleDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
 import com.postech.restaurantes.adapter.datasource.data.AddressData;
-import com.postech.restaurantes.adapter.datasource.data.RoleData;
+import com.postech.restaurantes.adapter.datasource.data.ClientData;
+import com.postech.restaurantes.adapter.datasource.data.CourierData;
+import com.postech.restaurantes.adapter.datasource.data.OwnerData;
 import com.postech.restaurantes.adapter.datasource.data.UserAddressData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
 import com.postech.restaurantes.adapter.gateway.UserGateway;
@@ -18,12 +21,12 @@ import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.domain.entity.user.User;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,13 +45,10 @@ class UserPersistenceIT extends IntegrationTestSupport {
     private IUserDataSource userDataSource;
 
     @Autowired
-    private IRoleDataSource roleDataSource;
-
-    @Autowired
     private JdbcTemplate jdbc;
 
     @Test
-    @DisplayName("Usuário gravado é lido de volta inteiro, com papéis e endereços")
+    @DisplayName("Usuário gravado é lido de volta inteiro, com perfil e endereços")
     void deveGravarELerOAgregadoInteiro() {
         UserData gravado = inserir("Ana Integração", List.of(endereco("Rua das Acácias", "10")));
 
@@ -56,7 +56,8 @@ class UserPersistenceIT extends IntegrationTestSupport {
 
         assertNotNull(lido.id());
         assertEquals("Ana Integração", lido.name());
-        assertEquals(Set.of("ROLE_CUSTOMER"), nomesDosPapeis(lido));
+        assertEquals(gravado.client(), lido.client());
+        assertNull(lido.owner());
         assertEquals(1, lido.addresses().size());
         assertEquals("Casa", lido.addresses().get(0).label());
         assertTrue(lido.addresses().get(0).isDefault());
@@ -66,17 +67,82 @@ class UserPersistenceIT extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Usuário com dois papéis e um endereço é lido com o endereço uma vez só, nas consultas por id, login, e-mail e página")
-    void deveLerOEnderecoUmaVezComVariosPapeis() {
-        UserData gravado = inserir("Ivo Integração", Set.of("ROLE_OWNER", "ROLE_CUSTOMER"),
-                List.of(endereco("Rua dos Papéis", "3")));
+    @DisplayName("Usuário com três perfis e um endereço é lido com o endereço uma vez só, nas consultas por id, login, e-mail e página")
+    void deveLerOEnderecoUmaVezComVariosPerfis() {
+        String cpf = Documentos.cpf();
+        UserData gravado = inserir("Ivo Integração", dono(), new ClientData(cpf, "11912345678", null),
+                new CourierData(cpf, "11912345678", "MOTORCYCLE", Documentos.cnh(), "ABC1D23", "OFFLINE"),
+                List.of(endereco("Rua dos Perfis", "3")));
 
         assertEquals(1, userDataSource.findById(gravado.id()).orElseThrow().addresses().size());
         assertEquals(1, userDataSource.findByLogin(gravado.login()).orElseThrow().addresses().size());
         assertEquals(1, userDataSource.findByEmail(gravado.email()).orElseThrow().addresses().size());
         assertEquals(1, userDataSource.search("Ivo Integração", PageRequest.of(0, 10)).content().get(0)
                 .addresses().size());
-        assertEquals(2, UserGateway.create(userDataSource).findById(gravado.id()).orElseThrow().getRoles().size());
+        assertEquals(3, UserGateway.create(userDataSource).findById(gravado.id()).orElseThrow().getRoles().size());
+    }
+
+    @Test
+    @DisplayName("Perfis de dono, cliente e entregador vão e voltam do banco, com os ENUMs do entregador")
+    void deveGravarELerOsPerfis() {
+        String cpf = Documentos.cpf();
+        OwnerData dono = dono();
+        CourierData entregador = new CourierData(cpf, "11912345678", "CAR", Documentos.cnh(), "XYZ9A87", "BUSY");
+
+        UserData gravado = inserir("Jonas Integração", dono, new ClientData(cpf, "11912345678",
+                LocalDate.of(1990, 5, 20)), entregador, List.of());
+        UserData lido = userDataSource.findById(gravado.id()).orElseThrow();
+
+        assertEquals(dono, lido.owner());
+        assertEquals(LocalDate.of(1990, 5, 20), lido.client().birthDate());
+        assertEquals(entregador, lido.courier());
+        assertEquals("BUSY", jdbc.queryForObject("SELECT status::text FROM couriers WHERE id = ?", String.class,
+                gravado.id()));
+        assertEquals("system", jdbc.queryForObject("SELECT created_by FROM owners WHERE id = ?", String.class,
+                gravado.id()));
+    }
+
+    @Test
+    @DisplayName("Trocar os perfis mantém a linha do que continua, cria a do novo e apaga a do que saiu")
+    void deveTrocarOsPerfis() {
+        UserData gravado = inserir("Fábio Integração", List.of());
+        OwnerData dono = dono();
+
+        UserData atualizado = userDataSource.update(new UserData(gravado.id(), gravado.name(), gravado.email(),
+                gravado.login(), gravado.passwordHash(), dono, null, null, null, List.of(), gravado.createdAt(),
+                LocalDateTime.now()));
+
+        assertEquals(dono, atualizado.owner());
+        assertNull(atualizado.client());
+        assertEquals(0, (int) jdbc.queryForObject("SELECT count(*) FROM clients WHERE id = ?", Integer.class,
+                gravado.id()));
+        assertEquals(1, (int) jdbc.queryForObject("SELECT count(*) FROM owners WHERE id = ?", Integer.class,
+                gravado.id()));
+    }
+
+    @Test
+    @DisplayName("Consulta por CPF acha o cliente e o entregador; por CNPJ, o dono")
+    void deveConsultarPorDocumento() {
+        String cpfDoEntregador = Documentos.cpf();
+        UserData cliente = inserir("Karen Integração", List.of());
+        UserData entregador = inserir("Lauro Integração", null, null,
+                new CourierData(cpfDoEntregador, "11912345678", "BICYCLE", null, null, "OFFLINE"), List.of());
+        UserData dono = inserir("Marta Integração", dono(), null, null, List.of());
+
+        assertEquals(cliente.id(), userDataSource.findByCpf(cliente.client().cpf()).orElseThrow().id());
+        assertEquals(entregador.id(), userDataSource.findByCpf(cpfDoEntregador).orElseThrow().id());
+        assertEquals(dono.id(), userDataSource.findByCnpj(dono.owner().cnpj()).orElseThrow().id());
+        assertTrue(userDataSource.findByCpf(Documentos.cpf()).isEmpty());
+        assertTrue(userDataSource.findByCnpj(Documentos.cnpj()).isEmpty());
+    }
+
+    @Test
+    @DisplayName("O banco recusa o mesmo CPF em dois clientes")
+    void deveRecusarCpfRepetido() {
+        UserData primeiro = inserir("Nina Integração", List.of());
+
+        assertThrows(DataIntegrityViolationException.class, () -> inserir("Otto Integração", null,
+                primeiro.client(), null, List.of()));
     }
 
     @Test
@@ -120,7 +186,7 @@ class UserPersistenceIT extends IntegrationTestSupport {
         List<UUID> enderecosAntigos = idsDosEnderecos(gravado);
 
         UserData atualizado = userDataSource.update(new UserData(gravado.id(), gravado.name(), gravado.email(),
-                gravado.login(), gravado.passwordHash(), gravado.roles(),
+                gravado.login(), gravado.passwordHash(), gravado.owner(), gravado.client(), gravado.courier(), gravado.admin(),
                 List.of(endereco("Rua Nova", "99")), gravado.createdAt(), LocalDateTime.now()));
 
         assertEquals(1, atualizado.addresses().size());
@@ -129,19 +195,6 @@ class UserPersistenceIT extends IntegrationTestSupport {
         assertEquals(0, EnderecosNoBanco.existentes(jdbc, enderecosAntigos),
                 "os endereços antigos saíram com os vínculos");
         assertEquals(1, EnderecosNoBanco.existentes(jdbc, idsDosEnderecos(atualizado)));
-    }
-
-    @Test
-    @DisplayName("Trocar o papel reescreve o vínculo N:M sem tocar no catálogo")
-    void deveTrocarOPapel() {
-        UserData gravado = inserir("Fábio Integração", List.of());
-        Set<RoleData> owner = roleDataSource.findByNames(Set.of("ROLE_OWNER"));
-
-        UserData atualizado = userDataSource.update(new UserData(gravado.id(), gravado.name(), gravado.email(),
-                gravado.login(), gravado.passwordHash(), owner, List.of(), gravado.createdAt(), LocalDateTime.now()));
-
-        assertEquals(Set.of("ROLE_OWNER"), nomesDosPapeis(atualizado));
-        assertEquals(3, (int) jdbc.queryForObject("SELECT count(*) FROM roles", Integer.class));
     }
 
     /**
@@ -156,7 +209,7 @@ class UserPersistenceIT extends IntegrationTestSupport {
         UserData persistido = userDataSource.findById(gravado.id()).orElseThrow();
 
         UserData atualizado = userDataSource.update(new UserData(persistido.id(), "Gustavo Renomeado",
-                persistido.email(), persistido.login(), persistido.passwordHash(), persistido.roles(), List.of(),
+                persistido.email(), persistido.login(), persistido.passwordHash(), persistido.owner(), persistido.client(), persistido.courier(), persistido.admin(), List.of(),
                 persistido.createdAt(), persistido.lastUpdatedAt()));
 
         assertEquals(persistido.id(), atualizado.id());
@@ -176,7 +229,7 @@ class UserPersistenceIT extends IntegrationTestSupport {
         UserData antes = userDataSource.findById(gravado.id()).orElseThrow();
 
         UserData atualizado = userDataSource.update(new UserData(antes.id(), "Heitor Renomeado",
-                antes.email(), antes.login(), antes.passwordHash(), antes.roles(), List.of(),
+                antes.email(), antes.login(), antes.passwordHash(), antes.owner(), antes.client(), antes.courier(), antes.admin(), List.of(),
                 antes.createdAt(), antes.lastUpdatedAt()));
         UserData relido = userDataSource.findById(gravado.id()).orElseThrow();
 
@@ -192,7 +245,7 @@ class UserPersistenceIT extends IntegrationTestSupport {
         String sufixo = UUID.randomUUID().toString().substring(0, 8);
         UserData semInstante = new UserData(null, "Sem Instante", "semdata." + sufixo + "@email.com",
                 "semdata." + sufixo, "$2a$10$hashDeIntegracaoComTamanhoSuficiente",
-                roleDataSource.findByNames(Set.of("ROLE_CUSTOMER")), List.of(), null, null);
+                null, cliente(), null, null, List.of(), null, null);
 
         UserData gravado = userDataSource.insert(semInstante);
 
@@ -261,7 +314,7 @@ class UserPersistenceIT extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Exclusão remove o usuário e, em cascata, os vínculos e os endereços deles")
+    @DisplayName("Exclusão remove o usuário e, em cascata, o perfil, os vínculos e os endereços deles")
     void deveExcluirEmCascata() {
         UserData gravado = inserir("Helena Integração", List.of(endereco("Rua H", "8")));
 
@@ -271,19 +324,30 @@ class UserPersistenceIT extends IntegrationTestSupport {
         assertEquals(0, vinculos(gravado.id()));
         assertEquals(0, EnderecosNoBanco.existentes(jdbc, idsDosEnderecos(gravado)));
         assertEquals(0, (int) jdbc.queryForObject(
-                "SELECT count(*) FROM user_roles WHERE user_id = ?", Integer.class, gravado.id()));
+                "SELECT count(*) FROM clients WHERE id = ?", Integer.class, gravado.id()));
     }
 
     private UserData inserir(String nome, List<UserAddressData> enderecos) {
-        return inserir(nome, Set.of("ROLE_CUSTOMER"), enderecos);
+        return inserir(nome, null, cliente(), null, enderecos);
     }
 
-    private UserData inserir(String nome, Set<String> papeis, List<UserAddressData> enderecos) {
+    private UserData inserir(String nome, OwnerData owner, ClientData client, CourierData courier,
+                             List<UserAddressData> enderecos) {
         String sufixo = UUID.randomUUID().toString().substring(0, 8);
         LocalDateTime agora = LocalDateTime.now().withNano(0);
         return userDataSource.insert(new UserData(null, nome, "usuario." + sufixo + "@email.com",
                 "usuario." + sufixo, "$2a$10$hashDeIntegracaoComTamanhoSuficiente",
-                roleDataSource.findByNames(papeis), enderecos, agora, agora));
+                owner, client, courier, null, enderecos, agora, agora));
+    }
+
+    /** Perfil de dono com CNPJ novo: o CNPJ também é único. */
+    private static OwnerData dono() {
+        return new OwnerData(Documentos.cnpj(), "Integração Ltda", "1131234567");
+    }
+
+    /** Perfil de cliente com CPF novo: o banco é compartilhado e o CPF é único. */
+    private static ClientData cliente() {
+        return new ClientData(Documentos.cpf(), "11912345678", null);
     }
 
     /** Endereço padrão do usuário, rotulado "Casa". */
@@ -305,10 +369,6 @@ class UserPersistenceIT extends IntegrationTestSupport {
 
     private static List<UUID> idsDosEnderecos(UserData usuario) {
         return usuario.addresses().stream().map(vinculo -> vinculo.address().id()).toList();
-    }
-
-    private static Set<String> nomesDosPapeis(UserData usuario) {
-        return usuario.roles().stream().map(RoleData::name).collect(Collectors.toSet());
     }
 
     private static List<String> nomes(PageResult<UserData> pagina) {

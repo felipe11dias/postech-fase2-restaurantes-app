@@ -126,10 +126,21 @@ public class UserDataSourceJpa implements IUserDataSource {
         return toData(users.saveAndFlush(entity));
     }
 
+    /**
+     * Os perfis saem antes do usuário. Com {@code @PrimaryKeyJoinColumn} do lado do usuário, o
+     * Hibernate entende que é o usuário que referencia o perfil e apagaria o usuário primeiro; o
+     * {@code ON DELETE CASCADE} do banco levaria o perfil junto, e o {@code DELETE} do perfil que vem
+     * em seguida não acharia a linha ({@code StaleObjectStateException}). Tirar os perfis
+     * ({@code orphanRemoval}) e descarregar antes faz a remoção seguir a ordem das chaves estrangeiras.
+     */
     @Override
     @Transactional
     public void delete(UUID id) {
-        users.deleteById(id);
+        users.findById(id).ifPresent(user -> {
+            ProfileJpaMapping.removeAll(user);
+            users.flush();
+            users.delete(user);
+        });
     }
 
     /**

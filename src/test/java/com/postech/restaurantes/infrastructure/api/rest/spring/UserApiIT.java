@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.postech.restaurantes.Documentos;
 import com.postech.restaurantes.WebIntegrationTestSupport;
 import java.util.HashMap;
 import java.util.List;
@@ -42,7 +43,9 @@ class UserApiIT extends WebIntegrationTestSupport {
         JsonNode corpo = resposta.getBody();
         assertNotNull(corpo.get("id").asText());
         assertEquals(login, corpo.get("login").asText());
-        assertEquals("ROLE_CUSTOMER", corpo.get("roles").get(0).get("name").asText());
+        assertEquals("ROLE_CLIENT", corpo.get("roles").get(0).asText());
+        assertEquals(11, corpo.at("/client/cpf").asText().length(), "CPF sai sem máscara");
+        assertTrue(corpo.get("owner").isNull());
         assertEquals("01001000", corpo.at("/addresses/0/address/zipCode").asText(), "CEP sai normalizado");
         assertEquals("Casa", corpo.at("/addresses/0/label").asText());
         assertTrue(corpo.at("/addresses/0/isDefault").asBoolean(), "o único endereço é o padrão");
@@ -216,13 +219,14 @@ class UserApiIT extends WebIntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Atualização não toca na senha nem nos papéis: o login seguinte usa a mesma senha")
+    @DisplayName("Atualização não toca na senha nem nos perfis: o login seguinte usa a mesma senha")
     void devePreservarSenhaEPapeisQuandoAtualiza() {
         Usuario eu = cadastrarEAutenticar();
 
         JsonNode atualizado = atualizar(eu, "Nome Atualizado", eu.token()).getBody();
 
-        assertEquals("ROLE_CUSTOMER", atualizado.get("roles").get(0).get("name").asText());
+        assertEquals("ROLE_CLIENT", atualizado.get("roles").get(0).asText());
+        assertEquals(11, atualizado.at("/client/cpf").asText().length(), "o perfil continua lá");
         assertEquals(HttpStatus.OK, rest.postForEntity("/api/v1/auth/login",
                 corpo(Map.of("login", eu.login(), "password", "senhaSegura123")), JsonNode.class).getStatusCode());
     }
@@ -270,11 +274,48 @@ class UserApiIT extends WebIntegrationTestSupport {
     }
 
     @Test
+    @DisplayName("Cadastro com cliente e entregador (mesmo CPF) e dono: três papéis, entregador fora de serviço")
+    void deveCadastrarComVariosPerfis() {
+        String login = novoLogin();
+        String cpf = Documentos.cpf();
+        Map<String, Object> corpo = new HashMap<>(novoUsuario(login));
+        corpo.put("owner", perfilDeDono());
+        corpo.put("client", Map.of("cpf", cpf, "phone", "(11) 91234-5678", "birthDate", "1990-05-20"));
+        corpo.put("courier", Map.of("cpf", cpf, "phone", "(11) 91234-5678", "vehicleType", "MOTORCYCLE",
+                "driverLicense", Documentos.cnh(), "vehiclePlate", "abc1d23"));
+
+        ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(corpo), JsonNode.class);
+
+        assertEquals(HttpStatus.CREATED, resposta.getStatusCode());
+        JsonNode criado = resposta.getBody();
+        assertEquals(List.of("ROLE_OWNER", "ROLE_CLIENT", "ROLE_COURIER"),
+                List.of(criado.at("/roles/0").asText(), criado.at("/roles/1").asText(), criado.at("/roles/2").asText()));
+        assertEquals("1990-05-20", criado.at("/client/birthDate").asText());
+        assertEquals("OFFLINE", criado.at("/courier/status").asText());
+        assertEquals("ABC1D23", criado.at("/courier/vehiclePlate").asText(), "placa sai em maiúsculas");
+        assertTrue(criado.get("admin").isNull());
+    }
+
+    @Test
+    @DisplayName("Autocadastro não dá perfil de administrador: um bloco admin no corpo é ignorado")
+    void naoDeveConcederAdministradorNoAutocadastro() {
+        Map<String, Object> corpo = new HashMap<>(novoUsuario(novoLogin()));
+        corpo.put("admin", Map.of("employeeCode", "ADM-9", "superAdmin", true));
+
+        ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(corpo), JsonNode.class);
+
+        assertEquals(HttpStatus.CREATED, resposta.getStatusCode());
+        assertTrue(resposta.getBody().get("admin").isNull());
+        assertEquals(1, resposta.getBody().get("roles").size());
+        assertEquals(0, (int) jdbc.queryForObject("SELECT count(*) FROM admins WHERE id = ?::uuid", Integer.class,
+                resposta.getBody().get("id").asText()));
+    }
+
+    @Test
     @DisplayName("Corpo inválido é recusado na borda, antes de chegar ao caso de uso")
     void deveRecusarCorpoInvalido() {
         ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS,
-                corpo(Map.of("name", "", "email", "nao-e-email", "login", "x", "password", "curta",
-                        "roles", List.of("ROLE_CUSTOMER"))), JsonNode.class);
+                corpo(Map.of("name", "", "email", "nao-e-email", "login", "x", "password", "curta")), JsonNode.class);
 
         assertEquals(HttpStatus.BAD_REQUEST, resposta.getStatusCode());
     }
@@ -294,7 +335,7 @@ class UserApiIT extends WebIntegrationTestSupport {
                 "email", login + "@email.com",
                 "login", login,
                 "password", "senhaSegura123",
-                "roles", List.of("ROLE_CUSTOMER"),
+                "client", perfilDeCliente(),
                 "addresses", List.of(Map.of("label", "Casa", "address", Map.of("street", "Rua das Flores",
                         "number", "100", "complement", "Apto 21", "neighborhood", "Centro", "city", "São Paulo",
                         "state", "SP", "zipCode", "01001-000"))));

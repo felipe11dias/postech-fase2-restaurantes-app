@@ -55,14 +55,14 @@
 | 18  | Endereços via `user_addresses` e endereço próprio do restaurante | ✅ |
 | 19  | Token de redefinição único por usuário (`password_reset_tokens`) | ✅ |
 | 20  | Perfis de usuário no domínio (`owners`, `clients`, `couriers`, `admins`) | ✅ |
-| 21  | Usuário composto por perfis (papel derivado)       | ⏳     |
+| 21  | Usuário composto por perfis (papel derivado)       | ✅     |
 | 22  | Perfis em usuário existente e status do entregador | ⏳     |
 | 23  | Restaurante alinhado ao modelo v2 e à regra de posse (`restaurants`) | ⏳ |
 | 24  | Horário de funcionamento por dia (`restaurant_office_hours`) | ⏳ |
 | 25  | Revisão de conformidade do modelo de dados v2      | ⏳     |
 
-**Progresso:** 20 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
-Dados v2 (seção "Modelo de Dados v2 — adequação planejada"); da 17 à 20 estão concluídas e as
+**Progresso:** 21 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
+Dados v2 (seção "Modelo de Dados v2 — adequação planejada"); da 17 à 21 estão concluídas e as
 demais, planejadas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
@@ -2644,13 +2644,76 @@ ser consequência do perfil que o usuário tem.
 | domain | `User` agrega os perfis (opcionais, ao menos um); `getRoles()` derivado; `RoleName` ganha `ROLE_COURIER` e `ROLE_CUSTOMER` passa a `ROLE_CLIENT` (movido da Etapa 20); invariante de CPF igual entre cliente e entregador; saem `Role` e o pacote `role` (fica o `RoleName`, agora derivado) |
 | application | `NewUserDTO` com blocos `client`, `owner`, `courier` (ao menos um); saem `IRoleGateway` e a resolução de papéis; autocadastro nunca cria `AdminProfile` (o perfil de admin vem da seed); `Create/UpdateRestaurantUseCase` passam a exigir **perfil de dono** — admin deixa de servir como dono |
 | adapter | `OwnerData`, `ClientData`, `CourierData`, `AdminData` dentro de `UserData`; saem `RoleGateway`, `IRoleDataSource`, `RoleData`; `UserView` com os perfis e os papéis derivados |
-| infrastructure | `persistence/jpa/user/{owner,client,courier,admin}` com `@OneToOne(mappedBy, cascade = ALL, orphanRemoval = true)` e `@MapsId`; enums mapeados como descrito em "Enums"; saem `RoleJpaEntity`, `SpringDataRoleRepository`, `RoleDataSourceJpa`; requests com os blocos de perfil; o JWT continua com os nomes de papel, agora derivados |
+| infrastructure | `persistence/jpa/user/{owner,client,courier,admin}` ligados do lado do usuário (`@OneToOne(cascade = ALL, orphanRemoval = true)` + `@PrimaryKeyJoinColumn`; ver "Ajuste do plano"); enums mapeados como descrito em "Enums"; saem `RoleJpaEntity`, `SpringDataRoleRepository`, `RoleDataSourceJpa`; requests com os blocos de perfil; o JWT continua com os nomes de papel, agora derivados |
 
 **Postman:** autocadastro de cliente, de dono e de entregador; casos de erro de cada perfil (CPF
 inválido, CNPJ duplicado, entregador de moto sem CNH). **Testes:** `SchemaMigrationIT` sobre os
 perfis da seed; regra `ROLE_ADMIN` proibido no autocadastro preservada.
 **Conceito:** especialização em uma tabela por subtipo (Machado); informação única — papel e
 perfil não podem discordar porque o papel é calculado (3FN, Date); regra de entrada no caso de uso.
+
+### Estrutura
+
+```
+domain/entity/user/           UserProfiles (novo): os quatro perfis, as regras entre eles, os papéis
+domain/entity/role/           RoleName (ROLE_OWNER, ROLE_CLIENT, ROLE_COURIER, ROLE_ADMIN); Role saiu
+application/dto/user/         OwnerProfileDTO, ClientProfileDTO, CourierProfileDTO (novos); NewUserDTO
+application/gateway/          IUserGateway + findByCpf, findByCnpj; IRoleGateway saiu
+adapter/datasource/data/      OwnerData, ClientData, CourierData, AdminData (novos); RoleData saiu
+adapter/presenter/view/       OwnerProfileView, ClientProfileView, CourierProfileView, AdminProfileView
+infrastructure/persistence/jpa/user/
+  owner/ client/ courier/ admin/   *JpaEntity de cada perfil (novos)
+  ProfileJpaMapping                registro do adaptador ↔ entidades dos perfis
+  role/                            saiu
+infrastructure/api/rest/spring/dto/  *ProfileRequest e *ProfileResponse (novos); RoleResponse saiu
+db/migration/V6__user_profiles.sql
+```
+
+**Ajuste do plano.** O plano previa os perfis JPA com `@OneToOne(mappedBy)` e `@MapsId`. Isso
+exige que cada perfil referencie o `UserJpaEntity`, e os pacotes `user` e `user/owner` (e os
+demais) passariam a depender um do outro: a regra `nenhum_ciclo_entre_pacotes` quebraria o build. A
+associação ficou só do lado do usuário (`@OneToOne` + `@PrimaryKeyJoinColumn`), como o endereço da
+Etapa 18, e o id do perfil é atribuído pela origem de dados. Duas consequências, ambas na
+`UserDataSourceJpa`: no cadastro, o usuário é gravado antes dos perfis (o id dele é o deles); na
+exclusão, os perfis saem e são descarregados antes do usuário (ver a tabela abaixo).
+
+### O que foi entregue nesta etapa
+
+| Decisão | Conceito que a sustenta |
+| --- | --- |
+| **O papel é calculado a partir dos perfis** (`UserProfiles.roles()`, sempre na ordem dono, cliente, entregador, administrador) e não é gravado; `roles` e `user_roles` saíram na V6 | Informação que se deriva não se armazena (3FN, Date): papel e perfil não têm como discordar. O JWT continua levando os nomes dos papéis, então a autorização (`hasRole`) não mudou |
+| **`UserProfiles` guarda as regras que cruzam perfis**: ao menos um (especialização total) e o mesmo CPF para cliente e entregador | Invariante que vale sempre mora na entidade (Etapa 2); especialização sobreposta e total, uma tabela por subtipo (Machado) |
+| **Autocadastro não tem perfil de administrador**: o pedido (`NewUserRequest`/`NewUserDTO`) só tem `owner`, `client` e `courier`, e um bloco `admin` enviado é ignorado | Regra que depende do ponto de entrada fica no caso de uso (Etapa 3). Antes o caso de uso recusava `ROLE_ADMIN` pedido; agora o pedido nem tem como expressá-lo, e o 403 do cadastro deixou de existir (o `@ErrorResponse` saiu da documentação) |
+| **CPF e CNPJ únicos conferidos no caso de uso** (`findByCpf`, `findByCnpj`), com "CPF já cadastrado" e "CNPJ já cadastrado" (409) | O mesmo tratamento de e-mail e login: o conflito chega com a mensagem certa, e não como a recusa genérica da restrição do banco. O CPF é procurado no cliente e no entregador |
+| **O relógio entra no `RegisterUserUseCase`** para o "nascimento não futuro" do cliente | A entidade não consulta o relógio (Etapa 2); o dia vem do `Clock` da aplicação, como no `ForgotPasswordUseCase` |
+| **Restaurante exige perfil de dono**: administrador sem esse perfil deixa de servir como dono (403 `operacao-nao-permitida`, agora documentado em criação e alteração) | Com o papel derivado, "ser dono" é ter o perfil de dono — que traz CNPJ e razão social. Um administrador continua podendo cadastrar restaurante *para* um dono |
+| **`ENUM`s do PostgreSQL como `String` na entidade JPA**, com `columnDefinition` e `@ColumnTransformer(write = "?::tipo")`; o gateway converte com `CourierVehicleType.from`/`CourierStatus.from` | A infraestrutura só conhece as portas técnicas do núcleo (`infraestrutura_so_conhece_portas_tecnicas`), então não importa enum do domínio. O risco previsto na seção "Enums" — o `ddl-auto: validate` aceitar o mapeamento — foi conferido: o contexto sobe e o `SchemaMigrationIT` lê os valores dos tipos |
+| **Na exclusão, os perfis saem e são descarregados antes do usuário** (`ProfileJpaMapping.removeAll` + `flush`) | Com `@PrimaryKeyJoinColumn` do lado do usuário, o Hibernate entende que o usuário referencia o perfil e o apagaria primeiro; o `ON DELETE CASCADE` levaria o perfil, e o `DELETE` seguinte do perfil não acharia a linha (`StaleObjectStateException`, 500). O defeito apareceu no `UserLifecycleIT` e no `UserPersistenceIT` e foi corrigido na origem de dados, onde mora o detalhe do mapeamento |
+| **CHECK `ck_couriers_license_by_vehicle` na V6**: moto e carro com CNH e placa, a pé e bicicleta sem nenhuma | A regra do `COMMENT` do modelo vira restrição: o banco não aceita o que o domínio recusa (Date: integridade declarada no schema) |
+| **A V6 cria os perfis só da seed e falha com mensagem** se sobrar usuário sem perfil | "Migrations nunca inventam dado" (política da seção do Modelo v2): CPF e CNPJ não existem no banco antigo |
+| **Documentos gerados nos testes** (`Documentos.cpf()`, `cnpj()`, `cnh()`; na coleção, `{{cpfGerado}}`, `{{cnpjGerado}}`, `{{cnhGerada}}`) | O banco é compartilhado entre os testes e a coleção roda várias vezes: cada um gera seus documentos únicos, como já fazia com e-mail e login |
+
+### Testes
+
+| Teste | O que prova |
+| --- | --- |
+| `UserProfilesTest`, `UserTest` | ao menos um perfil; CPF igual entre cliente e entregador; papéis derivados na ordem fixa; troca de perfis revalida |
+| `RegisterUserUseCaseTest` | cadastro com cada perfil e com vários; CPF consultado no cliente ou no entregador; CPF e CNPJ duplicados (409); relógio no nascimento; nenhum perfil recusado antes de consultar o banco |
+| `Create/UpdateRestaurantUseCaseTest` | administrador sem perfil de dono recusado com a mensagem do caso de uso |
+| `ProfileDTOTest`, `UserDtoMappingTest`, `UserGatewayTest`, `PresentersTest` | os quatro perfis atravessam DTO, gateway, view e resposta sem perda; enum desconhecido vindo da origem é recusado |
+| `ProfileJpaMappingTest`, `UserDataSourceJpaTest`, `*JpaEntityTest` dos perfis | perfil novo nasce com o id do usuário, o que continua é atualizado na mesma linha, o ausente sai; cadastro grava o usuário antes dos perfis; exclusão descarrega os perfis antes |
+| `SchemaMigrationIT` | seis migrations; as tabelas do modelo v2 sem `roles`/`user_roles`; valores e ordem dos `ENUM`s; perfis da seed; o `CHECK` de CNH e placa; cascata do perfil ao apagar o usuário |
+| `UserPersistenceIT` | perfis gravados e lidos (inclusive `ENUM`s e autoria); troca de perfis; busca por CPF (cliente e entregador) e CNPJ; CPF repetido recusado pelo banco; endereço lido uma vez com três perfis |
+| `UserApiIT`, `ErrorHandlingIT` | cadastro com dono, cliente e entregador; bloco `admin` ignorado; CPF inválido, nenhum perfil, veículo desconhecido e moto sem CNH (400); CPF e CNPJ duplicados (409); restaurante para quem não é dono (403) |
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `mvn clean verify` | **680 testes unitários** e **114 de integração** — BUILD SUCCESS; cobertura unitária **1767/1767 linhas, 424/424 ramos, 737/737 métodos** |
+| Postman (`npx newman@6`) | **76 requests, 150 asserções, 0 falhas**, em duas execuções seguidas contra o mesmo banco; prints regenerados (`postman/prints`, 76). Novos: autocadastro de dono e de entregador (que também é cliente), CPF inválido, nenhum perfil, moto sem CNH, CPF e CNPJ já cadastrados, restaurante criado e alterado para usuário sem perfil de dono, e a exclusão dos cadastros criados. Saíram "papel inexistente" e "pedindo `ROLE_ADMIN`" |
+| Banco de desenvolvimento | a coleção rodou numa pilha Compose separada (`-p restaurantes-fase2-etapa21`, volume próprio, removido depois). No volume local existente, a V6 **falha de propósito** se houver usuários sem perfil (os `postman.*` das execuções anteriores): recriar o banco com `docker compose down -v` aplica tudo do zero, só com a seed |
+
 
 ## Etapa 22 — Perfis em usuário existente e status do entregador
 
@@ -2726,7 +2789,8 @@ Etapa 14 fez para a base.
 
 - **Tipo de usuário por especialização:** perfis em `owners`, `clients`, `couriers` e `admins`
   (PK = FK para `users`), especialização sobreposta e total; o papel do JWT é derivado do perfil e
-  `roles`/`user_roles` deixam de existir. Etapas 20 a 22.
+  `roles`/`user_roles` deixam de existir. Etapas 20 a 22 (a 21 entregou a especialização e o papel
+  derivado; a 22, a manutenção dos perfis).
 - **Enums do banco como tipos do domínio:** `CourierVehicleType` e `CourierStatus` no domínio;
   `java.time.DayOfWeek` para `day_of_week`; a JPA guarda o nome e o gateway converte, sem a
   infraestrutura importar o domínio. Seção "Enums".

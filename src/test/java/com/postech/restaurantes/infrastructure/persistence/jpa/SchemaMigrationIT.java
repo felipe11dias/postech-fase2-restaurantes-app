@@ -5,17 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.postech.restaurantes.Documentos;
 import com.postech.restaurantes.EnderecosNoBanco;
 import com.postech.restaurantes.IntegrationTestSupport;
-import com.postech.restaurantes.adapter.datasource.IRoleDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
-import com.postech.restaurantes.domain.entity.role.RoleName;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -34,56 +30,84 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     private JdbcTemplate jdbc;
 
     @Autowired
-    private IRoleDataSource roleDataSource;
-
-    @Autowired
     private IUserDataSource userDataSource;
 
     @Test
-    @DisplayName("As cinco migrations foram aplicadas com sucesso e ficaram registradas no histórico")
+    @DisplayName("As seis migrations foram aplicadas com sucesso e ficaram registradas no histórico")
     void deveAplicarAsMigrations() {
         List<String> versoes = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = true AND version IS NOT NULL "
                         + "ORDER BY installed_rank", String.class);
 
-        assertEquals(List.of("1", "2", "3", "4", "5"), versoes);
+        assertEquals(List.of("1", "2", "3", "4", "5", "6"), versoes);
     }
 
     @Test
-    @DisplayName("O schema tem exatamente as sete tabelas do modelo")
+    @DisplayName("O schema tem as tabelas do modelo v2: perfis no lugar do catálogo de papéis")
     void deveCriarAsTabelas() {
         List<String> tabelas = jdbc.queryForList(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' "
                         + "AND table_name <> 'flyway_schema_history' ORDER BY table_name", String.class);
 
-        assertEquals(List.of("addresses", "password_reset_tokens", "restaurants", "roles", "user_addresses",
-                "user_roles", "users"), tabelas);
+        assertEquals(List.of("addresses", "admins", "clients", "couriers", "owners", "password_reset_tokens",
+                "restaurants", "user_addresses", "users"), tabelas);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({
+            "courier_vehicle_type, ON_FOOT;BICYCLE;MOTORCYCLE;CAR",
+            "courier_status,       OFFLINE;AVAILABLE;BUSY"
+    })
+    @DisplayName("Os tipos ENUM do entregador têm os valores do modelo, na ordem do modelo")
+    void deveCriarOsEnums(String tipo, String valores) {
+        List<String> rotulos = jdbc.queryForList("SELECT e.enumlabel FROM pg_enum e JOIN pg_type t "
+                + "ON t.oid = e.enumtypid WHERE t.typname = ? ORDER BY e.enumsortorder", String.class, tipo);
+
+        assertEquals(List.of(valores.split(";")), rotulos);
     }
 
     @Test
-    @DisplayName("O catálogo de papéis tem os três papéis reconhecidos pelo domínio")
-    void deveSemearOCatalogoDePapeis() {
-        Set<String> nomes = Arrays.stream(RoleName.values()).map(Enum::name).collect(Collectors.toSet());
+    @DisplayName("Os usuários de demonstração existem, cada um com o seu perfil e a senha em hash")
+    void deveSemearOsUsuariosDeDemonstracao() {
+        UserData dono = userDataSource.findByLogin("dono.restaurante").orElseThrow();
+        UserData cliente = userDataSource.findByLogin("cliente.demo").orElseThrow();
+        UserData admin = userDataSource.findByLogin("admin.demo").orElseThrow();
 
-        assertEquals(nomes, roleDataSource.findByNames(nomes).stream()
-                .map(role -> role.name())
-                .collect(Collectors.toSet()));
+        assertEquals("04252011000110", dono.owner().cnpj());
+        assertNull(dono.client());
+        assertEquals("52998224725", cliente.client().cpf());
+        assertNull(cliente.owner());
+        assertEquals("ADM-0001", admin.admin().employeeCode());
+        assertTrue(admin.admin().superAdmin());
+        assertNull(admin.courier());
+        for (UserData usuario : List.of(dono, cliente, admin)) {
+            assertTrue(usuario.passwordHash().startsWith("$2a$"), "senha da seed deve estar em hash BCrypt");
+            assertEquals("system", jdbc.queryForObject(
+                    "SELECT created_by FROM users WHERE id = ?", String.class, usuario.id()));
+        }
     }
 
-    @ParameterizedTest(name = "{0} com {1}")
+    @ParameterizedTest(name = "{0}: CNH {1}, placa {2}")
     @CsvSource({
-            "dono.restaurante, ROLE_OWNER",
-            "cliente.demo,     ROLE_CUSTOMER",
-            "admin.demo,       ROLE_ADMIN"
+            "MOTORCYCLE, ,            ABC1D23",
+            "CAR,        02650306461, ",
+            "ON_FOOT,    02650306461, ",
+            "BICYCLE,    ,            ABC1D23"
     })
-    @DisplayName("Os usuários de demonstração existem, com o papel previsto e a senha em hash")
-    void deveSemearOsUsuariosDeDemonstracao(String login, String papel) {
-        UserData usuario = userDataSource.findByLogin(login).orElseThrow();
+    @DisplayName("O banco recusa CNH e placa que não combinam com o veículo (motorizado exige as duas)")
+    void deveRecusarDocumentosQueNaoCombinamComOVeiculo(String veiculo, String cnh, String placa) {
+        UUID id = UUID.randomUUID();
+        try {
+            jdbc.update("INSERT INTO users (id, name, email, login, password, created_at, last_updated_at) "
+                    + "VALUES (?, 'Entregador', ?, ?, '$2a$10$hash', NOW(), NOW())", id, id + "@email.com", id.toString());
 
-        assertEquals(Set.of(papel), usuario.roles().stream().map(role -> role.name()).collect(Collectors.toSet()));
-        assertTrue(usuario.passwordHash().startsWith("$2a$"), "senha da seed deve estar em hash BCrypt");
-        assertEquals("system", jdbc.queryForObject(
-                "SELECT created_by FROM users WHERE login = ?", String.class, login));
+            assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("INSERT INTO couriers (id, cpf, "
+                    + "phone, driver_license_number, vehicle_type, vehicle_plate, created_at, last_updated_at) "
+                    + "VALUES (?, ?, '11912345678', ?, ?::courier_vehicle_type, ?, NOW(), NOW())",
+                    id, Documentos.cpf(), cnh, veiculo, placa));
+        } finally {
+            jdbc.update("DELETE FROM users WHERE id = ?", id);
+        }
     }
 
     @Test
@@ -99,7 +123,7 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("O banco apaga em cascata vínculos e tokens; o endereço fica, porque é ele o referenciado")
+    @DisplayName("O banco apaga em cascata vínculos, tokens e perfis; o endereço fica, porque é ele o referenciado")
     void deveApagarEmCascataNoBanco() {
         try {
             jdbc.update("INSERT INTO users (id, name, email, login, password, created_at, last_updated_at) "
@@ -113,11 +137,15 @@ class SchemaMigrationIT extends IntegrationTestSupport {
                     + "TRUE, NOW(), NOW())");
             jdbc.update("INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) "
                     + "VALUES ('b0000000-0000-4000-8000-0000000000ff', 'hash-efemero', NOW())");
+            jdbc.update("INSERT INTO clients (id, cpf, phone, created_at, last_updated_at) "
+                    + "VALUES ('b0000000-0000-4000-8000-0000000000ff', ?, '11912345678', NOW(), NOW())", Documentos.cpf());
 
             jdbc.update("DELETE FROM users WHERE login = 'efemero'");
 
             assertEquals(0, contar("user_addresses", "b0000000-0000-4000-8000-0000000000ff"));
             assertEquals(0, contar("password_reset_tokens", "b0000000-0000-4000-8000-0000000000ff"));
+            assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM clients "
+                    + "WHERE id = 'b0000000-0000-4000-8000-0000000000ff'", Integer.class));
             assertEquals(1, EnderecosNoBanco.existentes(jdbc,
                     List.of(UUID.fromString("c0000000-0000-4000-8000-0000000000ff"))));
         } finally {

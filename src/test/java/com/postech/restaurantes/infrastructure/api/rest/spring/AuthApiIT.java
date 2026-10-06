@@ -243,7 +243,7 @@ class AuthApiIT extends WebIntegrationTestSupport {
                 "email", login + "@email.com",
                 "login", login,
                 "password", "senhaSegura123",
-                "roles", List.of("ROLE_CUSTOMER"),
+                "client", perfilDeCliente(),
                 "addresses", List.of())), JsonNode.class);
         assertEquals(HttpStatus.CREATED, resposta.getStatusCode());
     }

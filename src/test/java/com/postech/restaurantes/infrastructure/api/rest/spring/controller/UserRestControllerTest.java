@@ -1,5 +1,6 @@
 package com.postech.restaurantes.infrastructure.api.rest.spring.controller;
 
+import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.CLIENT_REQUEST;
 import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.USER_ID;
 import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.USER_VIEW;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -23,7 +24,6 @@ import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.Updat
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.response.UserResponse;
 import com.postech.restaurantes.infrastructure.api.rest.spring.route.ApiRoutes;
 import java.util.List;
-import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -64,7 +64,7 @@ class UserRestControllerTest {
     void deveResponder201NoCadastro() {
         when(controller.register(any())).thenReturn(USER_VIEW);
         NewUserRequest request = new NewUserRequest("João Silva", "joao.silva@email.com", "joao.silva",
-                "senhaSegura123", Set.of("ROLE_CUSTOMER"), null);
+                "senhaSegura123", null, CLIENT_REQUEST, null, null);
 
         ResponseEntity<EntityModel<UserResponse>> resposta = restController.register(request);
 

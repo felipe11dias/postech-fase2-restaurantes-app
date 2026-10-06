@@ -52,11 +52,11 @@
 ```
 adapter/
   controller/   UserController, AuthController              — o maestro
-  gateway/      UserGateway, RoleGateway, PasswordResetTokenGateway,
+  gateway/      UserGateway, PasswordResetTokenGateway,
                 RestaurantGateway                                     — tradutores de dados
   gateway/mapping/  AddressMapping                                 — tradução compartilhada (endereço)
                 PasswordResetMailGateway, TokenGateway                 — tradutores de serviços
-  datasource/   IUserDataSource, IRoleDataSource, IPasswordResetTokenDataSource  (+ data/ *Data)
+  datasource/   IUserDataSource, IPasswordResetTokenDataSource, IRestaurantDataSource  (+ data/ *Data)
   service/      IMailSender, ITokenEncoder                                        (+ data/ *Data)
   presenter/    UserPresenter, AuthPresenter, RestaurantPresenter, AddressPresenter (+ view/ *View)
 ```
@@ -68,7 +68,7 @@ Exatamente o formato da Aula 05, com a unidade de trabalho em volta de cada `run
 ```java
 public UserView register(NewUserDTO dto) {
     var useCase = RegisterUserUseCase.create(UserGateway.create(userDataSource),
-            RoleGateway.create(roleDataSource), passwordEncoder);          // gateways criados aqui
+            passwordEncoder, clock);                                       // gateway criado aqui
     return UserPresenter.toView(unitOfWork.execute(() -> useCase.run(dto))); // presenter no fim
 }
 ```
@@ -81,12 +81,11 @@ comuns, criados pela fábrica estática na composição (`CompositionConfig`) �
 
 | Gateway | Porta do núcleo | Consome | Tradução que faz |
 |---|---|---|---|
-| `UserGateway` | `IUserGateway` | `IUserDataSource` | `User` ↔ `UserData` (e-mail normalizado, CEP sem máscara, papéis pelo nome, endereços como `UserAddressData` com rótulo e padrão); reconstrói com `User.restore`, que **revalida** |
-| `RoleGateway` | `IRoleGateway` | `IRoleDataSource` | `RoleName` ↔ nome textual |
+| `UserGateway` | `IUserGateway` | `IUserDataSource` | `User` ↔ `UserData` (e-mail normalizado, CEP sem máscara, cada perfil como `OwnerData`/`ClientData`/`CourierData`/`AdminData` — documentos sem máscara, tipo de veículo e status pelo nome, convertidos de volta por `CourierVehicleType.from`/`CourierStatus.from` —, endereços como `UserAddressData` com rótulo e padrão); reconstrói com `User.restore`, que **revalida** |
 | `RestaurantGateway` | `IRestaurantGateway` | `IRestaurantDataSource` | `Restaurant` ↔ `RestaurantData`, com o endereço do restaurante aninhado |
 | `PasswordResetTokenGateway` | `IPasswordResetTokenGateway` | `IPasswordResetTokenDataSource` | `PasswordResetToken` ↔ `PasswordResetTokenData` |
 | [`PasswordResetMailGateway`](../../src/main/java/com/postech/restaurantes/adapter/gateway/PasswordResetMailGateway.java) | `IMailGateway` | `IMailSender` | pedido "token + validade" → **assunto e corpo** da mensagem em português |
-| [`TokenGateway`](../../src/main/java/com/postech/restaurantes/adapter/gateway/TokenGateway.java) | `ITokenIssuer` | `ITokenEncoder` | `User` → `TokenClaimsData` (id, login, nomes dos papéis) |
+| [`TokenGateway`](../../src/main/java/com/postech/restaurantes/adapter/gateway/TokenGateway.java) | `ITokenIssuer` | `ITokenEncoder` | `User` → `TokenClaimsData` (id, login, nomes dos papéis derivados dos perfis) |
 
 **Tradução compartilhada — [`adapter/gateway/mapping`](../../src/main/java/com/postech/restaurantes/adapter/gateway/mapping).**
 O endereço é parte de dois agregados (usuário, por `UserAddress`, e restaurante). A tradução
@@ -165,7 +164,7 @@ Outros pontos em relação ao código das aulas:
 - `InfrastructureModulesTest`: **a infraestrutura só conhece as portas técnicas** do núcleo — qualquer
   outra porta implementada (ou referenciada, como uma lambda num `@Bean`) fora de `adapter.gateway`
   quebra o build; e os módulos de e-mail e token não conhecem o `domain`.
-- Testes: `UserGatewayTest`, `RoleAndTokenGatewaysTest`, `ServiceGatewaysTest` (tradução com os
+- Testes: `UserGatewayTest`, `PasswordResetTokenGatewayTest`, `ServiceGatewaysTest` (tradução com os
   serviços mockados), `PresentersTest`, e `UserControllerTest`/`AuthControllerTest` (inclusive: e-mail só depois do commit, e nenhum se
   o commit falha), que testam o
   controller "de ponta a ponta dentro do núcleo" — origens de dados e serviços mockados, casos de

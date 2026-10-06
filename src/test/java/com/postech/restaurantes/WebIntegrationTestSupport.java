@@ -71,6 +71,16 @@ public abstract class WebIntegrationTestSupport {
         return resposta.getBody().get("token").asText();
     }
 
+    /** Bloco {@code client} do autocadastro, com CPF novo: o CPF é único e o banco é compartilhado. */
+    protected static Map<String, Object> perfilDeCliente() {
+        return Map.of("cpf", Documentos.cpf(), "phone", "(11) 91234-5678");
+    }
+
+    /** Bloco {@code owner} do autocadastro, com CNPJ novo. */
+    protected static Map<String, Object> perfilDeDono() {
+        return Map.of("cnpj", Documentos.cnpj(), "legalName", "Integração Ltda", "businessPhone", "(11) 3123-4567");
+    }
+
     protected static HttpEntity<Object> corpo(Object body) {
         return new HttpEntity<>(body, cabecalhos(null));
     }

@@ -169,14 +169,14 @@ Na IDE, configure as mesmas variáveis na configuração de execução (ou use u
 
 ## Usuários de demonstração
 
-Criados pela migration `V2`. O administrador só existe por aqui: o autocadastro recusa
-`ROLE_ADMIN`.
+Criados pelas migrations `V2` (usuários) e `V6` (perfis). O administrador só existe por aqui: o
+autocadastro não tem perfil de administrador.
 
-| Login | Senha | Papel |
-|---|---|---|
-| `admin.demo` | `admin12345` | `ROLE_ADMIN` |
-| `dono.restaurante` | `dono12345` | `ROLE_OWNER` |
-| `cliente.demo` | `cliente12345` | `ROLE_CUSTOMER` |
+| Login | Senha | Perfil | Papel (derivado) |
+|---|---|---|---|
+| `admin.demo` | `admin12345` | administrador (`ADM-0001`) | `ROLE_ADMIN` |
+| `dono.restaurante` | `dono12345` | dono (CNPJ `04.252.011/0001-10`) | `ROLE_OWNER` |
+| `cliente.demo` | `cliente12345` | cliente (CPF `529.982.247-25`) | `ROLE_CLIENT` |
 
 ## Autenticação e autorização
 
@@ -186,7 +186,10 @@ Criados pela migration `V2`. O administrador só existe por aqui: o autocadastro
 3. Regras de acesso:
    - Cada usuário lê, altera e exclui **apenas o próprio cadastro**. O administrador acessa qualquer um.
    - A **listagem** de cadastros é exclusiva do administrador, porque expõe dados pessoais de todos.
-   - O autocadastro é público, mas não concede `ROLE_ADMIN`.
+   - O autocadastro é público e traz um ou mais perfis — `owner` (CNPJ), `client` (CPF) e `courier`
+     (CPF; CNH e placa para moto e carro) —, nunca o de administrador. O papel de cada um é derivado
+     do perfil: `ROLE_OWNER`, `ROLE_CLIENT`, `ROLE_COURIER`.
+   - Restaurante só pode ter como dono um usuário com perfil de dono.
 4. **Recuperação de senha:** `POST /api/v1/auth/forgot-password` responde `202` sempre, exista ou
    não o e-mail, e no mesmo tempo: o pedido é processado em segundo plano, então a API não revela
    quais e-mails têm conta nem pela resposta nem pela demora. O token chega **só por e-mail**, em
@@ -214,15 +217,15 @@ que o cliente deve se apoiar:
 
 | `type` (`urn:restaurantes:problema:…`) | Status | Quando |
 |---|---|---|
-| `requisicao-invalida` | 400 | Campo inválido (com o mapa `errors` por campo), JSON malformado, id que não é UUID |
+| `requisicao-invalida` | 400 | Campo inválido (com o mapa `errors` por campo), JSON malformado, id que não é UUID, nenhum perfil, CPF/CNPJ inválido |
 | `senha-invalida` | 400 | Senha atual incorreta ou confirmação divergente |
 | `token-invalido` | 400 | Token de redefinição desconhecido, vencido ou já usado |
 | `falha-na-autenticacao` | 401 | Login ou senha incorretos (mesma resposta para os dois) |
 | `nao-autenticado` | 401 | Sem token ou token inválido/expirado |
-| `operacao-nao-permitida` | 403 | Autocadastro pedindo `ROLE_ADMIN` |
+| `operacao-nao-permitida` | 403 | Restaurante indicado para usuário sem perfil de dono |
 | `acesso-negado` | 403 | Cadastro de outro usuário; listagem por não administrador |
 | `recurso-nao-encontrado` | 404 | Usuário inexistente |
-| `conflito-de-dados` | 409 | E-mail ou login já cadastrado |
+| `conflito-de-dados` | 409 | E-mail, login, CPF ou CNPJ já cadastrado |
 | `erro-inesperado` | 500 | Falha não prevista (detalhe genérico; a causa vai para o log) |
 
 A documentação completa, com exemplos de cada resposta, está no Swagger UI.
@@ -230,15 +233,17 @@ A documentação completa, com exemplos de cada resposta, está no Swagger UI.
 ## Coleção Postman
 
 [`postman/Restaurantes.postman_collection.json`](postman/Restaurantes.postman_collection.json)
-(formato v2.1) tem **52 requests em 9 pastas**: um por caso de cada endpoint — o sucesso e cada
+(formato v2.1) tem **76 requests em 15 pastas** (usuários e restaurantes): um por caso de cada endpoint — o sucesso e cada
 erro previsto —, na ordem em que rodam de cima a baixo. Os scripts de teste conferem o status e
 o `type` de cada erro e guardam `{{adminToken}}`, `{{token}}` e `{{userId}}` para as requisições
 seguintes; se um login ou cadastro essencial falhar, a execução para ali, com o motivo, em vez de
 seguir falhando em cascata. A pasta de recuperação de senha lê o token **na caixa do Mailpit**,
 pela API dele, como o usuário faria.
 
-A coleção cria os próprios usuários — um cliente e um segundo cadastro descartável, alvo dos
-casos de acesso negado — e os exclui ao fim. **Ela nunca altera os usuários da seed**: se a regra
+A coleção cria os próprios usuários — um cliente, um segundo cadastro descartável (alvo dos
+casos de acesso negado), um dono e um entregador — e os exclui ao fim. CPF, CNPJ e CNH são únicos
+no banco: o pré-request da coleção gera documentos válidos e novos a cada request
+(`{{cpfGerado}}`, `{{cnpjGerado}}`, `{{cnhGerada}}`). **Ela nunca altera os usuários da seed**: se a regra
 de posse regredir, o estrago fica no cadastro descartável. Por isso pode rodar quantas vezes
 quiser contra o mesmo banco.
 

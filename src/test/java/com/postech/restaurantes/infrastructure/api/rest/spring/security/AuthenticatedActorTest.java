@@ -50,7 +50,7 @@ class AuthenticatedActorTest {
     @DisplayName("Usuário autenticado é identificado pelo login")
     void deveIdentificarOLoginAutenticado() {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
-                "joao.silva", "senha", List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER"))));
+                "joao.silva", "senha", List.of(new SimpleGrantedAuthority("ROLE_CLIENT"))));
 
         assertEquals(Optional.of("joao.silva"), actor.currentLogin());
     }

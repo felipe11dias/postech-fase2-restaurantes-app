@@ -3,6 +3,9 @@ package com.postech.restaurantes.infrastructure.persistence.jpa.user;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.HASH;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.NOW;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.USER_ID;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.adminEntity;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.courierEntity;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ownerEntity;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.userAddressEntity;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.userEntity;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -11,10 +14,10 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.address.UserAddressJpaEntity;
-import com.postech.restaurantes.infrastructure.persistence.jpa.user.role.RoleJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.user.admin.AdminJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.user.courier.CourierJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.user.owner.OwnerJpaEntity;
 import java.util.List;
-import java.util.Set;
-import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +40,10 @@ class UserJpaEntityTest {
         assertEquals(HASH, user.getPassword());
         assertEquals(NOW.minusDays(1), user.getCreatedAt());
         assertEquals(NOW, user.getLastUpdatedAt());
-        assertEquals(1, user.getRoles().size());
+        assertEquals("52998224725", user.getClient().getCpf());
+        assertNull(user.getOwner());
+        assertNull(user.getCourier());
+        assertNull(user.getAdmin());
         assertEquals(1, user.getAddresses().size());
     }
 
@@ -51,17 +57,22 @@ class UserJpaEntityTest {
     }
 
     @Test
-    @DisplayName("Substituir os papéis descarta os anteriores")
-    void deveSubstituirPapeis() {
+    @DisplayName("Guarda e remove cada perfil pelo acessor próprio")
+    void deveGuardarOsPerfis() {
         UserJpaEntity user = userEntity();
-        RoleJpaEntity admin = new RoleJpaEntity();
-        admin.setId(UUID.randomUUID());
-        admin.setName("ROLE_ADMIN");
+        OwnerJpaEntity owner = ownerEntity();
+        CourierJpaEntity courier = courierEntity();
+        AdminJpaEntity admin = adminEntity();
 
-        user.replaceRoles(Set.of(admin));
+        user.setOwner(owner);
+        user.setCourier(courier);
+        user.setAdmin(admin);
+        user.setClient(null);
 
-        assertEquals(1, user.getRoles().size());
-        assertEquals("ROLE_ADMIN", user.getRoles().iterator().next().getName());
+        assertSame(owner, user.getOwner());
+        assertSame(courier, user.getCourier());
+        assertSame(admin, user.getAdmin());
+        assertNull(user.getClient());
     }
 
     @Test

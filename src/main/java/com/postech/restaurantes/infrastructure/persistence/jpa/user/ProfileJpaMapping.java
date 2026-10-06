@@ -33,6 +33,14 @@ final class ProfileJpaMapping {
                 : admin(orNew(user.getAdmin(), AdminJpaEntity::new), user, data.admin()));
     }
 
+    /** Tira todos os perfis do usuário; o {@code orphanRemoval} apaga as linhas na próxima descarga. */
+    static void removeAll(UserJpaEntity user) {
+        user.setOwner(null);
+        user.setClient(null);
+        user.setCourier(null);
+        user.setAdmin(null);
+    }
+
     /** A linha que o usuário já tem, ou uma nova. */
     private static <T> T orNew(T current, Supplier<T> factory) {
         return current != null ? current : factory.get();

@@ -43,7 +43,7 @@ Um caso de uso por **intenção do ator**, em subpacotes por feature:
 
 | Ator — objetivo | Caso de uso | Cenário principal | Extensões (exceções de negócio) |
 |---|---|---|---|
-| Visitante — cadastrar-se | [`RegisterUserUseCase`](../../src/main/java/com/postech/restaurantes/application/usecase/user/RegisterUserUseCase.java) | papéis existem, e-mail e login livres → `User.create` com hash da senha → `insert` | `ROLE_ADMIN` pedido (`ForbiddenOperationException`); e-mail/login repetido (`DuplicateResourceException`); papel inexistente (`ResourceNotFoundException`) |
+| Visitante — cadastrar-se | [`RegisterUserUseCase`](../../src/main/java/com/postech/restaurantes/application/usecase/user/RegisterUserUseCase.java) | perfis pedidos (dono, cliente, entregador; nunca administrador) → e-mail, login, CPF e CNPJ livres → `User.create` com hash da senha → `insert` | e-mail, login, CPF ou CNPJ repetido (`DuplicateResourceException`); nenhum perfil, documento inválido, CPFs divergentes ou veículo sem CNH e placa (invariantes do domínio) |
 | Usuário — consultar/atualizar/excluir o próprio cadastro | `FindUserByIdUseCase`, `UpdateUserUseCase`, `DeleteUserUseCase` | busca, altera dados e endereços, remove | inexistente; e-mail/login de outro cadastro |
 | Usuário — trocar a senha | `ChangePasswordUseCase` | confere a atual → confirmação → novo hash | senha atual errada, confirmação divergente (`InvalidPasswordException`) |
 | Administrador — listar cadastros | `SearchUsersUseCase` | busca paginada por nome | ordenação por propriedade não permitida cai no nome |
@@ -56,7 +56,7 @@ Um caso de uso por **intenção do ator**, em subpacotes por feature:
 
 | Porta | O que o caso de uso pede | Implementada por |
 |---|---|---|
-| `IUserGateway`, `IRoleGateway`, `IPasswordResetTokenGateway` | encontrar, incluir, alterar, excluir agregados | gateways do adaptador sobre origens de dados (`UserGateway`, …) |
+| `IUserGateway` (inclusive `findByCpf`, `findByCnpj`), `IPasswordResetTokenGateway`, `IRestaurantGateway` | encontrar, incluir, alterar, excluir agregados | gateways do adaptador sobre origens de dados (`UserGateway`, …) |
 | `IMailGateway` | "mande este token a este e-mail, válido por tanto tempo" | `PasswordResetMailGateway` (adaptador) sobre `IMailSender` |
 | `ITokenIssuer` | "emita o token de acesso deste usuário" | `TokenGateway` (adaptador) sobre `ITokenEncoder` |
 | `IPasswordEncoder` | gerar e conferir hash; gastar o tempo de uma comparação | direto pela infraestrutura (`crypto`) — porta técnica |
@@ -72,15 +72,15 @@ Exemplo — o equivalente do `CadastrarEstudanteUseCase` da Aula 03:
 
 ```java
 public final class RegisterUserUseCase {
-    private RegisterUserUseCase(IUserGateway userGateway, IRoleGateway roleGateway,
-                                IPasswordEncoder passwordEncoder) { ... }
+    private RegisterUserUseCase(IUserGateway userGateway, IPasswordEncoder passwordEncoder,
+                                Clock clock) { ... }
 
-    public static RegisterUserUseCase create(IUserGateway userGateway, IRoleGateway roleGateway,
-                                             IPasswordEncoder passwordEncoder) { ... }
+    public static RegisterUserUseCase create(IUserGateway userGateway, IPasswordEncoder passwordEncoder,
+                                             Clock clock) { ... }
 
     public User run(NewUserDTO dto) {
-        // extensão: autocadastro não concede ROLE_ADMIN
-        // extensões: e-mail e login já cadastrados
+        // regra de aplicação: o pedido não tem perfil de administrador (autocadastro não o concede)
+        // extensões: e-mail, login, CPF e CNPJ já cadastrados
         // cenário principal: User.create(... passwordEncoder.encode(senha) ...) → userGateway.insert
     }
 }
@@ -94,7 +94,7 @@ public final class RegisterUserUseCase {
 | Porta declarada pelo consumidor | `application/gateway` | o núcleo diz o que precisa, a infraestrutura se adapta (DIP) |
 | Extensões como exceções de domínio | `DomainException` e subclasses | cada desvio do cenário principal tem nome de negócio e vira uma categoria de erro HTTP no handler |
 | Regra de negócio × regra de aplicação | entidade × caso de uso | o que vale sempre fica na entidade; o que depende do ponto de entrada fica no caso de uso |
-| Relógio e validade por parâmetro | `ForgotPasswordUseCase.create(..., validity, clock)` | vencimento testável com `Clock.fixed`, sem esperar o tempo passar |
+| Relógio e validade por parâmetro | `ForgotPasswordUseCase.create(..., validity, clock)`, `RegisterUserUseCase.create(..., clock)` | vencimento e "nascimento não futuro" testáveis com `Clock.fixed`, sem esperar o tempo passar |
 
 ## 5. Desvios conscientes
 

@@ -6,15 +6,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.postech.restaurantes.Documentos;
 import com.postech.restaurantes.IntegrationTestSupport;
 import com.postech.restaurantes.adapter.datasource.IPasswordResetTokenDataSource;
-import com.postech.restaurantes.adapter.datasource.IRoleDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
+import com.postech.restaurantes.adapter.datasource.data.ClientData;
 import com.postech.restaurantes.adapter.datasource.data.PasswordResetTokenData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,9 +29,6 @@ class PasswordResetTokenPersistenceIT extends IntegrationTestSupport {
 
     @Autowired
     private IUserDataSource userDataSource;
-
-    @Autowired
-    private IRoleDataSource roleDataSource;
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -139,6 +136,6 @@ class PasswordResetTokenPersistenceIT extends IntegrationTestSupport {
         LocalDateTime agora = LocalDateTime.now().withNano(0);
         return userDataSource.insert(new UserData(null, "Dono do Token", "token." + sufixo + "@email.com",
                 "token." + sufixo, "$2a$10$hashDeIntegracaoComTamanhoSuficiente",
-                roleDataSource.findByNames(Set.of("ROLE_CUSTOMER")), List.of(), agora, agora));
+                null, new ClientData(Documentos.cpf(), "11912345678", null), null, null, List.of(), agora, agora));
     }
 }

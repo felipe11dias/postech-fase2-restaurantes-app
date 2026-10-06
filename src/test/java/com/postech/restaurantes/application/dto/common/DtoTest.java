@@ -70,14 +70,14 @@ class DtoTest {
     @Test
     @DisplayName("Records de entrada apenas transportam dados")
     void deveTransportarDados() {
-        NewUserDTO novo = new NewUserDTO("n", "e", "l", "p", null, null);
+        NewUserDTO novo = new NewUserDTO("n", "e", "l", "p", null, null, null, null);
         UpdateUserDTO update = new UpdateUserDTO("n", "e", "l", null);
         ChangePasswordDTO change = new ChangePasswordDTO("a", "b", "b");
         CredentialsDTO cred = new CredentialsDTO("l", "p");
         ResetPasswordDTO reset = new ResetPasswordDTO("t", "n", "n");
 
         assertEquals("n", novo.name());
-        assertNull(novo.roles());
+        assertNull(novo.owner());
         assertEquals("e", update.email());
         assertEquals("b", change.confirmPassword());
         assertEquals("p", cred.password());

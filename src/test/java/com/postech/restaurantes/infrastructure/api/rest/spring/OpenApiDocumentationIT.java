@@ -180,7 +180,7 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
     void deveDocumentarOStatusRealDoCadastro() {
         JsonNode respostas = doc.at("/paths/~1api~1v1~1users/post/responses");
 
-        assertEquals(Set.of("201", "400", "403", "409"), nomesDosCampos(respostas));
+        assertEquals(Set.of("201", "400", "409"), nomesDosCampos(respostas));
     }
 
     /**

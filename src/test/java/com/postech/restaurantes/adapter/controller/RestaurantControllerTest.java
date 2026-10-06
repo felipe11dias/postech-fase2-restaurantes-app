@@ -12,7 +12,7 @@ import com.postech.restaurantes.adapter.datasource.IRestaurantDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
 import com.postech.restaurantes.adapter.datasource.data.AddressData;
 import com.postech.restaurantes.adapter.datasource.data.RestaurantData;
-import com.postech.restaurantes.adapter.datasource.data.RoleData;
+import com.postech.restaurantes.adapter.datasource.data.OwnerData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
 import com.postech.restaurantes.adapter.presenter.view.RestaurantView;
 import com.postech.restaurantes.application.dto.common.AddressDTO;
@@ -21,12 +21,10 @@ import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.restaurant.CreateRestaurantDTO;
 import com.postech.restaurantes.application.dto.restaurant.UpdateRestaurantDTO;
 import com.postech.restaurantes.application.gateway.IUnitOfWork;
-import com.postech.restaurantes.domain.entity.role.RoleName;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,7 +70,7 @@ class RestaurantControllerTest {
 
         AddressData addressData = new AddressData(UUID.randomUUID(), "Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
         userData = new UserData(userId, "Dono", "dono@x.com", "dono", "hash",
-                Set.of(new RoleData(UUID.randomUUID(), RoleName.ROLE_OWNER.name())), List.of(), null, null);
+                new OwnerData("11222333000181", "Sabor Ltda", "1131234567"), null, null, null, List.of(), null, null);
 
         restaurantData = new RestaurantData(restaurantId, userId, addressData, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0),
                 LocalDateTime.now(), LocalDateTime.now());

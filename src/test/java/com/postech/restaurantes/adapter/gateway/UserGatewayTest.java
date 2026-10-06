@@ -1,15 +1,18 @@
 package com.postech.restaurantes.adapter.gateway;
 
 import static com.postech.restaurantes.adapter.AdapterFixtures.ADDRESS_ID;
-import static com.postech.restaurantes.adapter.AdapterFixtures.CUSTOMER_DATA;
+import static com.postech.restaurantes.adapter.AdapterFixtures.ADMIN_DATA;
+import static com.postech.restaurantes.adapter.AdapterFixtures.CLIENT_DATA;
+import static com.postech.restaurantes.adapter.AdapterFixtures.COURIER_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.HASH;
 import static com.postech.restaurantes.adapter.AdapterFixtures.NOW;
-import static com.postech.restaurantes.adapter.AdapterFixtures.ROLE_ID;
+import static com.postech.restaurantes.adapter.AdapterFixtures.OWNER_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.USER_ADDRESS_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.USER_ADDRESS_ID;
 import static com.postech.restaurantes.adapter.AdapterFixtures.USER_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.USER_ID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -19,14 +22,21 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
+import com.postech.restaurantes.adapter.datasource.data.CourierData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.domain.entity.address.Address;
-import com.postech.restaurantes.domain.entity.role.Role;
 import com.postech.restaurantes.domain.entity.role.RoleName;
+import com.postech.restaurantes.domain.entity.client.ClientProfile;
+import com.postech.restaurantes.domain.entity.courier.CourierProfile;
+import com.postech.restaurantes.domain.entity.courier.CourierStatus;
+import com.postech.restaurantes.domain.entity.courier.CourierVehicleType;
 import com.postech.restaurantes.domain.entity.user.User;
 import com.postech.restaurantes.domain.entity.user.UserAddress;
+import com.postech.restaurantes.domain.entity.user.UserProfiles;
+import com.postech.restaurantes.domain.vo.Cnpj;
+import com.postech.restaurantes.domain.vo.Cpf;
 import com.postech.restaurantes.domain.vo.Email;
 import java.util.List;
 import java.util.Optional;
@@ -65,7 +75,8 @@ class UserGatewayTest {
         assertEquals(Email.of("joao.silva@email.com"), user.getEmail());
         assertEquals("joao.silva", user.getLogin());
         assertEquals(HASH, user.getPasswordHash());
-        assertEquals(Set.of(Role.restore(ROLE_ID, RoleName.ROLE_CUSTOMER)), user.getRoles());
+        assertEquals(Set.of(RoleName.ROLE_CLIENT), user.getRoles());
+        assertEquals(Cpf.of("52998224725"), user.getProfiles().client().getCpf());
         UserAddress userAddress = user.getAddresses().get(0);
         assertEquals(USER_ADDRESS_ID, userAddress.getId());
         assertEquals("Casa", userAddress.getLabel());
@@ -113,7 +124,7 @@ class UserGatewayTest {
     @Test
     @DisplayName("Inserção traduz a entidade nova (sem id) para o record e reconstrói com o registro devolvido")
     void deveTraduzirNaInsercao() {
-        User novo = User.create("Ana", "Ana@X.com", "ana", "hash", Set.of(Role.restore(ROLE_ID, RoleName.ROLE_CUSTOMER)),
+        User novo = User.create("Ana", "Ana@X.com", "ana", "hash", new UserProfiles(null, ClientProfile.create("52998224725", "11912345678", null, NOW.toLocalDate()), null, null),
                 List.of(UserAddress.create("Casa", true,
                         Address.create("Rua A", null, null, null, "Cidade", "sp", "01001-000"))));
         when(dataSource.insert(any())).thenReturn(USER_DATA);
@@ -125,8 +136,10 @@ class UserGatewayTest {
         UserData sent = captor.getValue();
         assertNull(sent.id());
         assertEquals("ana@x.com", sent.email());
-        assertEquals("ROLE_CUSTOMER", sent.roles().iterator().next().name());
-        assertEquals(ROLE_ID, sent.roles().iterator().next().id());
+        assertEquals(CLIENT_DATA, sent.client());
+        assertNull(sent.owner());
+        assertNull(sent.courier());
+        assertNull(sent.admin());
         assertNull(sent.addresses().get(0).id());
         assertEquals("Casa", sent.addresses().get(0).label());
         assertTrue(sent.addresses().get(0).isDefault());
@@ -149,9 +162,61 @@ class UserGatewayTest {
         verify(dataSource).update(captor.capture());
         assertEquals(USER_ID, captor.getValue().id());
         assertEquals(USER_ADDRESS_ID, captor.getValue().addresses().get(0).id());
-        assertEquals(CUSTOMER_DATA, captor.getValue().roles().iterator().next());
+        assertEquals(CLIENT_DATA, captor.getValue().client());
         assertEquals(USER_ADDRESS_DATA, captor.getValue().addresses().get(0));
         assertEquals(USER_ID, result.getId());
+    }
+
+    @Test
+    @DisplayName("Busca por CPF e por CNPJ envia à origem o valor sem máscara do VO")
+    void deveDelegarBuscasPorDocumento() {
+        when(dataSource.findByCpf("52998224725")).thenReturn(Optional.of(USER_DATA));
+        when(dataSource.findByCnpj("11222333000181")).thenReturn(Optional.empty());
+
+        assertEquals(USER_ID, gateway.findByCpf(Cpf.of("529.982.247-25")).orElseThrow().getId());
+        assertTrue(gateway.findByCnpj(Cnpj.of("11.222.333/0001-81")).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Os quatro perfis vão e voltam da origem sem perda, com veículo e status do entregador")
+    void deveTraduzirTodosOsPerfis() {
+        UserData completo = new UserData(USER_ID, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
+                OWNER_DATA, CLIENT_DATA, COURIER_DATA, ADMIN_DATA, List.of(), NOW, NOW);
+
+        User user = UserGateway.toEntity(completo);
+
+        assertEquals("Sabor Ltda", user.getProfiles().owner().getLegalName());
+        CourierProfile courier = user.getProfiles().courier();
+        assertEquals(CourierVehicleType.MOTORCYCLE, courier.getVehicleType());
+        assertEquals(CourierStatus.AVAILABLE, courier.getStatus());
+        assertEquals("02650306461", courier.getDriverLicense().value());
+        assertTrue(user.getProfiles().admin().isSuperAdmin());
+        assertEquals(completo, UserGateway.toData(user));
+    }
+
+    @Test
+    @DisplayName("Entregador a pé vai para a origem sem CNH nem placa")
+    void deveTraduzirEntregadorSemDocumentosDeVeiculo() {
+        UserData aPe = new UserData(USER_ID, "João Silva", "joao.silva@email.com", "joao.silva", HASH, null, null,
+                new CourierData("52998224725", "11912345678", "ON_FOOT", null, null, "OFFLINE"), null, List.of(),
+                NOW, NOW);
+
+        UserData data = UserGateway.toData(UserGateway.toEntity(aPe));
+
+        assertNull(data.courier().driverLicense());
+        assertNull(data.courier().vehiclePlate());
+        assertEquals("ON_FOOT", data.courier().vehicleType());
+        assertFalse(UserGateway.toEntity(aPe).isAdmin());
+    }
+
+    @Test
+    @DisplayName("Valor de enum desconhecido na origem é recusado ao reconstruir")
+    void deveRecusarEnumDesconhecidoDaOrigem() {
+        UserData invalido = new UserData(USER_ID, "João Silva", "joao.silva@email.com", "joao.silva", HASH, null,
+                null, new CourierData("52998224725", "11912345678", "ON_FOOT", null, null, "SLEEPING"), null,
+                List.of(), NOW, NOW);
+
+        assertThrows(IllegalArgumentException.class, () -> UserGateway.toEntity(invalido));
     }
 
     @Test

@@ -45,7 +45,7 @@ class UserLifecycleIT extends WebIntegrationTestSupport {
         // 1. Cadastro público, com um endereço
         ResponseEntity<JsonNode> cadastro = rest.postForEntity(USERS, corpo(Map.of(
                 "name", "Ciclo de Vida", "email", login + "@email.com", "login", login,
-                "password", "senhaSegura123", "roles", List.of("ROLE_CUSTOMER"),
+                "password", "senhaSegura123", "client", perfilDeCliente(),
                 "addresses", List.of(endereco("Rua das Flores")))), JsonNode.class);
         assertEquals(HttpStatus.CREATED, cadastro.getStatusCode());
         URI location = cadastro.getHeaders().getLocation();
@@ -91,7 +91,7 @@ class UserLifecycleIT extends WebIntegrationTestSupport {
         assertEquals(0, linhas("users", id, "id"));
         assertEquals(0, linhas("user_addresses", id));
         assertEquals(0, EnderecosNoBanco.existentes(jdbc, List.of(enderecoAtual)));
-        assertEquals(0, linhas("user_roles", id));
+        assertEquals(0, linhas("clients", id, "id"));
         assertEquals(0, linhas("password_reset_tokens", id));
     }
 

@@ -33,7 +33,7 @@ class JwtTokenEncoderTest {
     private static final LocalDateTime AGORA = LocalDateTime.of(2026, 3, 10, 12, 0);
     private static final Clock RELOGIO = Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
     private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
-    private static final TokenClaimsData CLAIMS = new TokenClaimsData(USER_ID, "joao.silva", Set.of("ROLE_CUSTOMER"));
+    private static final TokenClaimsData CLAIMS = new TokenClaimsData(USER_ID, "joao.silva", Set.of("ROLE_CLIENT"));
 
     private final JwtTokenEncoder encoder = new JwtTokenEncoder(new JwtProperties(SECRET, VALIDITY), RELOGIO);
 
@@ -45,7 +45,7 @@ class JwtTokenEncoderTest {
         AuthenticatedUser lido = encoder.read(emitido.token()).orElseThrow();
         assertEquals(USER_ID, lido.id());
         assertEquals("joao.silva", lido.login());
-        assertEquals(Set.of("ROLE_CUSTOMER"), lido.roles());
+        assertEquals(Set.of("ROLE_CLIENT"), lido.roles());
     }
 
     @Test
@@ -85,7 +85,7 @@ class JwtTokenEncoderTest {
     @Test
     @DisplayName("Os papéis saem em ordem alfabética, e o mesmo portador gera sempre o mesmo claim")
     void deveOrdenarOsPapeis() {
-        var claims = new TokenClaimsData(USER_ID, "joao.silva", Set.of("ROLE_OWNER", "ROLE_ADMIN", "ROLE_CUSTOMER"));
+        var claims = new TokenClaimsData(USER_ID, "joao.silva", Set.of("ROLE_OWNER", "ROLE_ADMIN", "ROLE_CLIENT"));
 
         String token = encoder.encode(claims).token();
 
@@ -93,7 +93,7 @@ class JwtTokenEncoderTest {
                 .verifyWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
                 .clock(() -> Date.from(RELOGIO.instant()))
                 .build().parseSignedClaims(token).getPayload();
-        assertEquals(List.of("ROLE_ADMIN", "ROLE_CUSTOMER", "ROLE_OWNER"), payload.get("roles", List.class));
+        assertEquals(List.of("ROLE_ADMIN", "ROLE_CLIENT", "ROLE_OWNER"), payload.get("roles", List.class));
     }
 
     @ParameterizedTest

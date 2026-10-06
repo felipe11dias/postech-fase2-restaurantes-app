@@ -1,5 +1,8 @@
 package com.postech.restaurantes.application.usecase.restaurant;
 
+import static com.postech.restaurantes.application.usecase.UseCaseFixtures.ADMIN;
+import static com.postech.restaurantes.application.usecase.UseCaseFixtures.CLIENT;
+import static com.postech.restaurantes.application.usecase.UseCaseFixtures.OWNER;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -13,15 +16,12 @@ import com.postech.restaurantes.application.dto.restaurant.UpdateRestaurantDTO;
 import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.application.gateway.IUserGateway;
 import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
-import com.postech.restaurantes.domain.entity.role.Role;
-import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.entity.user.User;
 import com.postech.restaurantes.domain.exception.ForbiddenOperationException;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -49,7 +49,7 @@ class UpdateRestaurantUseCaseTest {
         userId = UUID.randomUUID();
         endereco = new AddressDTO("Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
         owner = User.restore(userId, "Dono", "dono@x.com", "dono", "hash",
-                Set.of(Role.restore(UUID.randomUUID(), RoleName.ROLE_OWNER)), List.of(), null, null);
+                OWNER, List.of(), null, null);
         restaurant = Restaurant.restore(restaurantId, userId, endereco.toEntity(), "Antigo", LocalTime.of(8, 0), LocalTime.of(22, 0), null, null);
     }
 
@@ -69,18 +69,18 @@ class UpdateRestaurantUseCaseTest {
     }
 
     @Test
-    @DisplayName("Aceita administrador como dono do restaurante")
-    void deveAtualizarQuandoDonoEhAdministrador() {
+    @DisplayName("Recusa administrador sem perfil de dono como dono do restaurante")
+    void naoDeveAtualizarQuandoDonoEhSoAdministrador() {
         User admin = User.restore(userId, "Admin", "admin@x.com", "admin", "hash",
-                Set.of(Role.restore(UUID.randomUUID(), RoleName.ROLE_ADMIN)), List.of(), null, null);
+                ADMIN, List.of(), null, null);
         when(restaurantGateway.findById(restaurantId)).thenReturn(Optional.of(restaurant));
         when(userGateway.findById(userId)).thenReturn(Optional.of(admin));
-        when(restaurantGateway.update(any())).thenAnswer(inv -> inv.getArgument(0));
 
         UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo Nome", LocalTime.of(9, 0), LocalTime.of(23, 0));
-        Restaurant result = useCase.run(dto);
+        ForbiddenOperationException erro = assertThrows(ForbiddenOperationException.class, () -> useCase.run(dto));
 
-        assertEquals("Novo Nome", result.getName());
+        assertEquals("O usuário informado não tem perfil de dono de restaurante", erro.getMessage());
+        verify(restaurantGateway, never()).update(any());
     }
 
     @Test
@@ -106,7 +106,7 @@ class UpdateRestaurantUseCaseTest {
     @DisplayName("Recusa atualização quando usuário não tem permissão")
     void deveRecusarQuandoUsuarioSemPermissao() {
         User cliente = User.restore(userId, "Cliente", "cli@x.com", "cli", "hash",
-                Set.of(Role.restore(UUID.randomUUID(), RoleName.ROLE_CUSTOMER)), List.of(), null, null);
+                CLIENT, List.of(), null, null);
         when(restaurantGateway.findById(restaurantId)).thenReturn(Optional.of(restaurant));
         when(userGateway.findById(userId)).thenReturn(Optional.of(cliente));
 

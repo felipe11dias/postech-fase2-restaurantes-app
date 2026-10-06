@@ -36,7 +36,7 @@ class RestaurantLifecycleIT extends WebIntegrationTestSupport {
         // 1. Cadastra dono, com o endereço dele
         ResponseEntity<JsonNode> cadastroDono = rest.postForEntity(USERS, corpo(Map.of(
                 "name", "Dono Restaurante", "email", loginDono + "@email.com", "login", loginDono,
-                "password", "senhaSegura123", "roles", List.of("ROLE_OWNER"),
+                "password", "senhaSegura123", "owner", perfilDeDono(),
                 "addresses", List.of(Map.of("label", "Casa", "address", endereco("Rua do Dono")))
         )), JsonNode.class);
         assertEquals(HttpStatus.CREATED, cadastroDono.getStatusCode());
@@ -100,7 +100,7 @@ class RestaurantLifecycleIT extends WebIntegrationTestSupport {
         String loginDono = "dono" + UUID.randomUUID().toString().replace("-", "").substring(0, 10);
         ResponseEntity<JsonNode> cadastroDono = rest.postForEntity(USERS, corpo(Map.of(
                 "name", "Dono Sem Endereço", "email", loginDono + "@email.com", "login", loginDono,
-                "password", "senhaSegura123", "roles", List.of("ROLE_OWNER"))), JsonNode.class);
+                "password", "senhaSegura123", "owner", perfilDeDono())), JsonNode.class);
         UUID userId = UUID.fromString(cadastroDono.getBody().get("id").asText());
 
         ResponseEntity<JsonNode> resposta = rest.exchange(RESTAURANTS, HttpMethod.POST,

@@ -69,6 +69,21 @@ próprias (1FN), a chave composta `user_roles` sem dependência parcial (2FN), n
 `users` (3FN) e todo determinante — e-mail, login — como chave candidata (BCNF). A seed
 (`V2__seed_demo_users.sql`) cria os usuários de demonstração.
 
+**Perfis no lugar do catálogo de papéis (Etapa 21, V6).** `roles` e `user_roles` saíram: o papel
+passou a ser derivado do perfil (`owners`, `clients`, `couriers`, `admins`), e uma informação que se
+calcula não se grava (3FN — papel e perfil não têm como discordar). Cada perfil é uma tabela por
+subtipo com a chave primária do usuário (especialização sobreposta e total, Machado); a V6 cria os
+perfis da seed e **falha** se sobrar usuário sem perfil, porque não inventa CPF nem CNPJ. No JPA, os
+perfis ficam em `persistence/jpa/user/{owner,client,courier,admin}` e são ligados só do lado do
+usuário (`@OneToOne` + `@PrimaryKeyJoinColumn`, sem referência de volta: senão os pacotes formariam
+ciclo). Duas consequências: a origem de dados grava o usuário antes dos perfis (o id dele é o id
+deles) e, na exclusão, tira e descarrega os perfis antes de apagar o usuário — o Hibernate, achando
+que é o usuário que referencia o perfil, apagaria o usuário primeiro, o `ON DELETE CASCADE` levaria o
+perfil, e o `DELETE` do perfil não acharia a linha. Os `ENUM`s do entregador (`courier_vehicle_type`,
+`courier_status`) são `String` na entidade JPA, com `columnDefinition` (para o `validate`) e
+`@ColumnTransformer(write = "?::tipo")`: a infraestrutura não importa enum do domínio, e quem converte
+é o gateway.
+
 **Execução.** Docker Compose sobe a aplicação, o PostgreSQL e o Mailpit (SMTP de testes), com
 imagens de versão fixa e portas só em `127.0.0.1`.
 
