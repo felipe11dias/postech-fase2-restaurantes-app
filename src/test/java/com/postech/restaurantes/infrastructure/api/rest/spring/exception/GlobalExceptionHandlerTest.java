@@ -12,6 +12,7 @@ import com.postech.restaurantes.domain.exception.InvalidCredentialsException;
 import com.postech.restaurantes.domain.exception.InvalidOrExpiredTokenException;
 import com.postech.restaurantes.domain.exception.InvalidPasswordException;
 import com.postech.restaurantes.domain.exception.InvariantViolationException;
+import com.postech.restaurantes.domain.exception.ResourceInUseException;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
 import java.util.List;
 import java.util.Map;
@@ -82,7 +83,9 @@ class GlobalExceptionHandlerTest {
                             ProblemType.FORBIDDEN_OPERATION),
                     Arguments.of(new ResourceNotFoundException("Usuário não encontrado"),
                             ProblemType.RESOURCE_NOT_FOUND),
-                    Arguments.of(new DuplicateResourceException("E-mail já cadastrado"), ProblemType.DATA_CONFLICT));
+                    Arguments.of(new DuplicateResourceException("E-mail já cadastrado"), ProblemType.DATA_CONFLICT),
+                    Arguments.of(new ResourceInUseException("O perfil de dono não pode ser removido"),
+                            ProblemType.RESOURCE_IN_USE));
         }
 
         @ParameterizedTest(name = "{1}")
@@ -110,7 +113,8 @@ class GlobalExceptionHandlerTest {
                     ForbiddenOperationException.class,
                     e -> handler.handleForbiddenOperation((ForbiddenOperationException) e),
                     ResourceNotFoundException.class, e -> handler.handleNotFound((ResourceNotFoundException) e),
-                    DuplicateResourceException.class, e -> handler.handleDuplicate((DuplicateResourceException) e));
+                    DuplicateResourceException.class, e -> handler.handleDuplicate((DuplicateResourceException) e),
+                    ResourceInUseException.class, e -> handler.handleInUse((ResourceInUseException) e));
             return rotas.get(ex.getClass()).apply(ex);
         }
     }

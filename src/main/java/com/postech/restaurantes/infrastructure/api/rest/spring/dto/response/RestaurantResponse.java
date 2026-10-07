@@ -2,17 +2,16 @@ package com.postech.restaurantes.infrastructure.api.rest.spring.dto.response;
 
 import com.postech.restaurantes.adapter.presenter.view.RestaurantView;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 /** Restaurante no corpo da resposta HTTP. */
 public record RestaurantResponse(
         UUID id,
         UUID userId,
-        UUID addressId,
+        AddressResponse address,
         String name,
-        LocalTime officeHourStart,
-        LocalTime officeHourEnd,
+        List<OfficeHourResponse> officeHours,
         LocalDateTime createdAt,
         LocalDateTime lastUpdatedAt
 ) {
@@ -21,10 +20,9 @@ public record RestaurantResponse(
         return new RestaurantResponse(
                 view.id(),
                 view.userId(),
-                view.addressId(),
+                AddressResponse.from(view.address()),
                 view.name(),
-                view.officeHourStart(),
-                view.officeHourEnd(),
+                view.officeHours().stream().map(OfficeHourResponse::from).toList(),
                 view.createdAt(),
                 view.lastUpdatedAt()
         );

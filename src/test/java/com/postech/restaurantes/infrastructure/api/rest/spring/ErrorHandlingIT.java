@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.postech.restaurantes.Documentos;
 import com.postech.restaurantes.WebIntegrationTestSupport;
 import java.util.HashMap;
 import java.util.List;
@@ -37,7 +38,7 @@ class ErrorHandlingIT extends WebIntegrationTestSupport {
     void deveDetalharCamposInvalidos() {
         ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(Map.of(
                 "name", "", "email", "nao-e-email", "login", "x", "password", "curta",
-                "roles", List.of("ROLE_CUSTOMER"))), JsonNode.class);
+                "client", perfilDeCliente())), JsonNode.class);
 
         JsonNode problema = conferir(resposta, HttpStatus.BAD_REQUEST, "requisicao-invalida", "Requisição inválida");
         JsonNode errors = problema.get("errors");
@@ -76,8 +77,8 @@ class ErrorHandlingIT extends WebIntegrationTestSupport {
     @DisplayName("Invariante do domínio: 400 com a mensagem do objeto de valor")
     void deveTraduzirInvarianteDoDominio() {
         Map<String, Object> corpo = novoUsuario("cep" + sufixo());
-        corpo.put("addresses", List.of(Map.of("street", "Rua A", "number", "1", "neighborhood", "Centro",
-                "city", "São Paulo", "state", "SP", "zipCode", "123")));
+        corpo.put("addresses", List.of(Map.of("address", Map.of("street", "Rua A", "number", "1",
+                "neighborhood", "Centro", "city", "São Paulo", "state", "SP", "zipCode", "123"))));
 
         ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(corpo), JsonNode.class);
 
@@ -86,15 +87,54 @@ class ErrorHandlingIT extends WebIntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Papel inexistente: 400 com a mensagem do domínio, não um erro de formato")
-    void deveRecusarPapelInexistente() {
-        Map<String, Object> corpo = novoUsuario("papel" + sufixo());
-        corpo.put("roles", List.of("ROLE_INEXISTENTE"));
+    @DisplayName("Tipo de veículo desconhecido: 400 com a mensagem do domínio, não um erro de formato")
+    void deveRecusarVeiculoDesconhecido() {
+        Map<String, Object> corpo = novoUsuario("veiculo" + sufixo());
+        corpo.remove("client");
+        corpo.put("courier", Map.of("cpf", Documentos.cpf(), "phone", "11912345678", "vehicleType", "TRUCK"));
 
         ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(corpo), JsonNode.class);
 
         JsonNode problema = conferir(resposta, HttpStatus.BAD_REQUEST, "requisicao-invalida", "Requisição inválida");
-        assertEquals("Papel inválido: ROLE_INEXISTENTE", problema.get("detail").asText());
+        assertEquals("Tipo de veículo inválido: TRUCK", problema.get("detail").asText());
+    }
+
+    @Test
+    @DisplayName("Cadastro sem nenhum perfil: 400 com a mensagem do domínio")
+    void deveRecusarCadastroSemPerfil() {
+        Map<String, Object> corpo = novoUsuario("semperfil" + sufixo());
+        corpo.remove("client");
+
+        ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(corpo), JsonNode.class);
+
+        JsonNode problema = conferir(resposta, HttpStatus.BAD_REQUEST, "requisicao-invalida", "Requisição inválida");
+        assertEquals("Usuário deve ter ao menos um perfil", problema.get("detail").asText());
+    }
+
+    @Test
+    @DisplayName("CPF com dígito verificador errado: 400 CPF inválido")
+    void deveRecusarCpfInvalido() {
+        Map<String, Object> corpo = novoUsuario("cpf" + sufixo());
+        corpo.put("client", Map.of("cpf", "529.982.247-26", "phone", "11912345678"));
+
+        ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(corpo), JsonNode.class);
+
+        JsonNode problema = conferir(resposta, HttpStatus.BAD_REQUEST, "requisicao-invalida", "Requisição inválida");
+        assertEquals("CPF inválido", problema.get("detail").asText());
+    }
+
+    @Test
+    @DisplayName("Entregador de moto sem CNH: 400 com a regra do veículo")
+    void deveRecusarMotoSemCnh() {
+        Map<String, Object> corpo = novoUsuario("moto" + sufixo());
+        corpo.remove("client");
+        corpo.put("courier", Map.of("cpf", Documentos.cpf(), "phone", "11912345678", "vehicleType", "MOTORCYCLE",
+                "vehiclePlate", "ABC1D23"));
+
+        ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(corpo), JsonNode.class);
+
+        JsonNode problema = conferir(resposta, HttpStatus.BAD_REQUEST, "requisicao-invalida", "Requisição inválida");
+        assertEquals("Moto e carro exigem CNH e placa", problema.get("detail").asText());
     }
 
     @Test
@@ -150,14 +190,20 @@ class ErrorHandlingIT extends WebIntegrationTestSupport {
     // --- 403 --------------------------------------------------------------------------------
 
     @Test
-    @DisplayName("Autocadastro pedindo ROLE_ADMIN: 403 operacao-nao-permitida")
-    void deveRecusarAdministradorNoAutocadastro() {
-        Map<String, Object> corpo = novoUsuario("admin" + sufixo());
-        corpo.put("roles", List.of("ROLE_ADMIN"));
+    @DisplayName("Restaurante para usuário sem perfil de dono: 403 operacao-nao-permitida")
+    void deveRecusarRestauranteDeQuemNaoEDono() {
+        Usuario cliente = cadastrarEAutenticar();
 
-        ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(corpo), JsonNode.class);
+        ResponseEntity<JsonNode> resposta = rest.exchange("/api/v1/restaurants", HttpMethod.POST,
+                corpoAutenticado(Map.of("userId", cliente.id(), "name", "Não É Dono",
+                        "officeHours", List.of(Map.of("dayOfWeek", "MONDAY", "startTime", "08:00:00", "endTime", "22:00:00")),
+                        "address", Map.of("street", "Rua A", "number", "1", "neighborhood", "Centro",
+                                "city", "São Paulo", "state", "SP", "zipCode", "01001000")), admin()),
+                JsonNode.class);
 
-        conferir(resposta, HttpStatus.FORBIDDEN, "operacao-nao-permitida", "Operação não permitida");
+        JsonNode problema = conferir(resposta, HttpStatus.FORBIDDEN, "operacao-nao-permitida",
+                "Operação não permitida");
+        assertEquals("O usuário informado não tem perfil de dono de restaurante", problema.get("detail").asText());
     }
 
     @Test
@@ -197,6 +243,36 @@ class ErrorHandlingIT extends WebIntegrationTestSupport {
 
         JsonNode problema = conferir(resposta, HttpStatus.CONFLICT, "conflito-de-dados", "Conflito de dados");
         assertEquals("E-mail já cadastrado", problema.get("detail").asText());
+    }
+
+    @Test
+    @DisplayName("CPF já cadastrado: 409 conflito-de-dados com a mensagem do caso de uso")
+    void deveResponderConflitoDeCpf() {
+        Map<String, Object> primeiro = novoUsuario("cpfdup" + sufixo());
+        rest.postForEntity(USERS, corpo(primeiro), JsonNode.class);
+        Map<String, Object> repetido = novoUsuario("cpfdup" + sufixo());
+        repetido.put("client", primeiro.get("client"));
+
+        ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(repetido), JsonNode.class);
+
+        JsonNode problema = conferir(resposta, HttpStatus.CONFLICT, "conflito-de-dados", "Conflito de dados");
+        assertEquals("CPF já cadastrado", problema.get("detail").asText());
+    }
+
+    @Test
+    @DisplayName("CNPJ já cadastrado: 409 conflito-de-dados com a mensagem do caso de uso")
+    void deveResponderConflitoDeCnpj() {
+        Map<String, Object> dono = perfilDeDono();
+        Map<String, Object> primeiro = novoUsuario("cnpjdup" + sufixo());
+        primeiro.put("owner", dono);
+        assertEquals(HttpStatus.CREATED, rest.postForEntity(USERS, corpo(primeiro), JsonNode.class).getStatusCode());
+        Map<String, Object> repetido = novoUsuario("cnpjdup" + sufixo());
+        repetido.put("owner", dono);
+
+        ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(repetido), JsonNode.class);
+
+        JsonNode problema = conferir(resposta, HttpStatus.CONFLICT, "conflito-de-dados", "Conflito de dados");
+        assertEquals("CNPJ já cadastrado", problema.get("detail").asText());
     }
 
     // --- Erros que o próprio Spring traduz --------------------------------------------------
@@ -245,7 +321,7 @@ class ErrorHandlingIT extends WebIntegrationTestSupport {
         corpo.put("email", login + "@email.com");
         corpo.put("login", login);
         corpo.put("password", "senhaSegura123");
-        corpo.put("roles", List.of("ROLE_CUSTOMER"));
+        corpo.put("client", perfilDeCliente());
         return corpo;
     }
 

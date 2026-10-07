@@ -41,7 +41,7 @@ tecnologia. Trocar uma tecnologia é apagar um subpacote e criar outro ao lado.
 |---|---|---|---|
 | [`main`](../../src/main/java/com/postech/restaurantes/infrastructure/main) | a composição (Main, cap. 26): `CompositionConfig`, `PasswordResetProperties` | Spring (`@Configuration`) | — é o único que conhece todos |
 | [`api/rest/spring`](../../src/main/java/com/postech/restaurantes/infrastructure/api/rest/spring) | entrega HTTP, organizada como MVC: `controller` (`@RestController`), `dto/request` e `dto/response`, `assembler` (HATEOAS), `route` (caminhos), `config`, `exception` (ProblemDetail), `doc` (OpenAPI), `validation`, `security` | Spring MVC, Spring Security, Spring HATEOAS, springdoc, Bean Validation | `api/rest/<outra>` ou outro canal (`api/graphql/...`) chamando os mesmos controllers de adaptação |
-| [`persistence/jpa`](../../src/main/java/com/postech/restaurantes/infrastructure/persistence/jpa) | `I*DataSource` (`UserDataSourceJpa`, …) e `IUnitOfWork` (`TransactionalUnitOfWork`); `audit` (colunas de auditoria) | JPA/Hibernate, Spring Data, PostgreSQL | `persistence/jdbc` com as mesmas interfaces; o schema continua do Flyway |
+| [`persistence/jpa`](../../src/main/java/com/postech/restaurantes/infrastructure/persistence/jpa) | `I*DataSource` (`UserDataSourceJpa`, …) e `IUnitOfWork` (`TransactionalUnitOfWork`); `audit` (colunas de auditoria); um subpacote por agregado (`user`, `restaurant`), as partes do agregado de usuário em `user/{address,role,password}` (`user/address` é o vínculo `user_addresses`) e o endereço, compartilhado pelos dois agregados, em `address` — espelhando o domínio | JPA/Hibernate, Spring Data, PostgreSQL | `persistence/jdbc` com as mesmas interfaces; o schema continua do Flyway |
 | [`token/jwt`](../../src/main/java/com/postech/restaurantes/infrastructure/token/jwt) | `ITokenEncoder` e `IAccessTokenReader` (`JwtTokenEncoder`, HS256 fixo) | jjwt | `token/<outro>` implementando as duas interfaces |
 | [`crypto`](../../src/main/java/com/postech/restaurantes/infrastructure/crypto) | `IPasswordEncoder` (`BCryptPasswordAdapter`), `ISecureTokenGenerator` (`SecureRandomTokenGenerator`) | spring-security-crypto, JDK | nova classe (ex.: Argon2) implementando a porta |
 | [`mail/smtp`](../../src/main/java/com/postech/restaurantes/infrastructure/mail/smtp) | `IMailSender` (`SmtpMailSender`) — **só transporte**, com timeouts de 5 s | Spring Mail | `mail/<provedor>` implementando `IMailSender`; o texto do e-mail está no adaptador e não muda |
@@ -68,6 +68,50 @@ valida (`ddl-auto: validate`). O V1 documenta a normalização: papéis e endere
 próprias (1FN), a chave composta `user_roles` sem dependência parcial (2FN), nada derivável em
 `users` (3FN) e todo determinante — e-mail, login — como chave candidata (BCNF). A seed
 (`V2__seed_demo_users.sql`) cria os usuários de demonstração.
+
+**Perfis no lugar do catálogo de papéis (Etapa 21, V6).** `roles` e `user_roles` saíram: o papel
+passou a ser derivado do perfil (`owners`, `clients`, `couriers`, `admins`), e uma informação que se
+calcula não se grava (3FN — papel e perfil não têm como discordar). Cada perfil é uma tabela por
+subtipo com a chave primária do usuário (especialização sobreposta e total, Machado); a V6 cria os
+perfis da seed e **falha** se sobrar usuário sem perfil, porque não inventa CPF nem CNPJ. No JPA, os
+perfis ficam em `persistence/jpa/user/{owner,client,courier,admin}` e são ligados só do lado do
+usuário (`@OneToOne` + `@PrimaryKeyJoinColumn`, sem referência de volta: senão os pacotes formariam
+ciclo). Duas consequências: a origem de dados grava o usuário antes dos perfis (o id dele é o id
+deles) e, na exclusão, tira e descarrega os perfis antes de apagar o usuário — o Hibernate, achando
+que é o usuário que referencia o perfil, apagaria o usuário primeiro, o `ON DELETE CASCADE` levaria o
+perfil, e o `DELETE` do perfil não acharia a linha. Os `ENUM`s do entregador (`courier_vehicle_type`,
+`courier_status`) são `String` na entidade JPA, com `columnDefinition` (para o `validate`) e
+`@ColumnTransformer(write = "?::tipo")`: a infraestrutura não importa enum do domínio (regra
+`infraestrutura_so_conhece_do_dominio_as_excecoes`, Etapa 25), e quem converte
+é o gateway.
+
+**Integridade dos perfis no banco (Etapa 22, V7).** O que a aplicação confere antes de gravar e duas
+requisições simultâneas poderiam furar ganha garantia no schema: um gatilho com trava consultiva por CPF
+impede o mesmo CPF em dois usuários entre `clients` e `couriers` (a unicidade de cada tabela não cobre o
+par), e `restaurants.user_id → owners` impede restaurante de quem não tem perfil de dono. As violações
+saem como violação de unicidade ou de chave estrangeira, e o handler responde 409 sem o nome da restrição.
+A V10 (Etapa 25) segue o mesmo desenho para "o sistema não fica sem administrador": um gatilho `AFTER DELETE`
+em `admins`, com trava consultiva, recusa a remoção que deixaria a tabela vazia — duas remoções simultâneas
+não passam juntas pela contagem da `LastAdminPolicy`.
+
+**Autorização com os papéis atuais (Etapa 22).** O token prova quem é o portador; o que ele pode fazer
+vem do cadastro, a cada requisição. O `BearerTokenAuthenticationFilter` troca os papéis do token pelos de
+`ICurrentRolesReader` — porta declarada pelo próprio módulo de API, como a `IAccessTokenReader` —, que a
+composição liga ao `AuthController.currentRoles`. Assim um perfil removido (o de administrador, por exemplo)
+deixa de autorizar na hora, e não só quando o token vence; o custo é uma consulta por requisição autenticada.
+
+**Horário por dia (Etapa 24, V9).** O horário único virou `restaurant_office_hours` (1FN: atributo multivalorado em
+tabela própria), e a V9 converteu cada restaurante em sete linhas, uma por dia. A entidade JPA do horário fica em
+`persistence/jpa/restaurant/officehour`, ligada só do lado do restaurante; `day_of_week` é texto com
+`@ColumnTransformer`, como os enums do entregador. A atualização reconcilia por (dia, abertura): o Hibernate insere
+antes de apagar, e regravar o mesmo horário violaria a unicidade da tabela.
+
+**Posse do restaurante (Etapa 23).** A mesma regra contra IDOR do usuário: `PUT` e `DELETE` de restaurante
+exigem administrador ou `@restaurantSecurity.isOwner(#id, authentication)`. Como o dono não está na URL, a
+`RestaurantSecurity` o pergunta pela porta `IRestaurantOwnerReader`, declarada pelo módulo de API e ligada na
+composição ao `RestaurantController.ownerOf`. No cadastro, sem `userId`, o dono é o autenticado; indicar ou trocar o
+dono é do administrador. A V8 deu `ON DELETE CASCADE` a `restaurants.user_id → users`, mas quem apaga os
+restaurantes de um usuário excluído é a aplicação, pelas entidades — só assim o endereço de cada um sai junto.
 
 **Execução.** Docker Compose sobe a aplicação, o PostgreSQL e o Mailpit (SMTP de testes), com
 imagens de versão fixa e portas só em `127.0.0.1`.
@@ -104,12 +148,12 @@ imagens de versão fixa e portas só em `127.0.0.1`.
 ## 6. Como o build verifica
 
 [`InfrastructureModulesTest`](../../src/test/java/com/postech/restaurantes/InfrastructureModulesTest.java)
-(23 regras): nenhum ciclo entre pacotes; `persistence`, `crypto` e `mail` não conhecem outro
+(24 regras): nenhum ciclo entre pacotes; `persistence`, `crypto` e `mail` não conhecem outro
 módulo; `token` só conhece, da `api`, a porta que implementa; `api` não conhece implementações;
 cada biblioteca só no seu módulo (JPA em `persistence`, jjwt em `token.jwt`, Spring Mail em
 `mail.smtp`, Spring Security em `api`/`crypto`, Spring MVC/springdoc em `api`); `*Config` ⇔
 `@Configuration`; a infraestrutura só conhece, do núcleo, as portas técnicas; `mail` e `token` não
-conhecem o `domain`; e, na API, cada classe no pacote do seu papel (`@RestController` em
+conhecem o `domain`, e o resto da infraestrutura só conhece dele as exceções (a coluna `ENUM` é texto na JPA); e, na API, cada classe no pacote do seu papel (`@RestController` em
 `controller`, records `*Request`/`*Response` em `dto`, `@RestControllerAdvice` em `exception`,
 `*Assembler` em `assembler`).
 Testes de integração (Testcontainers, PostgreSQL real) provam os módulos juntos — ver

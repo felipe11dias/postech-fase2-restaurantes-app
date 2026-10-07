@@ -1,22 +1,31 @@
 package com.postech.restaurantes.infrastructure.api.rest.spring.controller;
 
+import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.OFFICE_HOURS_REQUEST;
+import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.OFFICE_HOURS_VIEW;
+import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.ADDRESS_REQUEST;
+import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.ADDRESS_VIEW;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.postech.restaurantes.adapter.controller.RestaurantController;
 import com.postech.restaurantes.adapter.presenter.view.RestaurantView;
+import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
+import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.infrastructure.api.rest.spring.assembler.RestaurantModelAssembler;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.CreateRestaurantRequest;
+import com.postech.restaurantes.infrastructure.api.rest.spring.security.AuthenticatedUser;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.UpdateRestaurantRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.response.RestaurantResponse;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,7 +46,6 @@ class RestaurantRestControllerTest {
 
     private UUID restaurantId;
     private UUID userId;
-    private UUID addressId;
     private RestaurantView view;
 
     @BeforeEach
@@ -51,8 +59,7 @@ class RestaurantRestControllerTest {
 
         restaurantId = UUID.randomUUID();
         userId = UUID.randomUUID();
-        addressId = UUID.randomUUID();
-        view = new RestaurantView(restaurantId, userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0),
+        view = new RestaurantView(restaurantId, userId, ADDRESS_VIEW, "Sabor", OFFICE_HOURS_VIEW,
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
@@ -61,8 +68,9 @@ class RestaurantRestControllerTest {
     void deveCriar() {
         when(controller.create(any())).thenReturn(view);
 
-        CreateRestaurantRequest req = new CreateRestaurantRequest(userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
-        ResponseEntity<EntityModel<RestaurantResponse>> response = restController.create(req);
+        CreateRestaurantRequest req = new CreateRestaurantRequest(userId, ADDRESS_REQUEST, "Sabor", OFFICE_HOURS_REQUEST);
+        ResponseEntity<EntityModel<RestaurantResponse>> response =
+                restController.create(req, new AuthenticatedUser(userId, "dono", Set.of("ROLE_OWNER")));
 
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertNotNull(response.getHeaders().getLocation());
@@ -82,9 +90,10 @@ class RestaurantRestControllerTest {
     @DisplayName("Search endpoint devolve PagedModel")
     void deveBuscarPaginado() {
         PageResult<RestaurantView> page = new PageResult<>(List.of(view), 0, 10, 1);
-        when(controller.search(any(), any())).thenReturn(page);
+        UUID dono = UUID.randomUUID();
+        when(controller.search(eq("sabor"), eq(dono), any())).thenReturn(page);
 
-        PagedModel<EntityModel<RestaurantResponse>> response = restController.search("sabor", 0, 10, "name,asc");
+        PagedModel<EntityModel<RestaurantResponse>> response = restController.search("sabor", dono, 0, 10, "name,asc");
 
         assertNotNull(response);
     }
@@ -94,7 +103,7 @@ class RestaurantRestControllerTest {
     void deveAtualizar() {
         when(controller.update(any())).thenReturn(view);
 
-        UpdateRestaurantRequest req = new UpdateRestaurantRequest(userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        UpdateRestaurantRequest req = new UpdateRestaurantRequest(userId, ADDRESS_REQUEST, "Sabor", OFFICE_HOURS_REQUEST);
         EntityModel<RestaurantResponse> response = restController.update(restaurantId, req);
 
         assertNotNull(response.getContent());
@@ -106,5 +115,27 @@ class RestaurantRestControllerTest {
         restController.delete(restaurantId);
 
         verify(controller).delete(restaurantId);
+    }
+
+    @Test
+    @DisplayName("Sem o parâmetro de ordenação, a página vai sem ordenação pedida")
+    void deveAceitarBuscaSemOrdenacao() {
+        assertNull(RestaurantRestController.paginacao(0, 20, null).sortBy());
+        assertNull(RestaurantRestController.paginacao(0, 20, "   ").sortBy());
+    }
+
+    @Test
+    @DisplayName("Ordenação sem direção explícita é crescente")
+    void deveAssumirOrdemCrescente() {
+        PageRequest pedido = RestaurantRestController.paginacao(0, 20, "name");
+
+        assertEquals("name", pedido.sortBy());
+        assertEquals(SortDirection.ASC, pedido.direction());
+    }
+
+    @Test
+    @DisplayName("A direção informada é respeitada")
+    void deveLerADirecao() {
+        assertEquals(SortDirection.DESC, RestaurantRestController.paginacao(0, 20, "name,desc").direction());
     }
 }

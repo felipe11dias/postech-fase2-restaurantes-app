@@ -2,7 +2,6 @@ package com.postech.restaurantes.adapter.gateway;
 
 import static com.postech.restaurantes.adapter.AdapterFixtures.HASH;
 import static com.postech.restaurantes.adapter.AdapterFixtures.NOW;
-import static com.postech.restaurantes.adapter.AdapterFixtures.ROLE_ID;
 import static com.postech.restaurantes.adapter.AdapterFixtures.USER_ID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -18,10 +17,11 @@ import com.postech.restaurantes.adapter.service.IMailSender;
 import com.postech.restaurantes.adapter.service.ITokenEncoder;
 import com.postech.restaurantes.adapter.service.data.TokenClaimsData;
 import com.postech.restaurantes.application.dto.auth.IssuedToken;
-import com.postech.restaurantes.domain.entity.address.Address;
-import com.postech.restaurantes.domain.entity.user.Role;
-import com.postech.restaurantes.domain.entity.user.RoleName;
+import com.postech.restaurantes.domain.entity.client.ClientProfile;
+import com.postech.restaurantes.domain.entity.owner.OwnerProfile;
 import com.postech.restaurantes.domain.entity.user.User;
+import com.postech.restaurantes.domain.entity.user.UserAddress;
+import com.postech.restaurantes.domain.entity.user.UserProfiles;
 import com.postech.restaurantes.domain.vo.Email;
 import java.time.Duration;
 import java.util.List;
@@ -80,19 +80,20 @@ class ServiceGatewaysTest {
         private final TokenGateway gateway = TokenGateway.create(encoder);
 
         @Test
-        @DisplayName("Traduz o usuário em claims — id, login e nomes dos papéis — e devolve o token codificado")
+        @DisplayName("Traduz o usuário em claims — id, login e nomes dos papéis derivados dos perfis — e devolve o token codificado")
         void deveTraduzirOUsuarioEmClaims() {
             IssuedToken emitido = new IssuedToken("token", NOW.plusHours(1));
             when(encoder.encode(any())).thenReturn(emitido);
             User usuario = User.restore(USER_ID, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
-                    Set.of(Role.restore(ROLE_ID, RoleName.ROLE_OWNER), Role.restore(java.util.UUID.randomUUID(), RoleName.ROLE_CUSTOMER)),
-                    List.<Address>of(), NOW, NOW);
+                    new UserProfiles(OwnerProfile.restore("11222333000181", "Sabor Ltda", "1131234567"),
+                            ClientProfile.restore("52998224725", "11912345678", null), null, null),
+                    List.<UserAddress>of(), NOW, NOW);
 
             IssuedToken resultado = gateway.issue(usuario);
 
             ArgumentCaptor<TokenClaimsData> claims = ArgumentCaptor.forClass(TokenClaimsData.class);
             verify(encoder).encode(claims.capture());
-            assertEquals(new TokenClaimsData(USER_ID, "joao.silva", Set.of("ROLE_OWNER", "ROLE_CUSTOMER")),
+            assertEquals(new TokenClaimsData(USER_ID, "joao.silva", Set.of("ROLE_OWNER", "ROLE_CLIENT")),
                     claims.getValue());
             assertSame(emitido, resultado);
         }

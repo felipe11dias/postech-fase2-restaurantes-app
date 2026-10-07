@@ -5,9 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (15 até aqui) e cada etapa
-tem três saídas obrigatórias: código + testes, entrada no `CHANGELOG.md`, e atualização do
-relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v1.0.md` (marcar a etapa
+Architecture**. O projeto está sendo entregue **etapa por etapa** (25 até aqui; as Etapas 17 a 25 adequaram o projeto ao Modelo de Dados v2 em
+`docs/modelo-dados/`, e a 25 traz o quadro final "modelo v2 × schema real") e cada etapa tem três saídas obrigatórias: código + testes, entrada no
+`CHANGELOG.md`, e atualização do relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (marcar a etapa
 como ✅ no Sumário de Progresso, atualizar o contador e acrescentar a subseção
 "O que foi entregue nesta etapa" com o resultado real do build). O relatório é a
 especificação: leia a seção da etapa antes de implementá-la e sincronize os exemplos de
@@ -66,8 +66,8 @@ cada teste cria seus próprios dados com marca única em vez de depender de esta
 
 ## Arquitetura — a regra de dependência é verificada em build
 
-`src/test/java/.../ArchitectureTest.java` (ArchUnit, 14 regras) falha o build se violada — e o
-`InfrastructureModulesTest` (23 regras, Etapas 13 a 15) faz o mesmo *dentro* da infraestrutura:
+`src/test/java/.../ArchitectureTest.java` (ArchUnit, 17 regras) falha o build se violada — e o
+`InfrastructureModulesTest` (24 regras, Etapas 13 a 15 e 25) faz o mesmo *dentro* da infraestrutura:
 
 ```
 domain          → só JDK. Nenhum import de outro pacote do projeto nem de biblioteca.
@@ -82,7 +82,9 @@ uso e DTOs ficam em **subpacotes por agregado/feature** (`domain/entity/user`,
 `application/usecase/auth`, `application/dto/common`...) — *screaming architecture*: uma feature
 nova (restaurante, cardápio) ganha o próprio subpacote em cada camada. Convenções também verificadas:
 classes em `application.usecase` terminam em `UseCase`; tudo em `application.gateway`,
-`adapter.datasource` e `adapter.service` são interfaces com prefixo `I`.
+`adapter.datasource` e `adapter.service` são interfaces com prefixo `I`; `application.policy` só tem `*Policy`,
+usadas só por casos de uso; `domain.vo` só tem `record`s; records `*Data` e `*View` não carregam tipo do domínio
+(enum atravessa pelo nome) — Etapa 25.
 
 **Cada camada tem um documento em `docs/arquitetura/`** (aula × autor × código, padrões, desvios
 conscientes, regra que verifica). **Decisão ou padrão novo atualiza o documento correspondente em
@@ -107,7 +109,7 @@ infrastructure/
     doc/               OpenApiConfig, ApiDocumentation, @ErrorResponse, customizers
     validation/        @ValidPassword
     security/          SecurityConfig, BearerTokenAuthenticationFilter, 401, AuthenticatedUser,
-                       UserSecurity, AuthenticatedActor, IAccessTokenReader (porta do módulo)
+                       UserSecurity, AuthenticatedActor, IAccessTokenReader, ICurrentRolesReader e IRestaurantOwnerReader (portas do módulo), RestaurantSecurity
   persistence/jpa/     PersistenceConfig, TransactionalUnitOfWork; audit/; um subpacote por agregado
   token/jwt/           ITokenEncoder + IAccessTokenReader (jjwt): JwtTokenEncoder, JwtProperties, JwtConfig
   crypto/              IPasswordEncoder (BCrypt), ISecureTokenGenerator (SecureRandom)
@@ -116,7 +118,12 @@ infrastructure/
 
 Regras (verificadas pelo `InfrastructureModulesTest`):
 - **Nenhum ciclo entre pacotes no projeto inteiro** (ADP). Entidade JPA de parte de um agregado
-  fica no pacote do agregado — o endereço está em `persistence/jpa/user`.
+  fica num subpacote do agregado (`persistence/jpa/user/{address,password,owner,client,courier,admin}`; `user/address` é
+  o vínculo `user_addresses`) — o mesmo vale para `persistence/jpa/restaurant/officehour`, e a dependência só vai do agregado para a parte: a parte não referencia
+  a raiz (`@OneToMany` + `@JoinColumn` unidirecional do lado do `UserJpaEntity`), senão os dois
+  pacotes formam ciclo. Entidade compartilhada por agregados fica em pacote próprio que não conhece
+  nenhum deles: o endereço está em `persistence/jpa/address` (com `AddressJpaMapping`), usado pelo
+  usuário e pelo restaurante.
 - **Nenhum módulo conhece outro módulo-irmão; só `main` liga as pontas.** Quando um módulo precisa
   de algo de outro, ele declara a interface (ou recebe um `Supplier`) e o `main` liga. Ex.: o autor
   da auditoria vem de `api/rest/spring/security/AuthenticatedActor` para `persistence/jpa/audit` via
@@ -132,7 +139,8 @@ Regras (verificadas pelo `InfrastructureModulesTest`):
   Toda outra porta de `application.gateway` é implementada por um gateway em `adapter/gateway`,
   que consome a infraestrutura por uma interface de `adapter/datasource` ou `adapter/service`.
   `mail` e `token` não conhecem o `domain` (`transporte_nao_conhece_o_dominio`): só transportam e
-  codificam o que o gateway traduziu.
+  codificam o que o gateway traduziu. O resto da infraestrutura só conhece, do `domain`, as exceções
+  (`infraestrutura_so_conhece_do_dominio_as_excecoes`, Etapa 25): coluna `ENUM` é texto na JPA.
 - **Cada módulo habilita a própria configuração** (`JwtConfig`, `MailConfig`, `PersistenceConfig`,
   `SecurityConfig`, `OpenApiConfig`); `CompositionConfig` não conhece propriedade de tecnologia.
 - Política da aplicação não mora em módulo de tecnologia: a validade do token de redefinição é
@@ -158,9 +166,10 @@ Pontos que só ficam claros lendo várias camadas:
   em `infrastructure`).
 - **Paginação no núcleo é própria** (`application/dto` `PageRequest`/`PageResult`); `Pageable`
   /`Page` do Spring só existem em `infrastructure`.
-- **Onde mora cada regra:** invariante que vale sempre (e-mail válido, ≥1 papel, CEP 8
-  dígitos) → entidade; regra que depende do ponto de entrada (`ROLE_ADMIN` proibido no
-  autocadastro, resposta idêntica no "esqueci minha senha") → caso de uso.
+- **Onde mora cada regra:** invariante que vale sempre (e-mail válido, ≥1 perfil, CPF igual
+  entre cliente e entregador, CEP 8 dígitos) → entidade; regra que depende do ponto de entrada
+  (perfil de administrador fora do autocadastro, CPF/CNPJ únicos, resposta idêntica no "esqueci
+  minha senha") → caso de uso.
 - **Interfaces de gateway ficam em `application`** (quem as consome as declara);
   interfaces de origem de dados (`I*DataSource`) ficam em `adapter/datasource`, com os records
   `*Data` em `adapter/datasource/data`, e são implementadas em `infrastructure/persistence/jpa`.
@@ -175,7 +184,9 @@ Pontos que só ficam claros lendo várias camadas:
 - **Saída do núcleo são views** (`adapter/presenter/view`, records `*View`), produzidas só pelos
   presenters; `UserView` não tem campo de senha. Gateways do adapter reconstroem entidades com
   `restore(...)` (revalida invariantes) e desmontam com `toData`. ArchUnit exige que toda
-  classe em `adapter.gateway` implemente uma interface de `application.gateway`.
+  classe em `adapter.gateway` implemente uma interface de `application.gateway`. Tradução de
+  parte compartilhada por agregados (o endereço) fica em `adapter/gateway/mapping` (`AddressMapping`)
+  e, na saída, em `AddressPresenter` — uma tradução só, usada pelos dois gateways/presenters.
 - **Schema é do Flyway** (`db/migration`); JPA roda com `ddl-auto: validate` e
   `open-in-view: false`. A transação é aberta pela implementação de `IUnitOfWork` (`TransactionTemplate`), não por `@Transactional` em casos de uso.
 
@@ -202,6 +213,67 @@ Pontos que só ficam claros lendo várias camadas:
   propriedade fora do mapa cai no padrão. Nunca repassar `sortBy` direto para o `Sort`.
 - Leitura traz o agregado inteiro (hash inclusive), porque o gateway reconstrói com `restore`;
   quem esconde a senha é o presenter, por ausência de campo na view — não projeção no SQL.
+- **Endereço (Etapa 18).** O usuário se liga aos endereços por `user_addresses` (rótulo, `is_default`);
+  o restaurante tem `address_id` próprio e único. As chaves estrangeiras apontam **para**
+  `addresses`, então o `CASCADE` do banco não remove o endereço: quem remove é o `orphanRemoval` da
+  parte do agregado (`@OneToOne(cascade = ALL, orphanRemoval = true)`). Nos ITs, conferir que não
+  sobra endereço — contando só os ids que o próprio teste criou (`EnderecosNoBanco.existentes`), nunca
+  a tabela inteira. Endereço é atualizado na mesma linha: o do restaurante sempre; o do usuário
+  quando o pedido traz o `id` dele (sem `id`, é novo; os ausentes saem). O `User` recusa id que não é
+  seu.
+- **"Um padrão por usuário" é restrição adiada** (`EXCLUDE ... WHERE (is_default) DEFERRABLE
+  INITIALLY DEFERRED`): ao trocar a lista, o Hibernate insere os vínculos novos antes de apagar os
+  antigos, e um índice único parcial recusaria essa troca válida. Restrição nova que o Hibernate
+  pode violar no meio da descarga segue o mesmo desenho.
+- **Nunca buscar um `Set` e uma `List` (bag) no mesmo `@EntityGraph`**: o produto cartesiano repete
+  os itens da lista. Os perfis são `@OneToOne` (não repetem linhas) e entram no grafo com os endereços.
+- **Perfis do usuário (Etapa 21, V6).** O papel é derivado dos perfis (`owners`, `clients`, `couriers`,
+  `admins`) e não é gravado; não há `roles` nem `user_roles`. Os perfis JPA ficam em
+  `persistence/jpa/user/{owner,client,courier,admin}`, ligados só do lado do usuário (`@OneToOne(cascade =
+  ALL, orphanRemoval = true)` + `@PrimaryKeyJoinColumn`; perfil sem referência ao usuário, senão há
+  ciclo), com `@Id` atribuído pela origem de dados (`ProfileJpaMapping`). Por isso: no cadastro, o
+  usuário é gravado (`save`) antes dos perfis; na exclusão, os perfis saem e há `flush` **antes** de
+  apagar o usuário — o Hibernate apagaria o usuário primeiro, o `ON DELETE CASCADE` levaria o perfil e o
+  `DELETE` do perfil falharia (`StaleObjectStateException`). `ENUM` do PostgreSQL é `String` na
+  entidade JPA com `columnDefinition` e `@ColumnTransformer(write = "?::tipo")`; o gateway converte
+  (`CourierVehicleType.from`). Nos ITs, CPF, CNPJ e CNH vêm de `Documentos` (únicos, válidos); no HTTP,
+  `perfilDeCliente()`/`perfilDeDono()` da `WebIntegrationTestSupport`.
+- **Perfis de cadastro existente (Etapa 22).** Incluir ou alterar é `PUT /users/{id}/profiles/{owner,client,courier,admin}`
+  (o de admin só por administrador, no `@PreAuthorize`); remover, `DELETE /profiles/{tipo}`; status do
+  entregador, `PATCH /profiles/courier/status`. Um caso de uso para incluir/alterar (`SaveUserProfileUseCase`,
+  entrada `UserProfileDTO` selada): perfil novo de tipo novo exige um `case` lá, e o compilador cobra. Regras
+  entre perfis ficam em `UserProfiles` (`with*`, `without`, `has` devolvem conjunto novo e revalidam). A autorização
+  usa os papéis **do cadastro, a cada requisição** (`BearerTokenAuthenticationFilter` troca os do token pelos de
+  `ICurrentRolesReader`, ligado em `main` ao `AuthController.currentRoles`): perfil incluído ou removido vale na
+  hora, com o mesmo token. Recurso que não pode sair porque outro depende dele (dono com restaurante, último
+  administrador) é `ResourceInUseException` → 409 `recurso-em-uso` (categoria própria). O último administrador
+  não perde o perfil nem é excluído: `application/policy/user/LastAdminPolicy`, usada pela remoção de perfil e pela
+  exclusão do cadastro (Etapa 25). CPF e CNPJ únicos: uma
+  regra só, `application/policy/user/UniqueDocumentsPolicy` (consulta só o documento que mudou); regra de
+  aplicação compartilhada por casos de uso vai para `application/policy/<agregado>`, não copiada. O CPF é da
+  pessoa: alterar o de um perfil corrige o do outro (`UserProfiles.withClient`/`withCourier`).
+- **Integridade dos perfis no banco (V7).** Gatilho `cpf_de_uma_so_pessoa` (trava consultiva por CPF) impede o
+  mesmo CPF em dois usuários entre `clients` e `couriers`; `restaurants.user_id → owners` impede restaurante sem
+  perfil de dono. Regra que a aplicação confere antes de gravar e que duas requisições simultâneas podem furar
+  ganha garantia no schema. Na V10 (Etapa 25), o gatilho `ao_menos_um_administrador` (trava consultiva) recusa a
+  remoção do último administrador. Em IT, conferir gatilho que apagaria dado da seed numa transação desfeita
+  (`TransactionTemplate` + `setRollbackOnly`): se ele falhar, a seed não se perde.
+- **Restaurante: posse e exclusão do dono (Etapa 23, V8).** `PUT`/`DELETE` de restaurante exigem
+  `hasRole('ADMIN') or @restaurantSecurity.isOwner(#id, authentication)`; a `RestaurantSecurity` pergunta o dono
+  pela porta `IRestaurantOwnerReader` (ligada em `main` ao `RestaurantController.ownerOf`). `userId` é opcional:
+  no cadastro, ausente, o dono é o autenticado (`@AuthenticationPrincipal`); indicar ou trocar o dono é do
+  administrador (SpEL com `@userSecurity.isSelf(#request.userId(), authentication)`). Restaurante inexistente
+  dá 403 ao dono e 404 ao administrador. Excluir o usuário apaga os restaurantes antes (`DeleteUserUseCase` →
+  `IRestaurantGateway.deleteByUserId`, pelas entidades, para a cascata JPA levar o endereço); a V8 pôs
+  `ON DELETE CASCADE` em `restaurants.user_id → users` como rede de segurança. `fk_restaurants_owner` (V7) fica
+  **sem** cascata: removê-la faria o perfil de dono sair levando os restaurantes. Casos de posse na coleção
+  miram o segundo dono criado por ela (`outroDonoUserId`), nunca a seed.
+- **Horário de funcionamento (Etapa 24, V9).** `OfficeHour` é valor (`record`, `java.time.DayOfWeek`) na lista do
+  `Restaurant`; ao menos um e sem sobreposição — conferida na semana circular (o expediente que vira a meia-noite
+  invade o dia seguinte; o de domingo, a segunda). A JPA fica em `persistence/jpa/restaurant/officehour`, ligada
+  só do lado do restaurante, com `day_of_week` como texto (`?::day_of_week`); a atualização reconcilia por (dia,
+  abertura), senão o Hibernate inseriria antes de apagar e violaria `UNIQUE (restaurant_id, day_of_week,
+  start_time)`. O dia vem como texto e passa por `OfficeHour.dayOf` (mensagem do domínio).
 
 ### API REST organizada como MVC (Etapa 15, já implementada)
 
@@ -227,8 +299,8 @@ Pontos que só ficam claros lendo várias camadas:
 - `controller` + `dto/request`/`dto/response` + `assembler`: `@RestController` fino, DTOs e
   assembler HATEOAS. Bean Validation só aqui, e só **sintática** (`@NotBlank`, `@Email`,
   `@Size`); consistência e comparação de campos ("as senhas conferem") ficam no domínio/caso de
-  uso. Conversão por `toDTO()` no próprio record; papel vem como `String` e passa por
-  `RoleName.from`, para o erro ser a mensagem do domínio.
+  uso. Conversão por `toDTO()` no próprio record; enum (tipo de veículo) vem como `String` e passa
+  por `CourierVehicleType.from`, para o erro ser a mensagem do domínio.
 - `SecurityConfig`: stateless, sem CSRF, lista de rotas públicas em um lugar só.
   **Liberar `DispatcherType.ERROR`/`FORWARD`** — sem isso todo erro vira `403` sem corpo e a
   causa real some. `ProblemDetailAuthenticationEntryPoint` dá `401` sem credenciais e o
@@ -268,6 +340,12 @@ Pontos que só ficam claros lendo várias camadas:
 - **E-mail sai depois do commit.** O `AuthController` entrega ao caso de uso uma `MailOutbox`
   (adapter/controller) e só chama `deliver()` depois que `unitOfWork.execute` retorna: se o commit
   falhar, nenhum e-mail com token inexistente sai, e a transação não espera o servidor de e-mail.
+- **Um token de redefinição por usuário (Etapa 19, V5: `password_reset_tokens.user_id` único).** O
+  `ForgotPasswordUseCase` reemite o token existente (`PasswordResetToken.reissue`) em vez de inserir
+  outro: o link do e-mail anterior para de funcionar. A origem de dados grava hash, validade e uso no
+  `update`. Dois pedidos simultâneos para o mesmo e-mail: um vence, o outro viola a unicidade dentro
+  da fila e fica no log (ERROR), sem mudar a resposta 202. Em IT com dois pedidos, `reset(mailSender)`
+  entre eles: `tokenEnviado()` exige exatamente um envio.
 - O JWT é assinado em **HS256 fixo** (`signWith(key, Jwts.SIG.HS256)`); deixado ao jjwt, o algoritmo
   seria escolhido pelo tamanho do segredo.
 - `JwtTokenEncoder.read` (implementa `IAccessTokenReader`) exige `sub` e `login`; qualquer recusa devolve vazio, nunca exceção.
@@ -341,7 +419,12 @@ Pontos que só ficam claros lendo várias camadas:
   para o sucesso e um para cada `@ErrorResponse` da operação, na pasta da operação, conferindo
   status e `type`. O JSON da coleção é a fonte de verdade — edite no Postman ou à mão.
 - Casos de acesso negado miram um cadastro **descartável criado pela coleção**, nunca a seed; a
-  coleção exclui o que cria. Ela precisa poder rodar várias vezes contra o mesmo banco.
+  coleção exclui o que cria. Ela precisa poder rodar várias vezes contra o mesmo banco. Caso que só a
+  seed pode exercitar (excluir o último administrador → 409) confirma a pré-condição antes, no pré-request
+  (`pm.sendRequest`), e, se ela não vale, mira um id inexistente: o teste falha sem apagar nada.
+- CPF, CNPJ e CNH são únicos: o pré-request **da coleção** gera `{{cpfGerado}}`, `{{cnpjGerado}}` e
+  `{{cnhGerada}}` válidos e novos a cada request. Corpo com documento usa essas variáveis, nunca um
+  valor fixo (exceto o caso que quer o conflito, que reusa um já gravado).
 - Request que produz variável essencial (token, id) confere o status **antes** de ler o corpo e,
   se falhar, faz `postman.setNextRequest(null)` — nada de gravar `undefined` e seguir.
 - Efeito de um pedido processado em segundo plano (o e-mail do `forgot-password` no Mailpit) é
@@ -364,8 +447,8 @@ Pontos que só ficam claros lendo várias camadas:
   (`requireNonNull`, `requireNonBlank`, `require`, `trimToNull`) — a mensagem dela chega ao
   cliente, então é escrita para ele. Violação de estado (ex.: token já usado) é
   `IllegalStateException`.
-- VOs (`Email`, `ZipCode`) são `record`s com construtor compacto que valida e normaliza.
-- `Role` tem igualdade pelo `RoleName` (ignora id) para funcionar em `Set`.
+- VOs (`Email`, `ZipCode`, `Cpf`, `Cnpj`, `Phone`, `LicensePlate`, `DriverLicense`) são `record`s com
+  construtor compacto que valida e normaliza.
 - O domínio recebe o **hash** da senha, nunca a senha; entidades não chamam
   `LocalDateTime.now()` — o instante vem por parâmetro.
 - Nenhuma string ou constante de tecnologia no núcleo (hash BCrypt, nome de coluna, JWT).

@@ -41,6 +41,8 @@ class InfrastructureModulesTest {
     private static final String TOKEN = "..infrastructure.token..";
     private static final String CRYPTO = "..infrastructure.crypto..";
     private static final String MAIL = "..infrastructure.mail..";
+    private static final String PROJECT_DOMAIN = "com.postech.restaurantes.domain..";
+    private static final String PROJECT_DOMAIN_EXCEPTION = "com.postech.restaurantes.domain.exception..";
 
     // ---- Princípio das Dependências Acíclicas ------------------------------------------------
 
@@ -154,12 +156,29 @@ class InfrastructureModulesTest {
      * E-mail e token só transportam e codificam: o que a mensagem diz e quem é o portador foram
      * decididos pelo gateway. Um módulo desses que voltasse a importar {@code User} ou {@code Email}
      * estaria traduzindo de novo — e trocar a tecnologia voltaria a reescrever a regra.
+     *
+     * <p>É mais estrita que {@code infraestrutura_so_conhece_do_dominio_as_excecoes}: transporte não conhece
+     * nem as exceções do domínio, porque não as lança nem as traduz — quem as traduz é a API.
      */
     @ArchTest
     static final ArchRule transporte_nao_conhece_o_dominio =
             noClasses().that().resideInAnyPackage("..infrastructure.mail..", "..infrastructure.token..")
-                    .should().dependOnClassesThat().resideInAPackage("..domain..")
+                    .should().dependOnClassesThat().resideInAPackage(PROJECT_DOMAIN)
                     .because("a tradução do domínio para a mensagem e para os claims é do gateway no adaptador");
+
+    /**
+     * Do domínio, a infraestrutura só conhece as exceções — que o handler da API traduz em status. Tipo do
+     * domínio fora disso significa tradução fora do gateway: uma entidade JPA com {@code CourierVehicleType}
+     * ou uma resposta HTTP montada de uma entidade. Por isso a coluna {@code ENUM} do PostgreSQL é texto na
+     * JPA ({@code @ColumnTransformer(write = "?::tipo")}), e o gateway converte (Etapas 21 e 24).
+     */
+    @ArchTest
+    static final ArchRule infraestrutura_so_conhece_do_dominio_as_excecoes =
+            noClasses().that().resideInAPackage("..infrastructure..")
+                    .should().dependOnClassesThat(resideInAPackage(PROJECT_DOMAIN)
+                            .and(not(resideInAPackage(PROJECT_DOMAIN_EXCEPTION))))
+                    .because("o domínio chega à infraestrutura traduzido pelo gateway (registros *Data) e pelo "
+                            + "presenter (views); só a exceção atravessa, para virar ProblemDetail");
 
     // ---- A API REST em Spring organizada como MVC (Etapa 15) ----------------------------------
 

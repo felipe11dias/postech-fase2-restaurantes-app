@@ -16,14 +16,29 @@ import org.springframework.data.repository.query.Param;
 public interface SpringDataUserRepository extends JpaRepository<UserJpaEntity, UUID> {
 
     @Override
-    @EntityGraph(attributePaths = {"roles", "addresses"})
+    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address"})
     Optional<UserJpaEntity> findById(UUID id);
 
-    @EntityGraph(attributePaths = {"roles", "addresses"})
+    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address"})
     Optional<UserJpaEntity> findByLogin(String login);
 
-    @EntityGraph(attributePaths = {"roles", "addresses"})
+    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address"})
     Optional<UserJpaEntity> findByEmail(String email);
+
+    /**
+     * Usuário cujo perfil de cliente ou de entregador tem o CPF. Os dois perfis do mesmo usuário têm o
+     * mesmo CPF; outro usuário com ele não deveria existir, mas a lista não quebra se existir.
+     */
+    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address"})
+    @Query("select u from UserJpaEntity u left join u.client c left join u.courier k where c.cpf = :cpf or k.cpf = :cpf")
+    List<UserJpaEntity> findByCpf(@Param("cpf") String cpf);
+
+    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address"})
+    @Query("select u from UserJpaEntity u join u.owner o where o.cnpj = :cnpj")
+    Optional<UserJpaEntity> findByCnpj(@Param("cnpj") String cnpj);
+
+    @Query("select count(u) from UserJpaEntity u join u.admin a")
+    long countAdmins();
 
     /**
      * Primeiro passo da busca paginada: só os ids da página. Paginar junto com o
@@ -33,7 +48,7 @@ public interface SpringDataUserRepository extends JpaRepository<UserJpaEntity, U
     @Query("select u.id from UserJpaEntity u where lower(u.name) like lower(concat('%', :name, '%'))")
     Page<UUID> findIdsByName(@Param("name") String name, Pageable pageable);
 
-    /** Segundo passo: os usuários da página, com papéis e endereços em uma única consulta. */
-    @EntityGraph(attributePaths = {"roles", "addresses"})
+    /** Segundo passo: os usuários da página, com perfis e endereços. */
+    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address"})
     List<UserJpaEntity> findByIdIn(Collection<UUID> ids, Sort sort);
 }

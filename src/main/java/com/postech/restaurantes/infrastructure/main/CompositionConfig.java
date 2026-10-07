@@ -1,9 +1,10 @@
 package com.postech.restaurantes.infrastructure.main;
 
 import com.postech.restaurantes.adapter.controller.AuthController;
+import com.postech.restaurantes.adapter.controller.RestaurantController;
 import com.postech.restaurantes.adapter.controller.UserController;
 import com.postech.restaurantes.adapter.datasource.IPasswordResetTokenDataSource;
-import com.postech.restaurantes.adapter.datasource.IRoleDataSource;
+import com.postech.restaurantes.adapter.datasource.IRestaurantDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
 import com.postech.restaurantes.adapter.service.IMailSender;
 import com.postech.restaurantes.adapter.service.ITokenEncoder;
@@ -12,6 +13,8 @@ import com.postech.restaurantes.application.gateway.ISecureTokenGenerator;
 import com.postech.restaurantes.application.gateway.IUnitOfWork;
 import com.postech.restaurantes.infrastructure.persistence.jpa.audit.AuthenticatedAuditorAware;
 import com.postech.restaurantes.infrastructure.api.rest.spring.security.AuthenticatedActor;
+import com.postech.restaurantes.infrastructure.api.rest.spring.security.ICurrentRolesReader;
+import com.postech.restaurantes.infrastructure.api.rest.spring.security.IRestaurantOwnerReader;
 import java.time.Clock;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -45,9 +48,10 @@ public class CompositionConfig {
     }
 
     @Bean
-    public UserController userController(IUserDataSource userDataSource, IRoleDataSource roleDataSource,
-                                         IPasswordEncoder passwordEncoder, IUnitOfWork unitOfWork) {
-        return UserController.create(userDataSource, roleDataSource, passwordEncoder, unitOfWork);
+    public UserController userController(IUserDataSource userDataSource,
+                                         IRestaurantDataSource restaurantDataSource,
+                                         IPasswordEncoder passwordEncoder, IUnitOfWork unitOfWork, Clock clock) {
+        return UserController.create(userDataSource, restaurantDataSource, passwordEncoder, unitOfWork, clock);
     }
 
     @Bean
@@ -60,12 +64,24 @@ public class CompositionConfig {
                 mailSender, passwordReset.tokenValidity(), clock, unitOfWork);
     }
 
+    /**
+     * Os papéis de cada requisição saem do cadastro, pelo caso de uso de autenticação: a cadeia HTTP declara a
+     * porta ({@link ICurrentRolesReader}) e não conhece o núcleo; a composição liga as pontas.
+     */
     @Bean
-    public com.postech.restaurantes.adapter.controller.RestaurantController restaurantController(
-            com.postech.restaurantes.adapter.datasource.IRestaurantDataSource restaurantDataSource,
-            IUserDataSource userDataSource,
-            IUnitOfWork unitOfWork) {
-        return com.postech.restaurantes.adapter.controller.RestaurantController.create(
-                restaurantDataSource, userDataSource, unitOfWork);
+    public ICurrentRolesReader currentRolesReader(AuthController authController) {
+        return authController::currentRoles;
+    }
+
+    @Bean
+    public RestaurantController restaurantController(IRestaurantDataSource restaurantDataSource,
+                                                     IUserDataSource userDataSource, IUnitOfWork unitOfWork) {
+        return RestaurantController.create(restaurantDataSource, userDataSource, unitOfWork);
+    }
+
+    /** A regra de posse do restaurante pergunta o dono pelo núcleo; a API declara a porta, e a composição liga. */
+    @Bean
+    public IRestaurantOwnerReader restaurantOwnerReader(RestaurantController restaurantController) {
+        return restaurantController::ownerOf;
     }
 }

@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.ResetPasswordRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.ChangePasswordRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.NewUserRequest;
+import com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -109,14 +110,14 @@ class ValidPasswordTest {
         @DisplayName("Cadastro aceita senha válida, com ou sem acento")
         void deveAceitarNoCadastro(String senha) {
             assertTrue(violacoesDeSenha(new NewUserRequest("João", "joao@email.com", "joao", senha,
-                    Set.of("ROLE_CUSTOMER"), null)).isEmpty());
+                    null, WebFixtures.CLIENT_REQUEST, null, null)).isEmpty());
         }
 
         @Test
         @DisplayName("Cadastro, troca e redefinição recusam a senha de 80 bytes na borda")
         void deveRecusarNosTresCorpos() {
             assertEquals(1, violacoesDeSenha(new NewUserRequest("João", "joao@email.com", "joao",
-                    ACENTUADA_80_BYTES, Set.of("ROLE_CUSTOMER"), null)).size());
+                    ACENTUADA_80_BYTES, null, WebFixtures.CLIENT_REQUEST, null, null)).size());
             assertEquals(1, violacoesDeSenha(new ChangePasswordRequest("atual", ACENTUADA_80_BYTES,
                     ACENTUADA_80_BYTES)).size());
             assertEquals(1, violacoesDeSenha(new ResetPasswordRequest("token", ACENTUADA_80_BYTES,

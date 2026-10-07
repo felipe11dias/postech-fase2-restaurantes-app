@@ -2,14 +2,23 @@ package com.postech.restaurantes.adapter.presenter;
 
 import static com.postech.restaurantes.adapter.AdapterFixtures.ADDRESS_ID;
 import static com.postech.restaurantes.adapter.AdapterFixtures.NOW;
-import static com.postech.restaurantes.adapter.AdapterFixtures.ROLE_ID;
+import static com.postech.restaurantes.adapter.AdapterFixtures.ADMIN_DATA;
+import static com.postech.restaurantes.adapter.AdapterFixtures.CLIENT_DATA;
+import static com.postech.restaurantes.adapter.AdapterFixtures.COURIER_DATA;
+import static com.postech.restaurantes.adapter.AdapterFixtures.HASH;
+import static com.postech.restaurantes.adapter.AdapterFixtures.OWNER_DATA;
+import static com.postech.restaurantes.adapter.AdapterFixtures.USER_ADDRESS_ID;
 import static com.postech.restaurantes.adapter.AdapterFixtures.USER_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.USER_ID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
+import com.postech.restaurantes.adapter.datasource.data.CourierData;
+import com.postech.restaurantes.adapter.datasource.data.UserData;
 import com.postech.restaurantes.adapter.gateway.UserGateway;
 import com.postech.restaurantes.adapter.presenter.view.AuthView;
 import com.postech.restaurantes.adapter.presenter.view.UserView;
@@ -41,14 +50,62 @@ class PresentersTest {
         assertEquals("João Silva", view.name());
         assertEquals("joao.silva@email.com", view.email());
         assertEquals("joao.silva", view.login());
-        assertEquals(ROLE_ID, view.roles().get(0).id());
-        assertEquals("ROLE_CUSTOMER", view.roles().get(0).name());
-        assertEquals(ADDRESS_ID, view.addresses().get(0).id());
-        assertEquals("01001000", view.addresses().get(0).zipCode());
-        assertEquals("SP", view.addresses().get(0).state());
+        assertEquals(List.of("ROLE_CLIENT"), view.roles());
+        assertEquals("52998224725", view.client().cpf());
+        assertNull(view.owner());
+        assertNull(view.courier());
+        assertNull(view.admin());
+        assertEquals(USER_ADDRESS_ID, view.addresses().get(0).id());
+        assertEquals("Casa", view.addresses().get(0).label());
+        assertTrue(view.addresses().get(0).isDefault());
+        assertEquals(ADDRESS_ID, view.addresses().get(0).address().id());
+        assertEquals("01001000", view.addresses().get(0).address().zipCode());
+        assertEquals("SP", view.addresses().get(0).address().state());
         assertEquals(NOW.minusDays(1), view.createdAt());
         assertEquals(NOW, view.lastUpdatedAt());
         assertFalse(view.toString().contains(USER_DATA.passwordHash()));
+    }
+
+    @Test
+    @DisplayName("UserPresenter expõe os quatro perfis e os papéis derivados deles, na ordem fixa")
+    void deveApresentarTodosOsPerfis() {
+        IUserDataSource dataSource = org.mockito.Mockito.mock(IUserDataSource.class);
+        org.mockito.Mockito.when(dataSource.findById(USER_ID)).thenReturn(Optional.of(new UserData(USER_ID,
+                "João Silva", "joao.silva@email.com", "joao.silva", HASH, OWNER_DATA, CLIENT_DATA, COURIER_DATA,
+                ADMIN_DATA, List.of(), NOW, NOW)));
+
+        UserView view = UserPresenter.toView(UserGateway.create(dataSource).findById(USER_ID).orElseThrow());
+
+        assertEquals(List.of("ROLE_OWNER", "ROLE_CLIENT", "ROLE_COURIER", "ROLE_ADMIN"), view.roles());
+        assertEquals("11222333000181", view.owner().cnpj());
+        assertEquals("Sabor Ltda", view.owner().legalName());
+        assertEquals("1131234567", view.owner().businessPhone());
+        assertEquals("11912345678", view.client().phone());
+        assertNull(view.client().birthDate());
+        assertEquals("MOTORCYCLE", view.courier().vehicleType());
+        assertEquals("02650306461", view.courier().driverLicense());
+        assertEquals("ABC1D23", view.courier().vehiclePlate());
+        assertEquals("AVAILABLE", view.courier().status());
+        assertEquals("ADM-1", view.admin().employeeCode());
+        assertEquals("Operações", view.admin().department());
+        assertTrue(view.admin().superAdmin());
+    }
+
+    @Test
+    @DisplayName("UserPresenter mostra entregador a pé sem CNH nem placa")
+    void deveApresentarEntregadorSemDocumentosDeVeiculo() {
+        IUserDataSource dataSource = org.mockito.Mockito.mock(IUserDataSource.class);
+        org.mockito.Mockito.when(dataSource.findById(USER_ID)).thenReturn(Optional.of(new UserData(USER_ID,
+                "João Silva", "joao.silva@email.com", "joao.silva", HASH, null, null,
+                new CourierData("52998224725", "11912345678",
+                        "BICYCLE", null, null, "OFFLINE"),
+                null, List.of(), NOW, NOW)));
+
+        UserView view = UserPresenter.toView(UserGateway.create(dataSource).findById(USER_ID).orElseThrow());
+
+        assertNull(view.courier().driverLicense());
+        assertNull(view.courier().vehiclePlate());
+        assertEquals(List.of("ROLE_COURIER"), view.roles());
     }
 
     @Test

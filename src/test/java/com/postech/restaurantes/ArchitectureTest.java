@@ -32,6 +32,8 @@ import java.util.List;
 class ArchitectureTest {
 
     private static final String DOMAIN = "..domain..";
+    /** O domínio do projeto, como destino de dependência: {@code ..domain..} pegaria também {@code org.springframework.data.domain}. */
+    private static final String PROJECT_DOMAIN = "com.postech.restaurantes.domain..";
     private static final String APPLICATION = "..application..";
     private static final String ADAPTER = "..adapter..";
     private static final String INFRASTRUCTURE = "..infrastructure..";
@@ -151,6 +153,42 @@ class ArchitectureTest {
                     .and().doNotHaveSimpleName(PACKAGE_INFO)
                     .should().beRecords()
                     .andShould().haveSimpleNameEndingWith("View")
+                    .allowEmptyShould(true);
+
+    /**
+     * O registro da origem de dados e a view carregam só tipos do JDK: o valor de um enum do domínio
+     * ({@code CourierVehicleType}, {@code CourierStatus}) atravessa a fronteira pelo nome, e quem converte
+     * é o gateway (na entrada) e o presenter (na saída). Um {@code *Data} com tipo do domínio levaria esse
+     * tipo à infraestrutura, que o implementa ou o lê (Etapas 20 a 24).
+     */
+    @ArchTest
+    static final ArchRule registros_e_views_nao_carregam_tipos_do_dominio =
+            noClasses().that().resideInAnyPackage(
+                            "..adapter.datasource.data", "..adapter.service.data", "..adapter.presenter.view")
+                    .should().dependOnClassesThat().resideInAPackage(PROJECT_DOMAIN)
+                    .because("a tradução entre o domínio e o registro é do gateway e do presenter")
+                    .allowEmptyShould(true);
+
+    /** Objeto de valor é imutável e igual por valor: {@code record} com construtor compacto que valida. */
+    @ArchTest
+    static final ArchRule objetos_de_valor_sao_records =
+            classes().that().resideInAPackage("..domain.vo")
+                    .and().doNotHaveSimpleName(PACKAGE_INFO)
+                    .should().beRecords()
+                    .allowEmptyShould(true);
+
+    /**
+     * Regra de aplicação que mais de um caso de uso aplica fica em {@code application.policy}, uma vez só
+     * (Etapa 22). Não é caso de uso — não tem {@code run} — e só os casos de uso a usam: um adaptador que a
+     * chamasse estaria decidindo regra de aplicação fora do núcleo.
+     */
+    @ArchTest
+    static final ArchRule politicas_de_aplicacao_terminam_em_Policy =
+            classes().that().resideInAPackage("..application.policy..")
+                    .and().doNotHaveSimpleName(PACKAGE_INFO)
+                    .should().haveSimpleNameEndingWith("Policy")
+                    .andShould().onlyHaveDependentClassesThat().resideInAnyPackage(
+                            "..application.usecase..", "..application.policy..")
                     .allowEmptyShould(true);
 
     @ArchTest

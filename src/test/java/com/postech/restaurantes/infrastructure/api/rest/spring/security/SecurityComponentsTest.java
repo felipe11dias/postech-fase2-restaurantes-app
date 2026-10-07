@@ -24,7 +24,7 @@ class SecurityComponentsTest {
         @Test
         @DisplayName("O nome do principal é o login, que é o que a auditoria grava")
         void deveExporOLoginComoNome() {
-            AuthenticatedUser user = new AuthenticatedUser(USER_ID, "joao.silva", Set.of("ROLE_CUSTOMER"));
+            AuthenticatedUser user = new AuthenticatedUser(USER_ID, "joao.silva", Set.of("ROLE_CLIENT"));
 
             assertEquals("joao.silva", user.getName());
             assertEquals(USER_ID, user.id());
@@ -33,12 +33,12 @@ class SecurityComponentsTest {
         @Test
         @DisplayName("Os papéis ficam imutáveis")
         void deveCopiarOsPapeis() {
-            Set<String> originais = new java.util.HashSet<>(Set.of("ROLE_CUSTOMER"));
+            Set<String> originais = new java.util.HashSet<>(Set.of("ROLE_CLIENT"));
             AuthenticatedUser user = new AuthenticatedUser(USER_ID, "joao.silva", originais);
 
             originais.add("ROLE_ADMIN");
 
-            assertEquals(Set.of("ROLE_CUSTOMER"), user.roles());
+            assertEquals(Set.of("ROLE_CLIENT"), user.roles());
         }
     }
 
@@ -50,8 +50,8 @@ class SecurityComponentsTest {
 
         private static UsernamePasswordAuthenticationToken autenticado(UUID id) {
             return new UsernamePasswordAuthenticationToken(
-                    new AuthenticatedUser(id, "joao.silva", Set.of("ROLE_CUSTOMER")), null,
-                    java.util.List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER")));
+                    new AuthenticatedUser(id, "joao.silva", Set.of("ROLE_CLIENT")), null,
+                    java.util.List.of(new SimpleGrantedAuthority("ROLE_CLIENT")));
         }
 
         @Test

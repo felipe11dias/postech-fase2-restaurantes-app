@@ -63,7 +63,7 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Os nove endpoints da especificação estão documentados, cada um sob a sua tag")
+    @DisplayName("Os vinte endpoints da especificação estão documentados, cada um sob a sua tag")
     void deveDocumentarTodosOsEndpoints() {
         Set<String> documentados = new TreeSet<>();
         operacoes().forEach(op -> documentados.add(op.metodo() + " " + op.caminho() + " " + op.tag()));
@@ -77,7 +77,18 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
                 "GET /api/v1/users/{id} Usuários",
                 "PUT /api/v1/users/{id} Usuários",
                 "PATCH /api/v1/users/{id}/password Usuários",
-                "DELETE /api/v1/users/{id} Usuários")), documentados);
+                "DELETE /api/v1/users/{id} Usuários",
+                "PUT /api/v1/users/{id}/profiles/owner Usuários",
+                "PUT /api/v1/users/{id}/profiles/client Usuários",
+                "PUT /api/v1/users/{id}/profiles/courier Usuários",
+                "PUT /api/v1/users/{id}/profiles/admin Usuários",
+                "DELETE /api/v1/users/{id}/profiles/{type} Usuários",
+                "PATCH /api/v1/users/{id}/profiles/courier/status Usuários",
+                "POST /api/v1/restaurants Restaurantes",
+                "GET /api/v1/restaurants Restaurantes",
+                "GET /api/v1/restaurants/{id} Restaurantes",
+                "PUT /api/v1/restaurants/{id} Restaurantes",
+                "DELETE /api/v1/restaurants/{id} Restaurantes")), documentados);
     }
 
     /**
@@ -100,7 +111,7 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
         }
 
         assertTrue(divergencias.isEmpty(), String.join("\n", divergencias));
-        assertEquals(5, operacoes().stream().filter(Operacao::protegida).count());
+        assertEquals(14, operacoes().stream().filter(Operacao::protegida).count());
     }
 
     @Test
@@ -175,7 +186,7 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
     void deveDocumentarOStatusRealDoCadastro() {
         JsonNode respostas = doc.at("/paths/~1api~1v1~1users/post/responses");
 
-        assertEquals(Set.of("201", "400", "403", "409"), nomesDosCampos(respostas));
+        assertEquals(Set.of("201", "400", "409"), nomesDosCampos(respostas));
     }
 
     /**
@@ -196,7 +207,7 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
                 JsonNode.class);
 
         assertEquals(HttpStatus.CREATED, criado.getStatusCode(), String.valueOf(criado.getBody()));
-        assertEquals("01001000", criado.getBody().at("/addresses/0/zipCode").asText(),
+        assertEquals("01001000", criado.getBody().at("/addresses/0/address/zipCode").asText(),
                 "o CEP de exemplo, com máscara, é normalizado");
         assertEquals(HttpStatus.OK, login.getStatusCode());
     }
@@ -243,7 +254,7 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> requisicao = new HttpEntity<>(op.metodo().equals("GET") || op.metodo().equals("DELETE")
                 ? null : "{}", headers);
-        String caminho = op.caminho().replace("{id}", UUID.randomUUID().toString());
+        String caminho = op.caminho().replace("{id}", UUID.randomUUID().toString()).replace("{type}", "client");
         return HttpStatus.valueOf(rest.exchange(caminho, HttpMethod.valueOf(op.metodo()), requisicao, String.class)
                 .getStatusCode().value());
     }
@@ -255,6 +266,8 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
             JsonNode definicao = campo.getValue();
             if (definicao.has("example")) {
                 corpo.set(campo.getKey(), definicao.get("example"));
+            } else if (referencia(definicao) != null) {
+                corpo.set(campo.getKey(), exemplo(referencia(definicao)));
             } else if ("array".equals(definicao.path("type").asText())) {
                 JsonNode itens = definicao.get("items");
                 corpo.putArray(campo.getKey()).add(itens.has("$ref")
@@ -263,6 +276,15 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
             }
         });
         return corpo;
+    }
+
+    /**
+     * Objeto aninhado (o endereço dentro do endereço do usuário): o springdoc o escreve como
+     * {@code $ref} direto ou, quando o campo tem descrição, dentro de {@code allOf}.
+     */
+    private static String referencia(JsonNode definicao) {
+        JsonNode ref = definicao.has("$ref") ? definicao.get("$ref") : definicao.at("/allOf/0/$ref");
+        return ref.isMissingNode() ? null : ref.asText().replace("#/components/schemas/", "");
     }
 
     private static Set<String> nomesDosCampos(JsonNode no) {

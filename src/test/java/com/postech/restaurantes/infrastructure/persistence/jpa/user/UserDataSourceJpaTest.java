@@ -3,10 +3,11 @@ package com.postech.restaurantes.infrastructure.persistence.jpa.user;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ADDRESS_ID;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.HASH;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.NOW;
-import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ROLE_ID;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.CLIENT_DATA;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.USER_ADDRESS_DATA;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.USER_ADDRESS_ID;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.USER_DATA;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.USER_ID;
-import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.roleEntity;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.userEntity;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -16,16 +17,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.postech.restaurantes.adapter.datasource.data.AddressData;
+import com.postech.restaurantes.adapter.datasource.data.OwnerData;
+import com.postech.restaurantes.adapter.datasource.data.UserAddressData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
+import com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
+import com.postech.restaurantes.infrastructure.persistence.jpa.user.address.UserAddressJpaEntity;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -35,6 +41,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -47,14 +54,18 @@ import org.springframework.data.domain.Sort;
 class UserDataSourceJpaTest {
 
     private SpringDataUserRepository users;
-    private SpringDataRoleRepository roles;
     private UserDataSourceJpa dataSource;
 
     @BeforeEach
     void setUp() {
         users = mock(SpringDataUserRepository.class);
-        roles = mock(SpringDataRoleRepository.class);
-        dataSource = new UserDataSourceJpa(users, roles);
+        dataSource = new UserDataSourceJpa(users);
+        // Como o persist do Hibernate: o save atribui o id ao usuário novo.
+        when(users.save(any())).thenAnswer(invocation -> {
+            UserJpaEntity novo = invocation.getArgument(0);
+            novo.setId(USER_ID);
+            return novo;
+        });
     }
 
     @Test
@@ -69,10 +80,15 @@ class UserDataSourceJpaTest {
         assertEquals("joao.silva@email.com", data.email());
         assertEquals("joao.silva", data.login());
         assertEquals(HASH, data.passwordHash());
-        assertEquals(ROLE_ID, data.roles().iterator().next().id());
-        assertEquals("ROLE_CUSTOMER", data.roles().iterator().next().name());
-        assertEquals(ADDRESS_ID, data.addresses().get(0).id());
-        assertEquals("01001000", data.addresses().get(0).zipCode());
+        assertEquals(CLIENT_DATA, data.client());
+        assertNull(data.owner());
+        assertNull(data.courier());
+        assertNull(data.admin());
+        assertEquals(USER_ADDRESS_ID, data.addresses().get(0).id());
+        assertEquals("Casa", data.addresses().get(0).label());
+        assertTrue(data.addresses().get(0).isDefault());
+        assertEquals(ADDRESS_ID, data.addresses().get(0).address().id());
+        assertEquals("01001000", data.addresses().get(0).address().zipCode());
         assertEquals(NOW.minusDays(1), data.createdAt());
         assertEquals(NOW, data.lastUpdatedAt());
     }
@@ -103,6 +119,26 @@ class UserDataSourceJpaTest {
 
         assertEquals(USER_ID, dataSource.findByEmail("joao.silva@email.com").orElseThrow().id());
         assertTrue(dataSource.findByEmail("ninguem@email.com").isEmpty());
+    }
+
+    @Test
+    @DisplayName("Consulta por CPF usa o primeiro usuário achado; nenhum vira vazio")
+    void deveBuscarPorCpf() {
+        when(users.findByCpf("52998224725")).thenReturn(List.of(userEntity(), userEntity()));
+        when(users.findByCpf("11144477735")).thenReturn(List.of());
+
+        assertEquals(USER_ID, dataSource.findByCpf("52998224725").orElseThrow().id());
+        assertTrue(dataSource.findByCpf("11144477735").isEmpty());
+    }
+
+    @Test
+    @DisplayName("Consulta por CNPJ traduz o registro encontrado; ausência vira vazio")
+    void deveBuscarPorCnpj() {
+        when(users.findByCnpj("11222333000181")).thenReturn(Optional.of(userEntity()));
+        when(users.findByCnpj("04252011000110")).thenReturn(Optional.empty());
+
+        assertEquals(USER_ID, dataSource.findByCnpj("11222333000181").orElseThrow().id());
+        assertTrue(dataSource.findByCnpj("04252011000110").isEmpty());
     }
 
     @Test
@@ -186,30 +222,34 @@ class UserDataSourceJpaTest {
     }
 
     @Test
-    @DisplayName("Inserção monta a entidade nova, vincula os papéis do catálogo e grava")
+    @DisplayName("Inserção grava o usuário primeiro e só então os perfis, com o id que ele recebeu")
     void deveInserir() {
-        when(roles.findAllById(List.of(ROLE_ID))).thenReturn(List.of(roleEntity()));
         when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         UserData salvo = dataSource.insert(new UserData(null, "João Silva", "joao.silva@email.com", "joao.silva",
-                HASH, USER_DATA.roles(), USER_DATA.addresses(), NOW, NOW));
+                HASH, null, CLIENT_DATA, null, null, List.of(), NOW, NOW));
 
         UserJpaEntity gravado = capturarGravado();
-        assertNull(gravado.getId());
+        assertEquals(USER_ID, gravado.getId());
         assertEquals("joao.silva", gravado.getLogin());
         assertEquals(HASH, gravado.getPassword());
-        assertEquals(ROLE_ID, gravado.getRoles().iterator().next().getId());
+        assertEquals(USER_ID, gravado.getClient().getId());
+        assertEquals("52998224725", gravado.getClient().getCpf());
+        assertNull(gravado.getOwner());
+        InOrder ordem = inOrder(users);
+        ordem.verify(users).save(gravado);
+        ordem.verify(users).saveAndFlush(gravado);
+        assertEquals(CLIENT_DATA, salvo.client());
         assertEquals("joao.silva", salvo.login());
     }
 
     @Test
     @DisplayName("A origem de dados não carimba a auditoria: quem escreve os instantes é o listener")
     void naoDeveEscreverAAuditoria() {
-        when(roles.findAllById(any())).thenReturn(List.of(roleEntity()));
         when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         dataSource.insert(new UserData(null, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
-                USER_DATA.roles(), List.of(), NOW, NOW));
+                null, CLIENT_DATA, null, null, List.of(), NOW, NOW));
 
         UserJpaEntity gravado = capturarGravado();
         assertNull(gravado.getCreatedAt());
@@ -217,21 +257,55 @@ class UserDataSourceJpaTest {
     }
 
     @Test
-    @DisplayName("Endereço gravado nasce sem id e com o dono religado")
+    @DisplayName("Vínculo e endereço de um usuário novo nascem sem id, com rótulo e padrão do registro")
     void deveMontarOsEnderecosDaInsercao() {
-        when(roles.findAllById(any())).thenReturn(List.of(roleEntity()));
         when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         dataSource.insert(new UserData(null, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
-                USER_DATA.roles(), List.of(new AddressData(ADDRESS_ID, "Rua A", "1", null, "Centro", "São Paulo",
-                        "SP", "01001000")), NOW, NOW));
+                null, CLIENT_DATA, null, null, List.of(new UserAddressData(null, "Trabalho", true,
+                        new AddressData(ADDRESS_ID, "Rua A", "1", null, "Centro", "São Paulo", "SP", "01001000"))),
+                NOW, NOW));
 
         UserJpaEntity gravado = capturarGravado();
         assertEquals(1, gravado.getAddresses().size());
         assertNull(gravado.getAddresses().get(0).getId());
-        assertNull(gravado.getAddresses().get(0).getComplement());
-        assertEquals("Rua A", gravado.getAddresses().get(0).getStreet());
-        assertSame(gravado, gravado.getAddresses().get(0).getUser());
+        assertEquals("Trabalho", gravado.getAddresses().get(0).getLabel());
+        assertTrue(gravado.getAddresses().get(0).isDefaultAddress());
+        assertNull(gravado.getAddresses().get(0).getAddress().getId());
+        assertNull(gravado.getAddresses().get(0).getAddress().getComplement());
+        assertEquals("Rua A", gravado.getAddresses().get(0).getAddress().getStreet());
+    }
+
+    @Test
+    @DisplayName("Atualização com o id do vínculo atualiza vínculo e endereço na mesma linha; sem id, cria outro")
+    void deveManterOVinculoPeloId() {
+        UserJpaEntity existente = userEntity();
+        UserAddressJpaEntity vinculo = existente.getAddresses().get(0);
+        when(users.findById(USER_ID)).thenReturn(Optional.of(existente));
+        when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        AddressData outraRua = new AddressData(null, "Rua Outra", "7", null, "Centro", "São Paulo", "SP", "01001000");
+
+        dataSource.update(new UserData(USER_ID, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
+                null, CLIENT_DATA, null, null, List.of(new UserAddressData(USER_ADDRESS_ID, "Casa Nova", false, outraRua),
+                        new UserAddressData(null, "Trabalho", true, outraRua)), NOW, NOW));
+
+        assertEquals(2, existente.getAddresses().size());
+        assertSame(vinculo, existente.getAddresses().get(0));
+        assertEquals("Casa Nova", vinculo.getLabel());
+        assertEquals(ADDRESS_ID, vinculo.getAddress().getId());
+        assertEquals("Rua Outra", vinculo.getAddress().getStreet());
+        assertNull(existente.getAddresses().get(1).getId());
+    }
+
+    @Test
+    @DisplayName("Id de vínculo que o usuário não tem é falha de estado: o domínio não deixaria chegar aqui")
+    void deveRecusarVinculoInexistente() {
+        when(users.findById(USER_ID)).thenReturn(Optional.of(userEntity()));
+        UserData comVinculoAlheio = new UserData(USER_ID, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
+                null, CLIENT_DATA, null, null,
+                List.of(new UserAddressData(UUID.randomUUID(), null, true, USER_ADDRESS_DATA.address())), NOW, NOW);
+
+        assertThrows(IllegalStateException.class, () -> dataSource.update(comVinculoAlheio));
     }
 
     @Test
@@ -239,17 +313,36 @@ class UserDataSourceJpaTest {
     void deveAtualizar() {
         UserJpaEntity existente = userEntity();
         when(users.findById(USER_ID)).thenReturn(Optional.of(existente));
-        when(roles.findAllById(any())).thenReturn(List.of(roleEntity()));
         when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         UserData atualizado = dataSource.update(new UserData(USER_ID, "Novo Nome", "novo@email.com", "novo", HASH,
-                USER_DATA.roles(), List.of(), NOW.minusDays(1), NOW.plusHours(1)));
+                null, CLIENT_DATA, null, null, List.of(), NOW.minusDays(1), NOW.plusHours(1)));
 
         assertSame(existente, capturarGravado());
         assertEquals("Novo Nome", existente.getName());
         assertEquals("novo@email.com", existente.getEmail());
         assertTrue(existente.getAddresses().isEmpty());
         assertEquals("Novo Nome", atualizado.name());
+    }
+
+    @Test
+    @DisplayName("Atualização mantém a linha do perfil que continua, cria o novo e tira o ausente")
+    void deveAtualizarOsPerfis() {
+        UserJpaEntity existente = userEntity();
+        var cliente = existente.getClient();
+        when(users.findById(USER_ID)).thenReturn(Optional.of(existente));
+        when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserData atualizado = dataSource.update(new UserData(USER_ID, "João Silva", "joao.silva@email.com",
+                "joao.silva", HASH, new OwnerData("11222333000181", "Sabor Ltda", "1131234567"), null, null, null,
+                List.of(), NOW, NOW));
+
+        assertNull(existente.getClient());
+        assertEquals(USER_ID, existente.getOwner().getId());
+        assertEquals("11222333000181", atualizado.owner().cnpj());
+        assertNull(atualizado.client());
+        verify(users, never()).save(any());
+        assertEquals("52998224725", cliente.getCpf());
     }
 
     @Test
@@ -261,13 +354,38 @@ class UserDataSourceJpaTest {
     }
 
     @Test
-    @DisplayName("Exclusão delega ao repositório pelo id")
+    @DisplayName("Contagem de administradores vem do repositório")
+    void deveContarOsAdministradores() {
+        when(users.countAdmins()).thenReturn(2L);
+
+        assertEquals(2L, dataSource.countAdmins());
+    }
+
+    @Test
+    @DisplayName("Exclusão tira e descarrega os perfis antes de apagar o usuário")
     void deveExcluir() {
+        UserJpaEntity existente = userEntity();
+        existente.setOwner(PersistenceFixtures.ownerEntity());
+        when(users.findById(USER_ID)).thenReturn(Optional.of(existente));
+
+        dataSource.delete(USER_ID);
+
+        assertNull(existente.getClient());
+        assertNull(existente.getOwner());
+        InOrder ordem = inOrder(users);
+        ordem.verify(users).flush();
+        ordem.verify(users).delete(existente);
+    }
+
+    @Test
+    @DisplayName("Excluir id inexistente não faz nada")
+    void naoDeveExcluirQuandoNaoEncontra() {
         UUID id = UUID.randomUUID();
+        when(users.findById(id)).thenReturn(Optional.empty());
 
         dataSource.delete(id);
 
-        verify(users).deleteById(id);
+        verify(users, never()).delete(any());
     }
 
     private Pageable capturarPageable() {

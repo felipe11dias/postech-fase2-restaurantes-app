@@ -14,9 +14,11 @@ import com.postech.restaurantes.application.gateway.IUnitOfWork;
 import com.postech.restaurantes.application.usecase.restaurant.CreateRestaurantUseCase;
 import com.postech.restaurantes.application.usecase.restaurant.DeleteRestaurantUseCase;
 import com.postech.restaurantes.application.usecase.restaurant.FindRestaurantByIdUseCase;
+import com.postech.restaurantes.application.usecase.restaurant.FindRestaurantOwnerUseCase;
 import com.postech.restaurantes.application.usecase.restaurant.SearchRestaurantsUseCase;
 import com.postech.restaurantes.application.usecase.restaurant.UpdateRestaurantUseCase;
 import com.postech.restaurantes.domain.Guard;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Controller de adaptação do agregado de restaurante. */
@@ -50,9 +52,9 @@ public final class RestaurantController {
         return RestaurantPresenter.toView(unitOfWork.execute(() -> useCase.run(id)));
     }
 
-    public PageResult<RestaurantView> search(String name, PageRequest request) {
+    public PageResult<RestaurantView> search(String name, UUID ownerId, PageRequest request) {
         var useCase = SearchRestaurantsUseCase.create(restaurantGateway());
-        return RestaurantPresenter.toView(unitOfWork.execute(() -> useCase.run(name, request)));
+        return RestaurantPresenter.toView(unitOfWork.execute(() -> useCase.run(name, ownerId, request)));
     }
 
     public RestaurantView update(UpdateRestaurantDTO dto) {
@@ -63,6 +65,12 @@ public final class RestaurantController {
     public void delete(UUID id) {
         var useCase = DeleteRestaurantUseCase.create(restaurantGateway());
         unitOfWork.execute(() -> useCase.run(id));
+    }
+
+    /** O dono do restaurante, para a regra de posse; restaurante inexistente não tem dono. */
+    public Optional<UUID> ownerOf(UUID restaurantId) {
+        var useCase = FindRestaurantOwnerUseCase.create(restaurantGateway());
+        return unitOfWork.execute(() -> useCase.run(restaurantId));
     }
 
     private RestaurantGateway restaurantGateway() {

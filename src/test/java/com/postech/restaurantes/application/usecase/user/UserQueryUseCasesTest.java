@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -16,8 +17,11 @@ import static org.mockito.Mockito.when;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
+import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.application.gateway.IUserGateway;
+import com.postech.restaurantes.domain.entity.admin.AdminProfile;
 import com.postech.restaurantes.domain.entity.user.User;
+import com.postech.restaurantes.domain.exception.ResourceInUseException;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
 import java.util.List;
 import java.util.Optional;
@@ -25,16 +29,19 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.mockito.ArgumentCaptor;
 
 /** FindUserById, DeleteUser e SearchUsers: consultas e exclusão sobre o mesmo gateway. */
 class UserQueryUseCasesTest {
 
     private IUserGateway userGateway;
+    private IRestaurantGateway restaurantGateway;
 
     @BeforeEach
     void setUp() {
         userGateway = mock(IUserGateway.class);
+        restaurantGateway = mock(IRestaurantGateway.class);
     }
 
     @Nested
@@ -68,13 +75,15 @@ class UserQueryUseCasesTest {
     class DeleteUser {
 
         @Test
-        @DisplayName("Exclui quando o usuário existe")
+        @DisplayName("Exclui quando o usuário existe, apagando antes os restaurantes dele")
         void deveExcluirQuandoExiste() {
             when(userGateway.findById(USER_ID)).thenReturn(Optional.of(existingUser()));
 
-            DeleteUserUseCase.create(userGateway).run(USER_ID);
+            DeleteUserUseCase.create(userGateway, restaurantGateway).run(USER_ID);
 
-            verify(userGateway).delete(USER_ID);
+            InOrder ordem = inOrder(restaurantGateway, userGateway);
+            ordem.verify(restaurantGateway).deleteByUserId(USER_ID);
+            ordem.verify(userGateway).delete(USER_ID);
         }
 
         @Test
@@ -82,15 +91,46 @@ class UserQueryUseCasesTest {
         void deveFalharQuandoNaoExiste() {
             when(userGateway.findById(USER_ID)).thenReturn(Optional.empty());
 
-            assertThrows(ResourceNotFoundException.class, () -> DeleteUserUseCase.create(userGateway).run(USER_ID));
+            assertThrows(ResourceNotFoundException.class, () -> DeleteUserUseCase.create(userGateway, restaurantGateway).run(USER_ID));
 
             verify(userGateway, never()).delete(any());
+            verify(restaurantGateway, never()).deleteByUserId(any());
+        }
+
+        @Test
+        @DisplayName("Não exclui o último administrador nem os restaurantes dele")
+        void naoDeveExcluirOUltimoAdministrador() {
+            User admin = existingUser();
+            admin.replaceProfiles(admin.getProfiles().withAdmin(AdminProfile.restore("ADM-1", null, true)));
+            when(userGateway.findById(USER_ID)).thenReturn(Optional.of(admin));
+            when(userGateway.countAdmins()).thenReturn(1L);
+
+            ResourceInUseException erro = assertThrows(ResourceInUseException.class,
+                    () -> DeleteUserUseCase.create(userGateway, restaurantGateway).run(USER_ID));
+
+            assertEquals("O último administrador não pode ser excluído", erro.getMessage());
+            verify(restaurantGateway, never()).deleteByUserId(any());
+            verify(userGateway, never()).delete(any());
+        }
+
+        @Test
+        @DisplayName("Exclui o administrador quando há outro")
+        void deveExcluirAdministradorQuandoHaOutro() {
+            User admin = existingUser();
+            admin.replaceProfiles(admin.getProfiles().withAdmin(AdminProfile.restore("ADM-1", null, true)));
+            when(userGateway.findById(USER_ID)).thenReturn(Optional.of(admin));
+            when(userGateway.countAdmins()).thenReturn(2L);
+
+            DeleteUserUseCase.create(userGateway, restaurantGateway).run(USER_ID);
+
+            verify(restaurantGateway).deleteByUserId(USER_ID);
+            verify(userGateway).delete(USER_ID);
         }
 
         @Test
         @DisplayName("Recusa id nulo")
         void deveRecusarIdNulo() {
-            assertThrows(IllegalArgumentException.class, () -> DeleteUserUseCase.create(userGateway).run(null));
+            assertThrows(IllegalArgumentException.class, () -> DeleteUserUseCase.create(userGateway, restaurantGateway).run(null));
         }
     }
 

@@ -329,3 +329,208 @@
   com violações propositais — 23 regras.
 - `mvn clean verify`: 465 testes unitários e 91 de integração; cobertura unitária 100% (1066
   linhas, 232 ramos). Newman: 52 requests, 108 asserções, nenhuma falha.
+
+## Relatório v2.0 — Modelo de Dados v2 (planejamento)
+- Documentos do novo modelo no projeto, como referência (fora de `db/migration`):
+  `docs/modelo-dados/postech-2-restaurantes.sql` e `.pdf`, com `docs/modelo-dados/README.md`
+  (escopo, divergências modelo → schema físico, observações sobre as tabelas de cardápio).
+- `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (a v1.0 fica como estava): histórico de
+  versões; seção da Etapa 16 (restaurantes), que faltava, com as pendências frente às convenções;
+  seção "Modelo de Dados v2 — adequação planejada" com o quadro atual × v2, diagrama ER, enums
+  (`courier_vehicle_type`, `courier_status`, `day_of_week`), divergências e política de migração;
+  Etapas 17 a 25 planejadas para `users`, `user_addresses`, `password_reset_tokens`, `owners`,
+  `clients`, `couriers`, `admins`, `restaurants` e `restaurant_office_hours`.
+- Ponto de atenção registrado no escopo: o modelo v2 fixa os tipos de usuário no schema, o que
+  conflita com o requisito de CRUD do catálogo de tipos.
+- Nenhuma mudança de código ou de migration.
+
+## Etapa 17 — Reorganização dos pacotes do agregado de usuário
+- Domínio: `Role`/`RoleName` em `domain/entity/role` e `PasswordResetToken` em
+  `domain/entity/password`, com `package-info`; `user` passa a conter só `User`.
+- Persistência: `persistence/jpa/user/{address,role,password}` espelhando o domínio, cada um com
+  `package-info`. `AddressJpaEntity` deixa de referenciar `UserJpaEntity`: a associação vira
+  `@OneToMany` + `@JoinColumn(nullable = false, updatable = false)` unidirecional, sem o ciclo
+  `user` ↔ `user.address` que a regra `nenhum_ciclo_entre_pacotes` recusa (conferido ao contrário).
+- Imports do módulo de restaurantes ajustados aos pacotes novos.
+- Testes nos pacotes espelhados: `PasswordResetTokenTest`, `RoleTest`, `RoleNameTest` movidos;
+  `JpaEntitiesTest` e `RoleAndTokenDataSourcesJpaTest` divididos em um teste por classe.
+- Build destravado: `SchemaMigrationIT` e `OpenApiDocumentationIT` atualizados para V3 e os
+  endpoints de restaurante (falhavam desde a Etapa 16); testes unitários que faltavam no módulo de
+  restaurantes para voltar a 100% de ramos.
+- `docs/arquitetura/01`, `04`, `05` e `CLAUDE.md` com a organização nova.
+- `mvn clean verify`: 530 testes unitários e 92 de integração; cobertura unitária 100% (1346
+  linhas, 268 ramos, 560 métodos). Newman: 67 requests, 124 asserções, nenhuma falha.
+
+## Etapa 18 — Endereços via user_addresses e endereço próprio do restaurante
+- Migration `V4__user_addresses.sql`: tabela `user_addresses` (rótulo, `is_default`, auditoria;
+  `address_id` único; "um padrão por usuário" como restrição de exclusão adiada para o commit);
+  endereços existentes viram vínculos (o de menor id é o padrão); cada restaurante ganha uma cópia
+  própria do endereço que usava; `restaurants.address_id` único; `addresses.user_id` removida.
+- Domínio: `UserAddress` (parte do agregado `User`), com "exatamente um padrão" verificado no
+  `User`; `Restaurant` passa a ter um `Address` em vez de `addressId`.
+- Aplicação: `UserAddressDTO` (promove o primeiro a padrão quando nenhum é marcado); DTOs de
+  restaurante com `AddressDTO`; sai a regra "o endereço do restaurante é um dos endereços do dono".
+- Adaptadores: `UserAddressData`, `UserAddressView`; `AddressMapping` (adapter/gateway/mapping) e
+  `AddressPresenter`, compartilhados pelo usuário e pelo restaurante.
+- Persistência: `AddressJpaEntity` em `persistence/jpa/address` (com `AddressJpaMapping`);
+  `UserAddressJpaEntity` em `persistence/jpa/user/address`; restaurante com `@OneToOne` e
+  `orphanRemoval` para o endereço; `@EntityGraph` carregando o endereço.
+- API: endereços do usuário como `{ label, isDefault, address }`; restaurante com `address` no
+  corpo e na resposta. Coleção Postman ajustada e prints regenerados.
+- V4 verificada também sobre o volume do Compose com dados (restaurante usando o endereço do dono).
+- Revisão de código: papéis carregados por subselect (o grafo papéis × endereços repetia endereços);
+  `id` opcional no endereço do usuário mantém vínculo e endereço numa atualização (id alheio → 400);
+  ITs contam só os endereços que criaram (`EnderecosNoBanco`), limpeza em `finally`; guarda de que a
+  restrição adiada chega como 409.
+- `mvn clean verify`: 560 testes unitários e 98 de integração; cobertura unitária 100% (1429
+  linhas, 292 ramos, 597 métodos). Newman: 67 requests, 126 asserções, nenhuma falha.
+
+## Etapa 19 — Token de redefinição único por usuário
+- Migration `V5__one_reset_token_per_user.sql`: mantém só o token de validade mais distante de cada
+  usuário (empate pelo id), cria `UNIQUE (user_id)` e remove o índice simples, redundante.
+- Domínio: `PasswordResetToken.reissue(hash, validade, agora)` — hash e validade novos, uso zerado,
+  tudo validado antes de mudar.
+- Aplicação: `IPasswordResetTokenGateway.findByUserId`; `ForgotPasswordUseCase` reemite o token que
+  o usuário já tinha (o link anterior deixa de valer) e só insere quando não há nenhum.
+- Adaptadores e persistência: busca pelo dono; `update` passa a gravar hash, validade e uso.
+- V5 verificada também sobre o volume do Compose com vários tokens do mesmo usuário.
+- `mvn clean verify`: 565 testes unitários e 101 de integração; cobertura unitária 100% (1445
+  linhas, 294 ramos, 600 métodos). Newman: 67 requests, 126 asserções, nenhuma falha.
+
+## Etapa 20 — Perfis de usuário no domínio
+- VOs `Cpf` e `Cnpj` (verificadores conferidos; CNPJ também no formato alfanumérico da Receita, em
+  vigor desde julho de 2026), `Phone` (10 a 13 dígitos), `LicensePlate` (padrão antigo ou Mercosul)
+  e `DriverLicense` (CNH, 11 dígitos).
+- Enums do modelo de dados: `CourierVehicleType` (com `requiresLicense()`) e `CourierStatus`, ambos
+  com `from(String)`.
+- Entidades de perfil, sem id próprio (a identidade é a do usuário), em pacotes próprios:
+  `OwnerProfile`, `ClientProfile` (nascimento não futuro, com o dia por parâmetro), `CourierProfile`
+  (CNH e placa andam com o veículo; nasce `OFFLINE`) e `AdminProfile`.
+- Ajuste do plano: as mudanças em `RoleName` (`ROLE_COURIER`, `ROLE_CUSTOMER` → `ROLE_CLIENT`) foram
+  para a Etapa 21, junto com o fim do catálogo `roles`.
+- Só o domínio mudou. `mvn clean verify`: 662 testes unitários e 101 de integração; cobertura
+  unitária 100% (1600 linhas, 354 ramos, 666 métodos).
+
+## Etapa 21 — Usuário composto por perfis (papel derivado)
+- Migration `V6__user_profiles.sql`: tipos `courier_vehicle_type` e `courier_status`; tabelas
+  `owners`, `clients`, `couriers` e `admins` (chave primária = usuário, `ON DELETE CASCADE`,
+  auditoria), com o `CHECK` de CNH e placa por veículo; perfis dos usuários da seed; falha com
+  mensagem se sobrar usuário sem perfil (não inventa CPF nem CNPJ); remove `roles` e `user_roles`.
+- Domínio: `UserProfiles` (ao menos um perfil; CPF igual entre cliente e entregador; papéis
+  derivados); `User` guarda os perfis; `RoleName` passa a `ROLE_OWNER`, `ROLE_CLIENT`,
+  `ROLE_COURIER`, `ROLE_ADMIN`; sai a entidade `Role`.
+- Aplicação: DTOs de perfil; `RegisterUserUseCase` recebe o relógio e recusa CPF e CNPJ já
+  cadastrados (409); `IUserGateway` ganha `findByCpf` e `findByCnpj`; sai `IRoleGateway`. Criar ou
+  alterar restaurante exige perfil de dono (administrador sem esse perfil recebe 403).
+- Adaptadores e API: `OwnerData`, `ClientData`, `CourierData`, `AdminData`; views e respostas com
+  os perfis e `roles` como lista de nomes; cadastro com os blocos `owner`, `client` e `courier` (o
+  autocadastro não tem perfil de administrador); saem `RoleGateway`, `IRoleDataSource`, `RoleData`,
+  `RoleView` e `RoleResponse`.
+- Persistência: entidades JPA de cada perfil em `persistence/jpa/user/{owner,client,courier,admin}`,
+  ligadas só do lado do usuário (sem ciclo de pacotes); `ENUM`s como texto com `@ColumnTransformer`;
+  a exclusão tira e descarrega os perfis antes do usuário (o Hibernate apagaria o usuário primeiro e
+  o `DELETE` do perfil falharia). Sai o pacote `persistence/jpa/user/role`.
+- Testes: `Documentos` gera CPF, CNPJ e CNH válidos para os ITs; testes novos de perfis em todas as
+  camadas. Postman: gerador de documentos no nível da coleção, cadastro de dono e de entregador,
+  casos de CPF inválido, nenhum perfil, moto sem CNH, CPF e CNPJ duplicados e restaurante para quem
+  não é dono; 76 requests e 150 asserções, sem falhas, em duas execuções; 76 prints.
+- `mvn clean verify`: 680 testes unitários e 114 de integração; cobertura unitária 100% (1767
+  linhas, 424 ramos, 737 métodos).
+
+## Etapa 22 — Perfis em usuário existente e status do entregador
+- Endpoints novos em `/api/v1/users/{id}/profiles`: `PUT owner`, `PUT client`, `PUT courier` (o
+  próprio usuário ou um administrador), `PUT admin` (só administrador), `DELETE {tipo}` e
+  `PATCH courier/status`. Os papéis do token valem a partir do próximo login.
+- Domínio: `ProfileType`; `UserProfiles` ganha `withOwner`/`withClient`/`withCourier`/`withAdmin`,
+  `without` e `has` (conjunto novo, mesmas regras: ao menos um perfil, o mesmo CPF para cliente e
+  entregador); exceção `ResourceInUseException` (409).
+- Aplicação: `SaveUserProfileUseCase` (entrada `UserProfileDTO`, interface selada; CPF e CNPJ de
+  outro cadastro recusados; alterar o entregador mantém o status), `RemoveUserProfileUseCase` (perfil
+  inexistente 404; último perfil 400; dono com restaurante 409, por `IRestaurantGateway.existsByUserId`)
+  e `ChangeCourierStatusUseCase`; `AdminProfileDTO`.
+- Adaptadores e infraestrutura: `UserController` recebe a origem de dados de restaurante;
+  `existsByUserId` na porta, no gateway e na JPA de restaurante; `AdminProfileRequest`,
+  `CourierStatusRequest`; handler da `ResourceInUseException`.
+- Testes: unitários de cada caso de uso e das regras de `UserProfiles`; `UserProfilesApiIT` por HTTP;
+  `OpenApiDocumentationIT` com as seis operações. Postman: pasta "Perfis" com o sucesso e cada erro
+  documentado; 111 requests e 234 asserções, sem falhas, em duas execuções; 111 prints.
+- `mvn clean verify`: 725 testes unitários e 122 de integração; cobertura unitária 100% (1877
+  linhas, 474 ramos, 784 métodos).
+
+### Etapa 22 — correções da revisão de código
+- Autorização com os papéis do cadastro a cada requisição (`FindCurrentRolesUseCase`,
+  `AuthController.currentRoles`, porta `ICurrentRolesReader` no filtro): perfil removido deixa de
+  autorizar na hora, com o mesmo token.
+- O último administrador não perde o perfil de administrador (`IUserGateway.countAdmins`).
+- `ResourceInUseException` ganha categoria própria: 409 `recurso-em-uso`.
+- O CPF é da pessoa: alterar o CPF do perfil de cliente corrige o do entregador e vice-versa.
+- CPF e CNPJ únicos numa regra só (`application/policy/user/UniqueDocumentsPolicy`), consultando só o
+  documento que mudou.
+- Migration `V7__profile_integrity.sql`: gatilho que impede o mesmo CPF em dois usuários entre
+  `clients` e `couriers` e chave estrangeira `restaurants.user_id → owners`. As migrations planejadas
+  das Etapas 23 e 24 passam a V8 e V9.
+- Postman: o 409 da remoção do perfil de dono usa o dono criado pela coleção, nunca a seed; 113
+  requests, 236 asserções, sem falhas, em duas execuções; 113 prints.
+- `mvn clean verify`: 740 testes unitários e 125 de integração; cobertura unitária 100% (1914
+  linhas, 502 ramos, 795 métodos).
+
+## Etapa 23 — Restaurante alinhado ao modelo v2 e à regra de posse
+- Posse do restaurante no `@PreAuthorize` (`@restaurantSecurity.isOwner`, porta `IRestaurantOwnerReader`
+  ligada em `main` ao `RestaurantController.ownerOf` / `FindRestaurantOwnerUseCase`): o dono altera e
+  exclui só os próprios restaurantes; o administrador, qualquer um.
+- `userId` opcional: no cadastro, sem ele, o dono é quem está autenticado; na alteração, sem ele, o
+  dono continua o mesmo. Indicar outro dono, no cadastro ou na alteração, é só do administrador.
+- Excluir o usuário exclui os restaurantes dele, com o endereço de cada um (`DeleteUserUseCase` →
+  `IRestaurantGateway.deleteByUserId`, pelas entidades JPA).
+- Migration `V8__restaurant_owner_cascade.sql`: `restaurants.user_id → users ON DELETE CASCADE`. A
+  chave para `owners` (V7) continua sem cascata, para o perfil de dono não sair com restaurante.
+- Listagem por dono: `GET /api/v1/restaurants?ownerId=`, com o filtro nos links de navegação.
+- Testes: `RestaurantSecurityTest`, `FindRestaurantOwnerUseCaseTest`, `RestaurantOwnershipIT` e os
+  ajustes das demais camadas. Postman: segundo dono criado pela coleção como alvo dos 403 de posse,
+  cadastro sem `userId`, listagem por dono e exclusão do dono com o restaurante; 123 requests e 253
+  asserções, sem falhas, em duas execuções; 123 prints.
+- `mvn clean verify`: 751 testes unitários e 132 de integração; cobertura unitária 100% (1940
+  linhas, 516 ramos, 804 métodos).
+
+## Etapa 24 — Horário de funcionamento por dia
+- Migration `V9__restaurant_office_hours.sql`: tipo `day_of_week`; tabela `restaurant_office_hours`
+  (`ON DELETE CASCADE`, auditoria, `UNIQUE (restaurant_id, day_of_week, start_time)`, abertura ≠
+  fechamento); o horário único de cada restaurante vira sete linhas, uma por dia; saem
+  `office_hour_start` e `office_hour_end`.
+- Domínio: `OfficeHour` (valor: dia `java.time.DayOfWeek`, abertura, fechamento; virada da meia-noite;
+  sobreposição na semana circular); `Restaurant` com a lista (ao menos um horário, sem sobreposição,
+  na ordem da semana).
+- Aplicação, adaptadores e API: `OfficeHourDTO`, `OfficeHourData`, `OfficeHourView`,
+  `OfficeHourRequest`, `OfficeHourResponse`; o corpo do restaurante troca `officeHourStart`/
+  `officeHourEnd` por `officeHours`.
+- Persistência: `restaurant/officehour/OfficeHourJpaEntity` (`day_of_week` como texto com
+  `@ColumnTransformer`); a atualização reconcilia por (dia, abertura).
+- Testes: `OfficeHourTest`, `OfficeHourDTOTest`, `OfficeHourJpaEntityTest`, `RestaurantOfficeHoursIT` e os
+  ajustes das demais camadas; conversão da V9 conferida num banco na V8. Postman: corpos com a lista,
+  cadastro com horários diferentes por dia e caso de horários sobrepostos; 124 requests e 257
+  asserções, sem falhas, em duas execuções; 124 prints.
+- `mvn clean verify`: 766 testes unitários e 136 de integração; cobertura unitária 100% (2000
+  linhas, 544 ramos, 836 métodos).
+
+## Etapa 25 — Revisão de conformidade do modelo de dados v2
+- Quadro final "modelo v2 × schema real" no relatório, a partir do schema extraído das migrations V1 a
+  V9 (`pg_dump`) e comparado tabela por tabela com o DDL de `docs/modelo-dados/`; divergências
+  justificadas, inclusive as chaves não adiáveis e as garantias além do modelo.
+- Correção: o último administrador não é mais excluído (`DELETE /api/v1/users/{id}` → 409
+  `recurso-em-uso`). A regra fica em `application/policy/user/LastAdminPolicy`, usada também pela remoção
+  do perfil de administrador. Migration `V10__at_least_one_admin.sql`: gatilho com trava consultiva que recusa a
+  remoção do último administrador também quando duas remoções acontecem ao mesmo tempo (achado da revisão
+  de código da etapa).
+- ArchUnit: `infraestrutura_so_conhece_do_dominio_as_excecoes` (24 regras no `InfrastructureModulesTest`),
+  `registros_e_views_nao_carregam_tipos_do_dominio`, `politicas_de_aplicacao_terminam_em_Policy` e
+  `objetos_de_valor_sao_records` (17 no `ArchitectureTest`), conferidas ao contrário com classes
+  temporárias.
+- Documentação: a descrição dos `PUT` de perfil dizia "no próximo login" (a autorização lê os perfis a
+  cada requisição desde a revisão da Etapa 22); a citação da regra do enum como texto apontava uma
+  regra que não o cobria. Relatório (Visão Geral, Escopo, Mapa, Modelo v2, Decisões),
+  `docs/arquitetura/`, `docs/modelo-dados/README.md`, README e `CLAUDE.md` sincronizados com o código.
+- Postman: caso 92, exclusão do último administrador (409), que só mira a seed depois que a listagem
+  confirma que ela é o único administrador (sem a confirmação, as asserções ficam puladas); 125 requests e 260 asserções, sem falhas, em duas
+  execuções; 125 prints.
+- `mvn clean verify`: 775 testes unitários e 138 de integração; cobertura unitária 100% (2009 linhas,
+  544 ramos, 840 métodos). Suíte também em ordem aleatória (semente 20261006), sem falhas.

@@ -14,9 +14,9 @@ public record UpdateUserRequest(
         @Schema(example = "joao.silva@email.com") @NotBlank @Email @Size(max = 150) String email,
         @Schema(example = "joao.silva") @NotBlank @Size(max = 50) String login,
         @Schema(description = "Substitui a lista inteira; ausente ou vazia remove todos os endereços")
-        @Valid List<AddressRequest> addresses) {
+        @Valid List<UserAddressRequest> addresses) {
 
     public UpdateUserDTO toDTO() {
-        return new UpdateUserDTO(name, email, login, AddressRequest.toDTOs(addresses));
+        return new UpdateUserDTO(name, email, login, UserAddressRequest.toDTOs(addresses));
     }
 }

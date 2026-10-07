@@ -1,7 +1,11 @@
 package com.postech.restaurantes.adapter.controller;
 
+import static com.postech.restaurantes.adapter.AdapterFixtures.OFFICE_HOURS_DTO;
+import static com.postech.restaurantes.adapter.AdapterFixtures.OFFICE_HOURS_DATA;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -12,20 +16,18 @@ import com.postech.restaurantes.adapter.datasource.IRestaurantDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
 import com.postech.restaurantes.adapter.datasource.data.AddressData;
 import com.postech.restaurantes.adapter.datasource.data.RestaurantData;
-import com.postech.restaurantes.adapter.datasource.data.RoleData;
+import com.postech.restaurantes.adapter.datasource.data.OwnerData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
 import com.postech.restaurantes.adapter.presenter.view.RestaurantView;
+import com.postech.restaurantes.application.dto.common.AddressDTO;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.restaurant.CreateRestaurantDTO;
 import com.postech.restaurantes.application.dto.restaurant.UpdateRestaurantDTO;
 import com.postech.restaurantes.application.gateway.IUnitOfWork;
-import com.postech.restaurantes.domain.entity.user.RoleName;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,7 +43,7 @@ class RestaurantControllerTest {
 
     private UUID restaurantId;
     private UUID userId;
-    private UUID addressId;
+    private AddressDTO endereco;
     private RestaurantData restaurantData;
     private UserData userData;
 
@@ -67,13 +69,13 @@ class RestaurantControllerTest {
 
         restaurantId = UUID.randomUUID();
         userId = UUID.randomUUID();
-        addressId = UUID.randomUUID();
+        endereco = new AddressDTO("Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
 
-        AddressData addressData = new AddressData(addressId, "Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
+        AddressData addressData = new AddressData(UUID.randomUUID(), "Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
         userData = new UserData(userId, "Dono", "dono@x.com", "dono", "hash",
-                Set.of(new RoleData(UUID.randomUUID(), RoleName.ROLE_OWNER.name())), List.of(addressData), null, null);
+                new OwnerData("11222333000181", "Sabor Ltda", "1131234567"), null, null, null, List.of(), null, null);
 
-        restaurantData = new RestaurantData(restaurantId, userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0),
+        restaurantData = new RestaurantData(restaurantId, userId, addressData, "Sabor", OFFICE_HOURS_DATA,
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
@@ -83,7 +85,7 @@ class RestaurantControllerTest {
         when(userDataSource.findById(userId)).thenReturn(Optional.of(userData));
         when(restaurantDataSource.insert(any())).thenReturn(restaurantData);
 
-        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0));
+        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", OFFICE_HOURS_DTO);
         RestaurantView view = controller.create(dto);
 
         assertNotNull(view);
@@ -104,11 +106,22 @@ class RestaurantControllerTest {
     void deveBuscarPaginado() {
         PageRequest req = PageRequest.of(0, 10);
         PageResult<RestaurantData> page = new PageResult<>(List.of(restaurantData), 0, 10, 1);
-        when(restaurantDataSource.search(any(), any())).thenReturn(page);
+        when(restaurantDataSource.search(any(), any(), any())).thenReturn(page);
 
-        PageResult<RestaurantView> view = controller.search("sabor", req);
+        PageResult<RestaurantView> view = controller.search("sabor", null, req);
 
         assertNotNull(view);
+    }
+
+    @Test
+    @DisplayName("Diz quem é o dono do restaurante; inexistente não tem dono")
+    void deveDizerODono() {
+        when(restaurantDataSource.findById(restaurantId)).thenReturn(Optional.of(restaurantData));
+        UUID outro = UUID.randomUUID();
+        when(restaurantDataSource.findById(outro)).thenReturn(Optional.empty());
+
+        assertEquals(Optional.of(userId), controller.ownerOf(restaurantId));
+        assertTrue(controller.ownerOf(outro).isEmpty());
     }
 
     @Test
@@ -118,7 +131,7 @@ class RestaurantControllerTest {
         when(userDataSource.findById(userId)).thenReturn(Optional.of(userData));
         when(restaurantDataSource.update(any())).thenReturn(restaurantData);
 
-        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, addressId, "Novo", LocalTime.of(9, 0), LocalTime.of(23, 0));
+        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo", OFFICE_HOURS_DTO);
         RestaurantView view = controller.update(dto);
 
         assertNotNull(view);

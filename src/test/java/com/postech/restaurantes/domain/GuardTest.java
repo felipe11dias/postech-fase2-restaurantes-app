@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.postech.restaurantes.domain.entity.user.RoleName;
+import com.postech.restaurantes.domain.entity.courier.CourierVehicleType;
 import com.postech.restaurantes.domain.exception.InvariantViolationException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -97,12 +97,12 @@ class GuardTest {
                 () -> Guard.requireNonBlank("  ", "Nome inválido"));
         InvariantViolationException condicao = assertThrows(InvariantViolationException.class,
                 () -> Guard.require(false, "CEP inválido"));
-        InvariantViolationException papel = assertThrows(InvariantViolationException.class,
-                () -> RoleName.from("ROLE_INEXISTENTE"));
+        InvariantViolationException veiculo = assertThrows(InvariantViolationException.class,
+                () -> CourierVehicleType.from("TRUCK"));
 
         assertEquals("Id inválido", nulo.getMessage());
         assertEquals("Nome inválido", branco.getMessage());
         assertEquals("CEP inválido", condicao.getMessage());
-        assertEquals("Papel inválido: ROLE_INEXISTENTE", papel.getMessage());
+        assertEquals("Tipo de veículo inválido: TRUCK", veiculo.getMessage());
     }
 }
