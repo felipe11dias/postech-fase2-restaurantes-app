@@ -7,9 +7,10 @@ Modelo lógico do banco definido pelo autor e exportado do dbdiagram:
 
 São **documentos de referência**, não migrations: o Flyway só executa o que está em
 `src/main/resources/db/migration`, e o schema físico continua sendo escrito lá, etapa por etapa.
-O plano de adequação, com o quadro atual × v2, os enums e cada etapa, está no relatório
-técnico — seção "Modelo de Dados v2 — adequação planejada" de
-[`relatorio-tech-challenge-fase02-v2.0.md`](../../relatorios/relatorio-tech-challenge-fase02-v2.0.md).
+A adequação, com o quadro antes × v2, os enums e cada etapa, está no relatório técnico — seção
+"Modelo de Dados v2 — adequação" de
+[`relatorio-tech-challenge-fase02-v2.0.md`](../../relatorios/relatorio-tech-challenge-fase02-v2.0.md); o
+quadro final, tabela por tabela, com o schema real (V1 a V10), está na Etapa 25 do mesmo relatório.
 
 ## Escopo da adequação (Etapas 17 a 25)
 
@@ -35,6 +36,8 @@ técnico — seção "Modelo de Dados v2 — adequação planejada" de
 | `varchar` sem tamanho | Tamanho definido por coluna |
 | `is_default` sem unicidade | Restrição de exclusão adiada para o commit: no máximo um padrão por usuário (`ex_user_addresses_one_default`, V4) |
 | `CASCADE` de `users`/`restaurants` | Não alcança `addresses` (referenciada); a aplicação remove o endereço |
+| Chaves estrangeiras `DEFERRABLE INITIALLY IMMEDIATE` | Não adiáveis: o efeito é o mesmo (conferidas a cada comando), e nenhuma transação precisa adiá-las |
+| — (não está no modelo) | Garantias a mais no schema: `CHECK` de CNH e placa por tipo de veículo, `CHECK` de abertura ≠ fechamento, gatilho "um CPF, uma pessoa" entre `clients` e `couriers`, gatilho "ao menos um administrador" em `admins`, `restaurants.user_id → owners` |
 
 ## Observações para as tabelas fora do escopo
 

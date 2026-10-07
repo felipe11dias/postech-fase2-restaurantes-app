@@ -44,7 +44,7 @@ Um caso de uso por **intenção do ator**, em subpacotes por feature:
 | Ator — objetivo | Caso de uso | Cenário principal | Extensões (exceções de negócio) |
 |---|---|---|---|
 | Visitante — cadastrar-se | [`RegisterUserUseCase`](../../src/main/java/com/postech/restaurantes/application/usecase/user/RegisterUserUseCase.java) | perfis pedidos (dono, cliente, entregador; nunca administrador) → e-mail, login, CPF e CNPJ livres → `User.create` com hash da senha → `insert` | e-mail, login, CPF ou CNPJ repetido (`DuplicateResourceException`); nenhum perfil, documento inválido, CPFs divergentes ou veículo sem CNH e placa (invariantes do domínio) |
-| Usuário — consultar/atualizar/excluir o próprio cadastro | `FindUserByIdUseCase`, `UpdateUserUseCase`, `DeleteUserUseCase` | busca, altera dados e endereços, remove (com os restaurantes dele, pela porta do restaurante) | inexistente; e-mail/login de outro cadastro |
+| Usuário — consultar/atualizar/excluir o próprio cadastro | `FindUserByIdUseCase`, `UpdateUserUseCase`, `DeleteUserUseCase` | busca, altera dados e endereços, remove (com os restaurantes dele, pela porta do restaurante) | inexistente; e-mail/login de outro cadastro; excluir o último administrador (`ResourceInUseException`) |
 | Usuário ou administrador — manter os perfis do cadastro | `SaveUserProfileUseCase`, `RemoveUserProfileUseCase` | inclui ou altera um perfil (entrada `UserProfileDTO`, interface selada, um `case` por tipo); remove um perfil | CPF/CNPJ de outro cadastro (`DuplicateResourceException`); perfil que o usuário não tem (`ResourceNotFoundException`); último perfil (invariante); dono com restaurante (`ResourceInUseException`, pela porta `IRestaurantGateway`) |
 | Entregador — informar a disponibilidade | `ChangeCourierStatusUseCase` | troca o status (`CourierStatus.from`) | quem não é entregador; status desconhecido |
 | Visitante, dono ou administrador — consultar restaurantes | `FindRestaurantByIdUseCase`, `SearchRestaurantsUseCase` | por id, ou paginado com busca por nome e, opcionalmente, só os de um dono | restaurante inexistente |
@@ -99,7 +99,7 @@ public final class RegisterUserUseCase {
 | Extensões como exceções de domínio | `DomainException` e subclasses | cada desvio do cenário principal tem nome de negócio e vira uma categoria de erro HTTP no handler |
 | Regra de negócio × regra de aplicação | entidade × caso de uso | o que vale sempre fica na entidade; o que depende do ponto de entrada fica no caso de uso |
 | Relógio e validade por parâmetro | `ForgotPasswordUseCase.create(..., validity, clock)`, `RegisterUserUseCase.create(..., clock)` | vencimento e "nascimento não futuro" testáveis com `Clock.fixed`, sem esperar o tempo passar |
-| Regra de aplicação compartilhada (Etapa 22) | `application/policy/user/UniqueDocumentsPolicy`, usada por `RegisterUserUseCase` e `SaveUserProfileUseCase` | a regra "CPF e CNPJ únicos" existe uma vez só (DRY); não é caso de uso — não é objetivo do ator nem tem `run` —, então mora num pacote de políticas da camada, que depende só do domínio e das portas |
+| Regra de aplicação compartilhada (Etapas 22 e 25) | `application/policy/user/UniqueDocumentsPolicy` (`RegisterUserUseCase`, `SaveUserProfileUseCase`) e `LastAdminPolicy` (`RemoveUserProfileUseCase`, `DeleteUserUseCase`) | "CPF e CNPJ únicos" e "o sistema não fica sem administrador" existem uma vez só (DRY); não é caso de uso — não é objetivo do ator nem tem `run` —, então mora num pacote de políticas da camada, que depende só do domínio e das portas |
 | Papéis atuais a cada requisição (Etapa 22) | `FindCurrentRolesUseCase` | a autorização usa os perfis gravados agora, não os do token: perfil removido deixa de valer na hora |
 
 ## 5. Desvios conscientes
@@ -115,8 +115,10 @@ public final class RegisterUserUseCase {
 
 - `ArchitectureTest`: `application` depende apenas de `domain`; classes em `..usecase..` terminam
   em `UseCase` e têm **`run` como único método público de instância**; tudo em
-  `application.gateway` é interface com prefixo `I`.
+  `application.gateway` é interface com prefixo `I`; em `application.policy`, só classes `*Policy`, usadas só
+  por casos de uso e outras políticas (`politicas_de_aplicacao_terminam_em_Policy`, Etapa 25).
 - Testes unitários com as portas mockadas e AAA, um comportamento por teste:
   `RegisterUserUseCaseTest`, `UpdateUserUseCaseTest`, `ChangePasswordUseCaseTest`,
-  `UserQueryUseCasesTest`, `AuthenticateUseCaseTest`, `ForgotPasswordUseCaseTest`,
+  `UserQueryUseCasesTest`, `SaveUserProfileUseCaseTest`, `RemoveUserProfileUseCaseTest`, `UniqueDocumentsPolicyTest`,
+  `LastAdminPolicyTest`, os testes de restaurante, `AuthenticateUseCaseTest`, `ForgotPasswordUseCaseTest`,
   `ResetPasswordUseCaseTest`, e `PageRequestTest`/`PageResultTest`/`DtoTest` para os DTOs.

@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (24 até aqui; a Etapa 25, de revisão da adequação ao Modelo de Dados v2 em
-`docs/modelo-dados/`, está planejada no relatório) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
+Architecture**. O projeto está sendo entregue **etapa por etapa** (25 até aqui; as Etapas 17 a 25 adequaram o projeto ao Modelo de Dados v2 em
+`docs/modelo-dados/`, e a 25 traz o quadro final "modelo v2 × schema real") e cada etapa tem três saídas obrigatórias: código + testes, entrada no
 `CHANGELOG.md`, e atualização do relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (marcar a etapa
 como ✅ no Sumário de Progresso, atualizar o contador e acrescentar a subseção
 "O que foi entregue nesta etapa" com o resultado real do build). O relatório é a
@@ -66,8 +66,8 @@ cada teste cria seus próprios dados com marca única em vez de depender de esta
 
 ## Arquitetura — a regra de dependência é verificada em build
 
-`src/test/java/.../ArchitectureTest.java` (ArchUnit, 14 regras) falha o build se violada — e o
-`InfrastructureModulesTest` (23 regras, Etapas 13 a 15) faz o mesmo *dentro* da infraestrutura:
+`src/test/java/.../ArchitectureTest.java` (ArchUnit, 17 regras) falha o build se violada — e o
+`InfrastructureModulesTest` (24 regras, Etapas 13 a 15 e 25) faz o mesmo *dentro* da infraestrutura:
 
 ```
 domain          → só JDK. Nenhum import de outro pacote do projeto nem de biblioteca.
@@ -82,7 +82,9 @@ uso e DTOs ficam em **subpacotes por agregado/feature** (`domain/entity/user`,
 `application/usecase/auth`, `application/dto/common`...) — *screaming architecture*: uma feature
 nova (restaurante, cardápio) ganha o próprio subpacote em cada camada. Convenções também verificadas:
 classes em `application.usecase` terminam em `UseCase`; tudo em `application.gateway`,
-`adapter.datasource` e `adapter.service` são interfaces com prefixo `I`.
+`adapter.datasource` e `adapter.service` são interfaces com prefixo `I`; `application.policy` só tem `*Policy`,
+usadas só por casos de uso; `domain.vo` só tem `record`s; records `*Data` e `*View` não carregam tipo do domínio
+(enum atravessa pelo nome) — Etapa 25.
 
 **Cada camada tem um documento em `docs/arquitetura/`** (aula × autor × código, padrões, desvios
 conscientes, regra que verifica). **Decisão ou padrão novo atualiza o documento correspondente em
@@ -137,7 +139,8 @@ Regras (verificadas pelo `InfrastructureModulesTest`):
   Toda outra porta de `application.gateway` é implementada por um gateway em `adapter/gateway`,
   que consome a infraestrutura por uma interface de `adapter/datasource` ou `adapter/service`.
   `mail` e `token` não conhecem o `domain` (`transporte_nao_conhece_o_dominio`): só transportam e
-  codificam o que o gateway traduziu.
+  codificam o que o gateway traduziu. O resto da infraestrutura só conhece, do `domain`, as exceções
+  (`infraestrutura_so_conhece_do_dominio_as_excecoes`, Etapa 25): coluna `ENUM` é texto na JPA.
 - **Cada módulo habilita a própria configuração** (`JwtConfig`, `MailConfig`, `PersistenceConfig`,
   `SecurityConfig`, `OpenApiConfig`); `CompositionConfig` não conhece propriedade de tecnologia.
 - Política da aplicação não mora em módulo de tecnologia: a validade do token de redefinição é
@@ -243,14 +246,18 @@ Pontos que só ficam claros lendo várias camadas:
   usa os papéis **do cadastro, a cada requisição** (`BearerTokenAuthenticationFilter` troca os do token pelos de
   `ICurrentRolesReader`, ligado em `main` ao `AuthController.currentRoles`): perfil incluído ou removido vale na
   hora, com o mesmo token. Recurso que não pode sair porque outro depende dele (dono com restaurante, último
-  administrador) é `ResourceInUseException` → 409 `recurso-em-uso` (categoria própria). CPF e CNPJ únicos: uma
+  administrador) é `ResourceInUseException` → 409 `recurso-em-uso` (categoria própria). O último administrador
+  não perde o perfil nem é excluído: `application/policy/user/LastAdminPolicy`, usada pela remoção de perfil e pela
+  exclusão do cadastro (Etapa 25). CPF e CNPJ únicos: uma
   regra só, `application/policy/user/UniqueDocumentsPolicy` (consulta só o documento que mudou); regra de
   aplicação compartilhada por casos de uso vai para `application/policy/<agregado>`, não copiada. O CPF é da
   pessoa: alterar o de um perfil corrige o do outro (`UserProfiles.withClient`/`withCourier`).
 - **Integridade dos perfis no banco (V7).** Gatilho `cpf_de_uma_so_pessoa` (trava consultiva por CPF) impede o
   mesmo CPF em dois usuários entre `clients` e `couriers`; `restaurants.user_id → owners` impede restaurante sem
   perfil de dono. Regra que a aplicação confere antes de gravar e que duas requisições simultâneas podem furar
-  ganha garantia no schema.
+  ganha garantia no schema. Na V10 (Etapa 25), o gatilho `ao_menos_um_administrador` (trava consultiva) recusa a
+  remoção do último administrador. Em IT, conferir gatilho que apagaria dado da seed numa transação desfeita
+  (`TransactionTemplate` + `setRollbackOnly`): se ele falhar, a seed não se perde.
 - **Restaurante: posse e exclusão do dono (Etapa 23, V8).** `PUT`/`DELETE` de restaurante exigem
   `hasRole('ADMIN') or @restaurantSecurity.isOwner(#id, authentication)`; a `RestaurantSecurity` pergunta o dono
   pela porta `IRestaurantOwnerReader` (ligada em `main` ao `RestaurantController.ownerOf`). `userId` é opcional:
@@ -412,7 +419,9 @@ Pontos que só ficam claros lendo várias camadas:
   para o sucesso e um para cada `@ErrorResponse` da operação, na pasta da operação, conferindo
   status e `type`. O JSON da coleção é a fonte de verdade — edite no Postman ou à mão.
 - Casos de acesso negado miram um cadastro **descartável criado pela coleção**, nunca a seed; a
-  coleção exclui o que cria. Ela precisa poder rodar várias vezes contra o mesmo banco.
+  coleção exclui o que cria. Ela precisa poder rodar várias vezes contra o mesmo banco. Caso que só a
+  seed pode exercitar (excluir o último administrador → 409) confirma a pré-condição antes, no pré-request
+  (`pm.sendRequest`), e, se ela não vale, mira um id inexistente: o teste falha sem apagar nada.
 - CPF, CNPJ e CNH são únicos: o pré-request **da coleção** gera `{{cpfGerado}}`, `{{cnpjGerado}}` e
   `{{cnhGerada}}` válidos e novos a cada request. Corpo com documento usa essas variáveis, nunca um
   valor fixo (exceto o caso que quer o conflito, que reusa um já gravado).

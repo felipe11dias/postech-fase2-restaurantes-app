@@ -511,3 +511,26 @@
   asserções, sem falhas, em duas execuções; 124 prints.
 - `mvn clean verify`: 766 testes unitários e 136 de integração; cobertura unitária 100% (2000
   linhas, 544 ramos, 836 métodos).
+
+## Etapa 25 — Revisão de conformidade do modelo de dados v2
+- Quadro final "modelo v2 × schema real" no relatório, a partir do schema extraído das migrations V1 a
+  V9 (`pg_dump`) e comparado tabela por tabela com o DDL de `docs/modelo-dados/`; divergências
+  justificadas, inclusive as chaves não adiáveis e as garantias além do modelo.
+- Correção: o último administrador não é mais excluído (`DELETE /api/v1/users/{id}` → 409
+  `recurso-em-uso`). A regra fica em `application/policy/user/LastAdminPolicy`, usada também pela remoção
+  do perfil de administrador. Migration `V10__at_least_one_admin.sql`: gatilho com trava consultiva que recusa a
+  remoção do último administrador também quando duas remoções acontecem ao mesmo tempo (achado da revisão
+  de código da etapa).
+- ArchUnit: `infraestrutura_so_conhece_do_dominio_as_excecoes` (24 regras no `InfrastructureModulesTest`),
+  `registros_e_views_nao_carregam_tipos_do_dominio`, `politicas_de_aplicacao_terminam_em_Policy` e
+  `objetos_de_valor_sao_records` (17 no `ArchitectureTest`), conferidas ao contrário com classes
+  temporárias.
+- Documentação: a descrição dos `PUT` de perfil dizia "no próximo login" (a autorização lê os perfis a
+  cada requisição desde a revisão da Etapa 22); a citação da regra do enum como texto apontava uma
+  regra que não o cobria. Relatório (Visão Geral, Escopo, Mapa, Modelo v2, Decisões),
+  `docs/arquitetura/`, `docs/modelo-dados/README.md`, README e `CLAUDE.md` sincronizados com o código.
+- Postman: caso 92, exclusão do último administrador (409), que só mira a seed depois que a listagem
+  confirma que ela é o único administrador (sem a confirmação, as asserções ficam puladas); 125 requests e 260 asserções, sem falhas, em duas
+  execuções; 125 prints.
+- `mvn clean verify`: 775 testes unitários e 138 de integração; cobertura unitária 100% (2009 linhas,
+  544 ramos, 840 métodos). Suíte também em ordem aleatória (semente 20261006), sem falhas.

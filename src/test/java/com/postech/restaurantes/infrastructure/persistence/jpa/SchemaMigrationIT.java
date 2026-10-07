@@ -19,6 +19,8 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * O contexto só sobe se o Flyway aplicar as migrations e o Hibernate validar o mapeamento
@@ -32,14 +34,17 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     @Autowired
     private IUserDataSource userDataSource;
 
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+
     @Test
-    @DisplayName("As nove migrations foram aplicadas com sucesso e ficaram registradas no histórico")
+    @DisplayName("As dez migrations foram aplicadas com sucesso e ficaram registradas no histórico")
     void deveAplicarAsMigrations() {
         List<String> versoes = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = true AND version IS NOT NULL "
                         + "ORDER BY installed_rank", String.class);
 
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9"), versoes);
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"), versoes);
     }
 
     @Test
@@ -251,6 +256,29 @@ class SchemaMigrationIT extends IntegrationTestSupport {
         } finally {
             jdbc.update("DELETE FROM users WHERE id = ?", usuario);
             jdbc.update("DELETE FROM addresses WHERE id = ?", endereco);
+        }
+    }
+
+    @Test
+    @DisplayName("O banco aceita apagar um administrador quando sobra outro, e recusa apagar o último (V10)")
+    void deveManterAoMenosUmAdministrador() {
+        UUID outro = UUID.randomUUID();
+        try {
+            inserirUsuario(outro);
+            jdbc.update("INSERT INTO admins (id, employee_code, created_at, last_updated_at) VALUES (?, ?, NOW(), NOW())",
+                    outro, "ADM-" + outro);
+
+            assertEquals(1, jdbc.update("DELETE FROM admins WHERE id = ?", outro), "sobra o administrador da seed");
+            // Apagar todos, numa transação desfeita no fim: se o gatilho falhar, a seed não se perde.
+            TransactionTemplate transacao = new TransactionTemplate(transactionManager);
+            assertThrows(DataIntegrityViolationException.class, () -> transacao.executeWithoutResult(status -> {
+                status.setRollbackOnly();
+                jdbc.update("DELETE FROM admins");
+            }));
+            assertEquals(1, (int) jdbc.queryForObject("SELECT count(*) FROM admins WHERE id = ?::uuid",
+                    Integer.class, "a0000000-0000-4000-8000-000000000003"));
+        } finally {
+            jdbc.update("DELETE FROM users WHERE id = ?", outro);
         }
     }
 

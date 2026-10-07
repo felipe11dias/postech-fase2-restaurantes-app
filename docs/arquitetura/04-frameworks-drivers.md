@@ -81,7 +81,8 @@ deles) e, na exclusão, tira e descarrega os perfis antes de apagar o usuário �
 que é o usuário que referencia o perfil, apagaria o usuário primeiro, o `ON DELETE CASCADE` levaria o
 perfil, e o `DELETE` do perfil não acharia a linha. Os `ENUM`s do entregador (`courier_vehicle_type`,
 `courier_status`) são `String` na entidade JPA, com `columnDefinition` (para o `validate`) e
-`@ColumnTransformer(write = "?::tipo")`: a infraestrutura não importa enum do domínio, e quem converte
+`@ColumnTransformer(write = "?::tipo")`: a infraestrutura não importa enum do domínio (regra
+`infraestrutura_so_conhece_do_dominio_as_excecoes`, Etapa 25), e quem converte
 é o gateway.
 
 **Integridade dos perfis no banco (Etapa 22, V7).** O que a aplicação confere antes de gravar e duas
@@ -89,6 +90,9 @@ requisições simultâneas poderiam furar ganha garantia no schema: um gatilho c
 impede o mesmo CPF em dois usuários entre `clients` e `couriers` (a unicidade de cada tabela não cobre o
 par), e `restaurants.user_id → owners` impede restaurante de quem não tem perfil de dono. As violações
 saem como violação de unicidade ou de chave estrangeira, e o handler responde 409 sem o nome da restrição.
+A V10 (Etapa 25) segue o mesmo desenho para "o sistema não fica sem administrador": um gatilho `AFTER DELETE`
+em `admins`, com trava consultiva, recusa a remoção que deixaria a tabela vazia — duas remoções simultâneas
+não passam juntas pela contagem da `LastAdminPolicy`.
 
 **Autorização com os papéis atuais (Etapa 22).** O token prova quem é o portador; o que ele pode fazer
 vem do cadastro, a cada requisição. O `BearerTokenAuthenticationFilter` troca os papéis do token pelos de
@@ -144,12 +148,12 @@ imagens de versão fixa e portas só em `127.0.0.1`.
 ## 6. Como o build verifica
 
 [`InfrastructureModulesTest`](../../src/test/java/com/postech/restaurantes/InfrastructureModulesTest.java)
-(23 regras): nenhum ciclo entre pacotes; `persistence`, `crypto` e `mail` não conhecem outro
+(24 regras): nenhum ciclo entre pacotes; `persistence`, `crypto` e `mail` não conhecem outro
 módulo; `token` só conhece, da `api`, a porta que implementa; `api` não conhece implementações;
 cada biblioteca só no seu módulo (JPA em `persistence`, jjwt em `token.jwt`, Spring Mail em
 `mail.smtp`, Spring Security em `api`/`crypto`, Spring MVC/springdoc em `api`); `*Config` ⇔
 `@Configuration`; a infraestrutura só conhece, do núcleo, as portas técnicas; `mail` e `token` não
-conhecem o `domain`; e, na API, cada classe no pacote do seu papel (`@RestController` em
+conhecem o `domain`, e o resto da infraestrutura só conhece dele as exceções (a coluna `ENUM` é texto na JPA); e, na API, cada classe no pacote do seu papel (`@RestController` em
 `controller`, records `*Request`/`*Response` em `dto`, `@RestControllerAdvice` em `exception`,
 `*Assembler` em `assembler`).
 Testes de integração (Testcontainers, PostgreSQL real) provam os módulos juntos — ver

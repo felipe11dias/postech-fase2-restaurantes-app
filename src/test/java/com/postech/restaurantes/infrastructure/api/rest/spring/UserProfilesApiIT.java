@@ -195,6 +195,21 @@ class UserProfilesApiIT extends WebIntegrationTestSupport {
         problema(desconhecido, HttpStatus.BAD_REQUEST, "requisicao-invalida", "Status do entregador inválido: DORMINDO");
     }
 
+    @Test
+    @DisplayName("Administrador que não é o último pode excluir o próprio cadastro, e o perfil sai junto")
+    void deveExcluirAdministradorQuandoHaOutro() {
+        Usuario usuario = cadastrar(Map.of("client", perfilDeCliente()));
+        assertEquals(HttpStatus.OK, rest.exchange(perfil(usuario, "admin"), HttpMethod.PUT, corpoAutenticado(
+                Map.of("employeeCode", "ADM-" + usuario.login()), admin()), JsonNode.class).getStatusCode());
+
+        ResponseEntity<Void> exclusao = rest.exchange(USERS + "/" + usuario.id(), HttpMethod.DELETE,
+                autenticado(usuario.token()), Void.class);
+
+        assertEquals(HttpStatus.NO_CONTENT, exclusao.getStatusCode());
+        assertEquals(0, (int) jdbc.queryForObject("SELECT count(*) FROM admins WHERE id = ?", Integer.class,
+                usuario.id()));
+    }
+
     private Usuario cadastrar(Map<String, Object> perfis) {
         String login = "perfil." + UUID.randomUUID().toString().substring(0, 8);
         Map<String, Object> corpo = new HashMap<>(perfis);

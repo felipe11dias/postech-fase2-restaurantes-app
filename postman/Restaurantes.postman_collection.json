@@ -3696,7 +3696,72 @@
           }
         },
         {
-          "name": "92 Exclusão do próprio cadastro",
+          "name": "92 Administrador tenta excluir o próprio cadastro, sendo o último administrador",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Só a seed pode ser o último administrador, e a coleção nunca mira a seed num pedido que daria certo:",
+                  "// o alvo só passa a ser o administrador da seed quando a listagem confirma que ele é o único. Se o banco",
+                  "// tem outro administrador (deixado, por exemplo, por uma execução interrompida antes de a coleção apagar",
+                  "// o dono que ela tornou administrador), o pedido vai para um id inexistente e as asserções ficam como",
+                  "// puladas: nada é apagado, e a coleção continua podendo rodar de novo.",
+                  "const SEED_ADMIN = \"a0000000-0000-4000-8000-000000000003\";",
+                  "pm.collectionVariables.set(\"ultimoAdminId\", \"00000000-0000-4000-8000-000000000000\");",
+                  "pm.collectionVariables.set(\"ultimoAdminConfirmado\", \"false\");",
+                  "pm.sendRequest({",
+                  "    url: pm.collectionVariables.get(\"baseUrl\") + \"/api/v1/users?page=0&size=100\",",
+                  "    header: { Authorization: \"Bearer \" + pm.collectionVariables.get(\"adminToken\") }",
+                  "}, (erro, resposta) => {",
+                  "    if (erro || resposta.code !== 200) return;",
+                  "    const corpo = resposta.json();",
+                  "    const usuarios = (corpo._embedded && corpo._embedded.userResponseList) || [];",
+                  "    const admins = usuarios.filter(u => u.admin);",
+                  "    if (corpo.page.totalElements <= 100 && admins.length === 1 && admins[0].id === SEED_ADMIN) {",
+                  "        pm.collectionVariables.set(\"ultimoAdminId\", SEED_ADMIN);",
+                  "        pm.collectionVariables.set(\"ultimoAdminConfirmado\", \"true\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sem a pré-condição confirmada (outro administrador no banco), o caso não se aplica: as asserções ficam puladas.",
+                  "const caso = pm.collectionVariables.get(\"ultimoAdminConfirmado\") === \"true\" ? pm.test : pm.test.skip;",
+                  "caso(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "caso(\"ProblemDetail recurso-em-uso\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:recurso-em-uso\");",
+                  "    pm.expect(p.status).to.eql(409);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "caso(\"Mensagem: O último administrador não pode ser excluído\", () =>",
+                  "    pm.expect(pm.response.json().detail).to.eql(\"O último administrador não pode ser excluído\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{ultimoAdminId}}",
+            "description": "Excluídos o dono (que a coleção tornou administrador) e o entregador, sobra só o administrador da seed. Sem administrador, ninguém mais concederia o perfil: a exclusão é recusada com 409. Se o banco tiver outro administrador, o caso não se aplica e as asserções ficam puladas."
+          }
+        },
+        {
+          "name": "93 Exclusão do próprio cadastro",
           "event": [
             {
               "listen": "test",
@@ -3720,7 +3785,7 @@
           }
         },
         {
-          "name": "93 Consulta após a exclusão",
+          "name": "94 Consulta após a exclusão",
           "event": [
             {
               "listen": "test",
@@ -3757,7 +3822,7 @@
       "description": "Tratados pelo mesmo GlobalExceptionHandler, em qualquer endpoint.",
       "item": [
         {
-          "name": "94 Corpo JSON malformado",
+          "name": "95 Corpo JSON malformado",
           "event": [
             {
               "listen": "test",
@@ -3797,7 +3862,7 @@
           }
         },
         {
-          "name": "95 Método não suportado",
+          "name": "96 Método não suportado",
           "event": [
             {
               "listen": "test",
@@ -3823,7 +3888,7 @@
           }
         },
         {
-          "name": "96 Token malformado",
+          "name": "97 Token malformado",
           "event": [
             {
               "listen": "prerequest",
@@ -3864,7 +3929,7 @@
       "description": "Obtém o token do dono de restaurante da seed e seu endereço.",
       "item": [
         {
-          "name": "97 Login do dono do restaurante da seed",
+          "name": "98 Login do dono do restaurante da seed",
           "event": [
             {
               "listen": "test",
@@ -3912,7 +3977,7 @@
           }
         },
         {
-          "name": "98 Consulta do perfil do dono para obter o id",
+          "name": "99 Consulta do perfil do dono para obter o id",
           "event": [
             {
               "listen": "test",
@@ -3951,7 +4016,7 @@
           }
         },
         {
-          "name": "99 Autocadastro de um segundo dono (alvo dos casos de posse)",
+          "name": "100 Autocadastro de um segundo dono (alvo dos casos de posse)",
           "event": [
             {
               "listen": "prerequest",
@@ -4002,7 +4067,7 @@
           }
         },
         {
-          "name": "100 Login do segundo dono",
+          "name": "101 Login do segundo dono",
           "event": [
             {
               "listen": "test",
@@ -4048,7 +4113,7 @@
       "description": "Criação de novos restaurantes.",
       "item": [
         {
-          "name": "101 Cadastro de restaurante pelo dono",
+          "name": "102 Cadastro de restaurante pelo dono",
           "event": [
             {
               "listen": "test",
@@ -4114,7 +4179,7 @@
           }
         },
         {
-          "name": "102 Segundo dono cadastra o próprio restaurante",
+          "name": "103 Segundo dono cadastra o próprio restaurante",
           "event": [
             {
               "listen": "test",
@@ -4159,7 +4224,7 @@
           }
         },
         {
-          "name": "103 Dono tenta cadastrar restaurante para outro dono",
+          "name": "104 Dono tenta cadastrar restaurante para outro dono",
           "event": [
             {
               "listen": "test",
@@ -4203,7 +4268,7 @@
           }
         },
         {
-          "name": "104 Cadastro de restaurante com campos inválidos",
+          "name": "105 Cadastro de restaurante com campos inválidos",
           "event": [
             {
               "listen": "test",
@@ -4250,7 +4315,7 @@
           }
         },
         {
-          "name": "105 Cadastro de restaurante com horários sobrepostos",
+          "name": "106 Cadastro de restaurante com horários sobrepostos",
           "event": [
             {
               "listen": "test",
@@ -4304,7 +4369,7 @@
           }
         },
         {
-          "name": "106 Cadastro de restaurante sem token",
+          "name": "107 Cadastro de restaurante sem token",
           "event": [
             {
               "listen": "test",
@@ -4347,7 +4412,7 @@
           }
         },
         {
-          "name": "107 Cliente comum tenta cadastrar restaurante",
+          "name": "108 Cliente comum tenta cadastrar restaurante",
           "event": [
             {
               "listen": "test",
@@ -4394,7 +4459,7 @@
           }
         },
         {
-          "name": "108 Cadastro de restaurante com dono inexistente",
+          "name": "109 Cadastro de restaurante com dono inexistente",
           "event": [
             {
               "listen": "test",
@@ -4441,7 +4506,7 @@
           }
         },
         {
-          "name": "109 Cadastro de restaurante para usuário sem perfil de dono",
+          "name": "110 Cadastro de restaurante para usuário sem perfil de dono",
           "event": [
             {
               "listen": "test",
@@ -4502,7 +4567,7 @@
       "description": "Consulta individual de restaurantes por ID.",
       "item": [
         {
-          "name": "110 Consulta pública de restaurante por ID",
+          "name": "111 Consulta pública de restaurante por ID",
           "event": [
             {
               "listen": "test",
@@ -4532,7 +4597,7 @@
           }
         },
         {
-          "name": "111 Consulta de restaurante inexistente",
+          "name": "112 Consulta de restaurante inexistente",
           "event": [
             {
               "listen": "test",
@@ -4568,7 +4633,7 @@
       "description": "Listagem pública com busca e paginação.",
       "item": [
         {
-          "name": "112 Listagem pública de restaurantes com busca e paginação",
+          "name": "113 Listagem pública de restaurantes com busca e paginação",
           "event": [
             {
               "listen": "test",
@@ -4615,7 +4680,7 @@
           }
         },
         {
-          "name": "113 Listagem dos restaurantes de um dono",
+          "name": "114 Listagem dos restaurantes de um dono",
           "event": [
             {
               "listen": "test",
@@ -4645,7 +4710,7 @@
       "description": "Atualização de restaurante existente.",
       "item": [
         {
-          "name": "114 Atualização de restaurante pelo dono",
+          "name": "115 Atualização de restaurante pelo dono",
           "event": [
             {
               "listen": "test",
@@ -4700,7 +4765,7 @@
           }
         },
         {
-          "name": "115 Atualização de restaurante sem token",
+          "name": "116 Atualização de restaurante sem token",
           "event": [
             {
               "listen": "test",
@@ -4744,7 +4809,7 @@
           }
         },
         {
-          "name": "116 Administrador indica usuário sem perfil de dono na atualização",
+          "name": "117 Administrador indica usuário sem perfil de dono na atualização",
           "event": [
             {
               "listen": "test",
@@ -4800,7 +4865,7 @@
           }
         },
         {
-          "name": "117 Dono tenta alterar o restaurante de outro dono",
+          "name": "118 Dono tenta alterar o restaurante de outro dono",
           "event": [
             {
               "listen": "test",
@@ -4843,7 +4908,7 @@
           }
         },
         {
-          "name": "118 Dono tenta passar o próprio restaurante para outro dono",
+          "name": "119 Dono tenta passar o próprio restaurante para outro dono",
           "event": [
             {
               "listen": "test",
@@ -4893,7 +4958,7 @@
       "description": "Exclusão de restaurante.",
       "item": [
         {
-          "name": "119 Exclusão de restaurante sem token",
+          "name": "120 Exclusão de restaurante sem token",
           "event": [
             {
               "listen": "test",
@@ -4923,7 +4988,7 @@
           }
         },
         {
-          "name": "120 Dono tenta excluir o restaurante de outro dono",
+          "name": "121 Dono tenta excluir o restaurante de outro dono",
           "event": [
             {
               "listen": "test",
@@ -4953,7 +5018,7 @@
           }
         },
         {
-          "name": "121 Exclusão de restaurante pelo dono",
+          "name": "122 Exclusão de restaurante pelo dono",
           "event": [
             {
               "listen": "test",
@@ -4988,7 +5053,7 @@
           }
         },
         {
-          "name": "122 Consulta de restaurante após exclusão",
+          "name": "123 Consulta de restaurante após exclusão",
           "event": [
             {
               "listen": "test",
@@ -5018,7 +5083,7 @@
           }
         },
         {
-          "name": "123 Administrador exclui o segundo dono, e o restaurante dele sai junto",
+          "name": "124 Administrador exclui o segundo dono, e o restaurante dele sai junto",
           "event": [
             {
               "listen": "test",
@@ -5043,7 +5108,7 @@
           }
         },
         {
-          "name": "124 Restaurante do dono excluído não existe mais",
+          "name": "125 Restaurante do dono excluído não existe mais",
           "event": [
             {
               "listen": "test",
@@ -5143,6 +5208,14 @@
     },
     {
       "key": "outroDonoRestaurantId",
+      "value": ""
+    },
+    {
+      "key": "ultimoAdminId",
+      "value": ""
+    },
+    {
+      "key": "ultimoAdminConfirmado",
       "value": ""
     }
   ],

@@ -13,7 +13,7 @@ import org.hibernate.annotations.ColumnTransformer;
  * origem de dados; o perfil não referencia o usuário (ver {@code UserJpaEntity}).
  *
  * <p>{@code vehicle_type} e {@code status} são tipos {@code ENUM} do PostgreSQL. Aqui são texto — a
- * infraestrutura não importa os enums do domínio (regra {@code infraestrutura_so_conhece_portas_tecnicas});
+ * infraestrutura não importa os enums do domínio (regra {@code infraestrutura_so_conhece_do_dominio_as_excecoes});
  * quem converte é o gateway. {@code columnDefinition} diz ao {@code ddl-auto: validate} qual é o tipo
  * da coluna, e o {@code ?::tipo} na escrita faz o banco aceitar o texto na coluna {@code ENUM}.
  */

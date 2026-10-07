@@ -19,7 +19,9 @@ import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.application.gateway.IUserGateway;
+import com.postech.restaurantes.domain.entity.admin.AdminProfile;
 import com.postech.restaurantes.domain.entity.user.User;
+import com.postech.restaurantes.domain.exception.ResourceInUseException;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
 import java.util.List;
 import java.util.Optional;
@@ -93,6 +95,36 @@ class UserQueryUseCasesTest {
 
             verify(userGateway, never()).delete(any());
             verify(restaurantGateway, never()).deleteByUserId(any());
+        }
+
+        @Test
+        @DisplayName("Não exclui o último administrador nem os restaurantes dele")
+        void naoDeveExcluirOUltimoAdministrador() {
+            User admin = existingUser();
+            admin.replaceProfiles(admin.getProfiles().withAdmin(AdminProfile.restore("ADM-1", null, true)));
+            when(userGateway.findById(USER_ID)).thenReturn(Optional.of(admin));
+            when(userGateway.countAdmins()).thenReturn(1L);
+
+            ResourceInUseException erro = assertThrows(ResourceInUseException.class,
+                    () -> DeleteUserUseCase.create(userGateway, restaurantGateway).run(USER_ID));
+
+            assertEquals("O último administrador não pode ser excluído", erro.getMessage());
+            verify(restaurantGateway, never()).deleteByUserId(any());
+            verify(userGateway, never()).delete(any());
+        }
+
+        @Test
+        @DisplayName("Exclui o administrador quando há outro")
+        void deveExcluirAdministradorQuandoHaOutro() {
+            User admin = existingUser();
+            admin.replaceProfiles(admin.getProfiles().withAdmin(AdminProfile.restore("ADM-1", null, true)));
+            when(userGateway.findById(USER_ID)).thenReturn(Optional.of(admin));
+            when(userGateway.countAdmins()).thenReturn(2L);
+
+            DeleteUserUseCase.create(userGateway, restaurantGateway).run(USER_ID);
+
+            verify(restaurantGateway).deleteByUserId(USER_ID);
+            verify(userGateway).delete(USER_ID);
         }
 
         @Test

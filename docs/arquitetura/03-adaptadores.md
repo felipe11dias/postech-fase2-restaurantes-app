@@ -165,10 +165,12 @@ Outros pontos em relação ao código das aulas:
 - `ArchitectureTest`: `adapter` não depende de `infrastructure`; toda classe em `adapter.gateway`
   implementa uma interface de `application.gateway`; `adapter.datasource` e `adapter.service` só
   têm interfaces com prefixo `I`; seus subpacotes `data` só têm records com sufixo `Data`; views
-  são records com sufixo `View`.
+  são records com sufixo `View`; registros e views não carregam tipo do domínio — o enum atravessa pelo
+  nome (`registros_e_views_nao_carregam_tipos_do_dominio`, Etapa 25).
 - `InfrastructureModulesTest`: **a infraestrutura só conhece as portas técnicas** do núcleo — qualquer
   outra porta implementada (ou referenciada, como uma lambda num `@Bean`) fora de `adapter.gateway`
-  quebra o build; e os módulos de e-mail e token não conhecem o `domain`.
+  quebra o build; os módulos de e-mail e token não conhecem o `domain`; e o resto da infraestrutura só
+  conhece dele as exceções (`infraestrutura_so_conhece_do_dominio_as_excecoes`, Etapa 25).
 - Testes: `UserGatewayTest`, `PasswordResetTokenGatewayTest`, `ServiceGatewaysTest` (tradução com os
   serviços mockados), `PresentersTest`, e `UserControllerTest`/`AuthControllerTest` (inclusive: e-mail só depois do commit, e nenhum se
   o commit falha), que testam o

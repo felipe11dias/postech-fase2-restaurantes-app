@@ -2,6 +2,7 @@ package com.postech.restaurantes.application.usecase.user;
 
 import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.application.gateway.IUserGateway;
+import com.postech.restaurantes.application.policy.user.LastAdminPolicy;
 import com.postech.restaurantes.domain.Guard;
 import com.postech.restaurantes.domain.entity.user.ProfileType;
 import com.postech.restaurantes.domain.entity.user.User;
@@ -13,16 +14,18 @@ import java.util.UUID;
  * Remove um perfil do usuário. "Ao menos um perfil" é invariante do domínio — tirar o último é
  * recusado pelo próprio {@code UserProfiles}. As regras de aplicação ficam aqui: o perfil precisa
  * existir; o de dono não sai enquanto houver restaurante do usuário (o restaurante perderia o dono); e o de
- * administrador não sai do último administrador — sem ele, ninguém mais concederia o perfil.
+ * administrador não sai do último administrador ({@link LastAdminPolicy}).
  */
 public final class RemoveUserProfileUseCase {
 
     private final IUserGateway userGateway;
     private final IRestaurantGateway restaurantGateway;
+    private final LastAdminPolicy lastAdmin;
 
     private RemoveUserProfileUseCase(IUserGateway userGateway, IRestaurantGateway restaurantGateway) {
         this.userGateway = userGateway;
         this.restaurantGateway = restaurantGateway;
+        this.lastAdmin = LastAdminPolicy.create(userGateway);
     }
 
     public static RemoveUserProfileUseCase create(IUserGateway userGateway, IRestaurantGateway restaurantGateway) {
@@ -40,8 +43,8 @@ public final class RemoveUserProfileUseCase {
             throw new ResourceInUseException(
                     "O perfil de dono não pode ser removido enquanto o usuário tiver restaurantes");
         }
-        if (profileType == ProfileType.ADMIN && userGateway.countAdmins() <= 1) {
-            throw new ResourceInUseException("O último administrador não pode deixar de ser administrador");
+        if (profileType == ProfileType.ADMIN) {
+            lastAdmin.requireNotLastAdmin(user, "O último administrador não pode deixar de ser administrador");
         }
         user.replaceProfiles(user.getProfiles().without(profileType));
         return userGateway.update(user);

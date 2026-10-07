@@ -59,11 +59,11 @@
 | 22  | Perfis em usuário existente e status do entregador | ✅     |
 | 23  | Restaurante alinhado ao modelo v2 e à regra de posse (`restaurants`) | ✅ |
 | 24  | Horário de funcionamento por dia (`restaurant_office_hours`) | ✅ |
-| 25  | Revisão de conformidade do modelo de dados v2      | ⏳     |
+| 25  | Revisão de conformidade do modelo de dados v2      | ✅     |
 
-**Progresso:** 24 de 25 etapas concluídas. As Etapas 17 a 25 adequam o projeto ao Modelo de
-Dados v2 (seção "Modelo de Dados v2 — adequação planejada"); da 17 à 24 estão concluídas e as
-demais, planejadas.
+**Progresso:** 25 de 25 etapas concluídas. As Etapas 17 a 24 adequaram o projeto ao Modelo de
+Dados v2 (seção "Modelo de Dados v2 — adequação"), e a 25 conferiu o resultado contra o modelo e
+as referências.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -73,12 +73,12 @@ demais, planejadas.
 | Entregável obrigatório                    | Onde encontrar               |
 | ----------------------------------------- | ---------------------------- |
 | Descrição detalhada da arquitetura        | Visão Geral da Arquitetura   |
-| Modelagem das entidades e relacionamentos | Etapas 2, 5 e 16             |
-| Estrutura do banco de dados (tabelas)     | Etapas 5, 6 e 16             |
-| Modelo de dados v2 (documento de referência) | "Modelo de Dados v2 — adequação planejada" e [`docs/modelo-dados/`](../docs/modelo-dados/README.md) |
-| Descrição dos endpoints (com exemplos)    | Etapas 7 e 16                |
+| Modelagem das entidades e relacionamentos | Etapas 2, 5, 16 e 18 a 24    |
+| Estrutura do banco de dados (tabelas)     | Etapas 5, 6 e 16; schema atual no quadro "Modelo v2 × schema real" da Etapa 25 |
+| Modelo de dados v2 (documento de referência) | "Modelo de Dados v2 — adequação" e [`docs/modelo-dados/`](../docs/modelo-dados/README.md) |
+| Descrição dos endpoints (com exemplos)    | Etapas 7, 16 e 18 a 24       |
 | Documentação Swagger                      | Etapa 9                      |
-| Coleção Postman                           | Etapas 12 e 16               |
+| Coleção Postman                           | Etapas 12, 16 e 18 a 25      |
 | Passo a passo com Docker Compose          | Etapa 10                     |
 | Correlação aulas × autores × código       | Etapa 14 e [`docs/arquitetura/`](../docs/arquitetura/README.md) |
 
@@ -87,25 +87,26 @@ demais, planejadas.
 ## Escopo do Tech Challenge Fase 2 e estado
 
 As Etapas 1 a 15 deste relatório constroem a **base** do sistema — arquitetura, agregado de usuário,
-autenticação, persistência, erros, documentação, testes e execução — e a deixam pronta para as
-features de restaurante e cardápio. O escopo funcional do enunciado ainda não está completo:
+autenticação, persistência, erros, documentação, testes e execução. A 16 trouxe o restaurante, e as
+17 a 25 adequaram usuário e restaurante ao Modelo de Dados v2. O escopo funcional do enunciado
+ainda não está completo:
 
 | Requisito funcional do enunciado | Estado | Onde |
 | --- | --- | --- |
 | Usuários (herdado da Fase 1): cadastro, consulta, atualização, exclusão, troca de senha, login | ✅ | Etapas 2 a 8 |
-| Tipo de usuário: distinguir "Dono de Restaurante" e "Cliente" | ✅ catálogo fixo (`ROLE_OWNER`, `ROLE_CUSTOMER`, `ROLE_ADMIN`) e tabela de associação `user_roles`; no modelo v2, perfis em tabelas próprias (`owners`, `clients`, `couriers`, `admins`) | Etapas 2, 5, 6; v2: 20 e 21 |
-| Tipo de usuário: associar o tipo a usuários **existentes** | 🔄 parcial — o tipo é escolhido no cadastro; alterar o tipo de um usuário já cadastrado ainda não é possível (`UpdateUserDTO` não tem papéis) | Etapa 3; v2: 22 |
+| Tipo de usuário: distinguir "Dono de Restaurante" e "Cliente" | ✅ perfis em tabelas próprias (`owners`, `clients`, `couriers`, `admins`); o papel (`ROLE_OWNER`, `ROLE_CLIENT`, `ROLE_COURIER`, `ROLE_ADMIN`) é derivado do perfil | Etapas 20 e 21 |
+| Tipo de usuário: associar o tipo a usuários **existentes** | ✅ incluir, alterar e remover perfil de cadastro existente (`/api/v1/users/{id}/profiles/...`), valendo na hora para a autorização | Etapa 22 |
 | Tipo de usuário: CRUD do catálogo (campo "nome do tipo") | ⏳ pendente — **ponto de atenção:** o modelo v2 fixa os tipos no schema (uma tabela por perfil) e não tem catálogo editável; a forma de atender a este requisito precisa ser decidida pelo autor | — |
-| Cadastro de restaurante (nome, endereço, horário de funcionamento, dono - Imagem 2) | ✅ com ajustes planejados ao modelo v2 (endereço próprio, posse, horário por dia) | Etapa 16; v2: 18, 21, 23, 24 |
+| Cadastro de restaurante (nome, endereço, horário de funcionamento, dono - Imagem 2) | ✅ endereço próprio, dono com perfil de dono e regra de posse, horário por dia da semana | Etapas 16, 18, 21, 23 e 24 |
 | Cadastro de itens do cardápio (nome, descrição, preço, só no local, caminho da foto) | ⏳ pendente | — |
 
 | Requisito técnico e de entrega | Estado | Onde |
 | --- | --- | --- |
 | Clean Architecture em camadas | ✅ quatro camadas, regra de dependência verificada no build | Visão Geral, Etapas 11, 13 e 14 |
 | Testes unitários com 80% de cobertura | ✅ **100%** de linhas e ramos, com o build falhando abaixo disso | Etapa 11 |
-| Testes de integração dos componentes | ✅ 89 testes com PostgreSQL real e HTTP de ponta a ponta | Etapa 11 |
-| Documentação do projeto (arquitetura, endpoints, execução) | ✅ README, este relatório, Swagger e `docs/arquitetura/` | Etapas 9, 12 e 14 |
-| Coleção Postman | ✅ 67 requests (52 da Etapa 12 + 15 de restaurantes da Etapa 16), com um print por request | Etapas 12 e 16 |
+| Testes de integração dos componentes | ✅ 138 testes com PostgreSQL real e HTTP de ponta a ponta | Etapas 11 e 25 |
+| Documentação do projeto (arquitetura, endpoints, execução) | ✅ README, este relatório, Swagger, `docs/arquitetura/` e `docs/modelo-dados/` | Etapas 9, 12, 14 e 25 |
+| Coleção Postman | ✅ 125 requests, com um print por request | Etapas 12, 16 e 18 a 25 |
 | Docker Compose com aplicação e banco | ✅ aplicação, PostgreSQL e Mailpit | Etapa 10 |
 | Repositório aberto | ✅ público no GitHub (`felipe11dias/postech-fase2-restaurantes-app`), uma branch por etapa | — |
 | Vídeo de apresentação | ⏳ pendente — depende das features | — |
@@ -133,7 +134,7 @@ A escolha se justifica por três razões:
    importam nada do Spring, do JPA ou do Hibernate. O núcleo compila e é testado sem
    framework no classpath; o Spring existe apenas na camada mais externa.
 2. **Regras de negócio no domínio.** As entidades são responsáveis pela própria consistência:
-   é a entidade que recusa um e-mail inválido, um nome em branco ou um usuário sem papel —
+   é a entidade que recusa um e-mail inválido, um nome em branco ou um usuário sem perfil —
    não um objeto de transporte da API nem uma anotação de validação.
 3. **Banco de dados como detalhe.** A persistência é uma implementação atrás de uma interface
    definida pelo núcleo. O JPA é usado com todas as suas facilidades — mapeamento,
@@ -144,8 +145,8 @@ A escolha se justifica por três razões:
 
 | Camada                         | Pacote                                                                                  | Responsabilidade                                                                                                                                                                                                                          |
 | ------------------------------ | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entidades** (Entities)       | `domain/entity`, `domain/vo`, `domain/exception`                                        | Objetos de negócio com seus invariantes. Criados por fábrica estática `create(...)` (novo) ou `restore(...)` (já existente), ambas validando os dados. VOs de valor (`Email`, `ZipCode`). Exceções de domínio. **Nenhuma dependência além do JDK.**                                    |
-| **Casos de Uso** (Use Cases)   | `application/usecase`, `application/gateway`, `application/dto`                         | Uma classe por ação que o sistema oferece, com `create(gateways...)` e `run(dto)`. Orquestram as entidades e requisitam dados pelas **interfaces de gateway**, declaradas aqui porque é o caso de uso quem define o que precisa.        |
+| **Entidades** (Entities)       | `domain/entity`, `domain/vo`, `domain/exception`                                        | Objetos de negócio com seus invariantes. Criados por fábrica estática `create(...)` (novo) ou `restore(...)` (já existente), ambas validando os dados. Objetos de valor (`Email`, `ZipCode`, `Cpf`, `Cnpj`, `Phone`, `LicensePlate`, `DriverLicense`) e partes de valor do agregado (`OfficeHour`). Exceções de domínio. **Nenhuma dependência além do JDK.**                                    |
+| **Casos de Uso** (Use Cases)   | `application/usecase`, `application/policy`, `application/gateway`, `application/dto` | Uma classe por ação que o sistema oferece, com `create(gateways...)` e `run(dto)`. Orquestram as entidades e requisitam dados pelas **interfaces de gateway**, declaradas aqui porque é o caso de uso quem define o que precisa. Regra de aplicação que mais de um caso de uso aplica fica, uma vez só, numa **política** (`UniqueDocumentsPolicy`, `LastAdminPolicy`).        |
 | **Adaptadores de Interface**   | `adapter/controller`, `adapter/gateway`, `adapter/datasource`, `adapter/service`, `adapter/presenter` | **Controllers** coordenam: a cada operação instanciam os gateways com as origens de dados e os serviços recebidos, instanciam o caso de uso, executam-no numa unidade de trabalho e entregam o resultado ao presenter. **Gateways** implementam as interfaces do núcleo e traduzem entidade ↔ mundo externo, dependendo apenas de interfaces: de origem de dados (`I*DataSource`) ou de serviço externo (`IMailSender`, `ITokenEncoder`). **Presenters** preparam a saída para o cliente. |
 | **Frameworks & Drivers**       | `infrastructure/main`, `infrastructure/api/rest/spring`, `infrastructure/persistence/jpa`, `infrastructure/token/jwt`, `infrastructure/crypto`, `infrastructure/mail/smtp` | Os detalhes, cada um como módulo substituível (Etapa 13): `@RestController`, DTOs HTTP, HATEOAS, handler de erros e Spring Security; entidades JPA, `JpaRepository` e a implementação da origem de dados; JWT; BCrypt; SMTP; e a composição que liga tudo. **Só aqui existe Spring.**        |
 
@@ -158,9 +159,10 @@ flowchart TB
             subgraph UC["Casos de Uso  (application)"]
                 direction TB
                 subgraph EN["Entidades  (domain)"]
-                    E[User · Role · Address · PasswordResetToken<br/>Email · ZipCode]
+                    E[User · UserProfiles · Owner/Client/Courier/AdminProfile<br/>Restaurant · OfficeHour · Address · PasswordResetToken<br/>Cpf · Cnpj · Email · ZipCode · ...]
                 end
-                U[RegisterUserUseCase · UpdateUserUseCase · ...]
+                U[RegisterUserUseCase · SaveUserProfileUseCase · CreateRestaurantUseCase · ...]
+                PO[*Policy]
                 G[(I*Gateway)]
             end
             C[Controllers]
@@ -184,6 +186,8 @@ flowchart TB
     GW --> DS
     GW --> SV
     U --> G
+    U --> PO
+    PO --> G
     U --> E
     J -.implementa.-> DS
     S -.implementa.-> SV
@@ -221,16 +225,17 @@ Cliente HTTP
     │ NewUserRequest.toDTO() → NewUserDTO
     ▼
 [UserController.register]             adapter/controller           — o "maestro"
-    │ cria UserGateway.create(userDataSource), RoleGateway.create(roleDataSource)
-    │ cria RegisterUserUseCase.create(userGateway, roleGateway, passwordEncoder)
+    │ cria UserGateway.create(userDataSource)
+    │ cria RegisterUserUseCase.create(userGateway, passwordEncoder, clock)
     │ executa run(dto) dentro de IUnitOfWork.execute(...)          — atomicidade
     ▼
 [RegisterUserUseCase.run]             application/usecase/user     — regras de aplicação
-    │ User.create(...)                domain                       — invariantes
+    │ UserProfiles + User.create(...) domain                       — invariantes (ao menos um perfil, CPF da pessoa)
+    │ UniqueDocumentsPolicy           application/policy/user      — CPF e CNPJ únicos
     │ userGateway.findByEmail / findByLogin / insert
     ▼
 [UserGateway]                         adapter/gateway              — traduz User ↔ UserData
-    │ IUserDataSource.insert(userData)
+    │ IUserDataSource.insert(userData)   — UserData com OwnerData, ClientData... (enums pelo nome)
     ▼
 [UserDataSourceJpa]                   infrastructure/persistence/jpa — JpaRepository / Hibernate
     │
@@ -2102,7 +2107,7 @@ db/migration/                      V3__create_restaurant_schema.sql
 
 ---
 
-## Modelo de Dados v2 — adequação planejada
+## Modelo de Dados v2 — adequação
 
 O autor definiu uma nova versão do modelo de banco, exportada do dbdiagram. Os dois documentos
 estão no projeto, como referência — não são migrations e o Flyway não os executa:
@@ -2117,9 +2122,11 @@ ela que `users` se liga a endereço no novo modelo. Ficam para depois `addresses
 cidade e UF em texto), `cities`, `states`, `cuisines`, `restaurant_cuisines`, `products`,
 `product_option_groups`, `product_option_values` e `images`.
 
-### Atual × v2
+### Antes × v2
 
-| Tabela | Hoje | Modelo v2 | Etapa |
+O quadro do planejamento: a coluna "Antes" é o schema ao fim da Etapa 16.
+
+| Tabela | Antes (Etapa 16) | Modelo v2 | Etapa |
 | --- | --- | --- | --- |
 | `users` | identidade, credenciais e auditoria; endereços em `addresses.user_id` (1:N); papéis em `user_roles` | mesmas colunas; endereços via `user_addresses`; tipo do usuário pelas tabelas de perfil | 18, 21 |
 | `user_addresses` | não existe | `user_id` (CASCADE), `address_id` `UNIQUE`, `label` ("Casa", "Trabalho"), `is_default`, auditoria; índice em `user_id` | 18 |
@@ -2233,22 +2240,23 @@ desses domínios circula como `String` solta no núcleo.
 | `courier_status` | `OFFLINE`, `AVAILABLE`, `BUSY` | `CourierStatus` (`domain/entity/courier`) | Todo entregador nasce `OFFLINE` (padrão do banco e da fábrica `create`) | `couriers.status` |
 | `day_of_week` | `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY`, `SUNDAY` | `java.time.DayOfWeek` | Mesmos sete valores, com os mesmos nomes; já é do JDK — o domínio pode usá-lo, e criar um enum igual seria duplicação | `restaurant_office_hours.day_of_week` |
 
-**Como o enum chega ao banco sem quebrar a regra de dependência.** A regra
-`infraestrutura_so_conhece_portas_tecnicas` proíbe a entidade JPA de importar tipos do domínio.
-Por isso o caminho é o mesmo que o `RoleName` já percorre:
+**Como o enum chega ao banco sem quebrar a regra de dependência.** A infraestrutura só conhece,
+do domínio, as exceções — regra `infraestrutura_so_conhece_do_dominio_as_excecoes` (Etapa 25) —,
+e o registro da origem de dados não carrega tipo do domínio
+(`registros_e_views_nao_carregam_tipos_do_dominio`). O caminho é:
 
-1. o record `*Data` carrega o **nome** do valor (`String`);
-2. o gateway do adaptador converte nos dois sentidos — `CourierVehicleType.from(String)`,
-   recusando valor desconhecido com `InvariantViolationException`, como `RoleName.from`;
-   `DayOfWeek.valueOf` para o dia da semana;
+1. o record `*Data` (e a view, na saída) carrega o **nome** do valor (`String`);
+2. o gateway do adaptador converte nos dois sentidos — `CourierVehicleType.from`,
+   `CourierStatus.from` e `OfficeHour.dayOf` na leitura, recusando valor desconhecido com a mensagem
+   do domínio; `name()` na gravação. Na entrada pela API, quem converte é o DTO do caso de uso
+   (`CourierProfileDTO`, `OfficeHourDTO`), com as mesmas fábricas;
 3. a entidade JPA mapeia a coluna como `String` com `columnDefinition` igual ao nome do tipo
    (`"courier_vehicle_type"`, `"courier_status"`, `"day_of_week"`) e
    `@ColumnTransformer(write = "?::<tipo>")`, para o PostgreSQL aceitar o texto na coluna `ENUM`.
 
-O ponto a confirmar na etapa: o `ddl-auto: validate` aceitar a coluna `ENUM` declarada assim. O
-teste de integração sobe o contexto contra o schema real e responde por isso; se não aceitar, a
-alternativa é um enum espelho dentro do módulo `persistence/jpa` com
-`@JdbcTypeCode(SqlTypes.NAMED_ENUM)` — sem nunca importar o enum do domínio.
+O `ddl-auto: validate` aceitou a coluna declarada assim (Etapas 21 e 24): todo teste de integração
+sobe o contexto contra o schema real, e o enum espelho com `@JdbcTypeCode(SqlTypes.NAMED_ENUM)`,
+alternativa prevista, não foi necessário.
 
 ### Divergências modelo → schema físico
 
@@ -2281,14 +2289,14 @@ Fora do escopo, registrados para as etapas de cardápio: `products.price double`
 - **Toda migration é exercitada pelos ITs** (banco limpo do Testcontainers) e pela pilha do
   Compose sobre o volume existente (banco com dados da coleção Postman).
 
-### Etapas planejadas
+### As etapas
 
-Cada etapa é uma fatia vertical — domínio, casos de uso, adaptadores, infraestrutura, migration,
-API e coleção — para que o build termine verde em cada uma (gate de 100%, ArchUnit, ITs). Toda
-etapa fecha com: `mvn verify` verde, coleção validada com `npx newman@6`, entrada no
-`CHANGELOG.md`, `docs/arquitetura/` atualizado onde houver decisão nova e a seção "O que foi
-entregue" com o conceito que sustenta cada decisão. Ordem: a 17 destrava o build; 18 e 19
-fecham `users`/`password_reset_tokens`; 20 a 22, os perfis; 23 e 24, o restaurante.
+Cada etapa foi uma fatia vertical — domínio, casos de uso, adaptadores, infraestrutura, migration,
+API e coleção — e terminou com o build verde (gate de 100%, ArchUnit, ITs), a coleção validada com
+`npx newman@6`, entrada no `CHANGELOG.md`, `docs/arquitetura/` atualizado onde houve decisão nova e
+a seção "O que foi entregue" com o conceito que sustenta cada decisão. A 17 destravou o build; 18 e
+19 fecharam `users`/`password_reset_tokens`; 20 a 22, os perfis; 23 e 24, o restaurante; a 25
+conferiu o conjunto — o quadro final, tabela por tabela, está nela ("Modelo v2 × schema real").
 
 ---
 
@@ -2941,7 +2949,7 @@ O corpo do restaurante troca `officeHourStart`/`officeHourEnd` por
 | **"Sem sobreposição" e "ao menos um horário" na raiz** (`Restaurant.replaceOfficeHours`); abertura ≠ fechamento no próprio horário | Invariante do conjunto mora na raiz do agregado; a do item, no item. Fechamento antes da abertura é virar a meia-noite, a mesma leitura do horário único de antes |
 | **Sobreposição na semana circular** | A regra é sobre o tempo real de funcionamento: o expediente que vira a meia-noite ocupa o começo do dia seguinte. Conferir só "no mesmo dia" deixaria passar dois expedientes simultâneos |
 | **Dia pelo nome, convertido pelo domínio** (`OfficeHour.dayOf`) na entrada e na leitura | Valor desconhecido produz a mensagem do domínio ("Dia da semana inválido: X"), e não um erro de formato do parser — como o tipo de veículo do entregador |
-| **`day_of_week` como texto na JPA**, com `columnDefinition` e `@ColumnTransformer(write = "?::day_of_week")` | A infraestrutura não importa tipo do domínio (`infraestrutura_so_conhece_portas_tecnicas`); o mesmo mapeamento dos enums do entregador |
+| **`day_of_week` como texto na JPA**, com `columnDefinition` e `@ColumnTransformer(write = "?::day_of_week")` | A infraestrutura não importa tipo do domínio — regra `infraestrutura_so_conhece_do_dominio_as_excecoes`, criada na Etapa 25 (até ali, a citação apontava `infraestrutura_so_conhece_portas_tecnicas`, que não cobre o caso); o mesmo mapeamento dos enums do entregador |
 | **Reconciliação por (dia, abertura) na atualização** | Evita apagar e regravar tudo a cada `PUT`, e evita violar `UNIQUE (restaurant_id, day_of_week, start_time)` no meio da descarga: o Hibernate insere os novos antes de apagar os antigos, e regravar o mesmo horário seria um conflito |
 | **Ordem da semana na lista** (domínio ordena; a JPA lê com `@OrderBy` pelo tipo `day_of_week`, que o PostgreSQL ordena de segunda a domingo) | A resposta é estável e legível; quem consome não precisa ordenar |
 
@@ -2966,38 +2974,167 @@ O corpo do restaurante troca `officeHourStart`/`officeHourEnd` por
 
 ## Etapa 25 — Revisão de conformidade do modelo de dados v2
 
-**Objetivo.** Conferir as Etapas 17 a 24 contra o modelo e contra as referências, como a
-Etapa 14 fez para a base.
+Como a Etapa 14 fez para a base, esta etapa confronta o resultado das Etapas 17 a 24 com duas fontes:
+o **modelo** — o DDL de [`docs/modelo-dados/`](../docs/modelo-dados/README.md), comparado com o schema
+que as migrations V1 a V10 produzem — e as **referências** do relatório, que sustentam cada decisão. O
+schema real foi obtido aplicando as migrations, em ordem, num PostgreSQL descartável com a mesma
+imagem da aplicação (`postgres:16.15-alpine3.24`) e extraído com `pg_dump --schema-only`; cada tabela
+do escopo foi comparada coluna a coluna e restrição a restrição. A etapa teve três saídas: o quadro
+final, as **correções** do que divergia e **regras de build** para as decisões que até então só
+estavam escritas.
 
-- Quadro final "modelo v2 × schema real", tabela por tabela, com cada divergência justificada.
-- ArchUnit estendido aos pacotes novos (perfis, endereço do usuário, horários) e conferência ao
-  contrário (classe temporária que viola cada regra nova).
-- `docs/arquitetura/` (01 a 06) e `package-info` atualizados; relatório sincronizado com o código.
-- Testes em ordem aleatória; coleção Postman completa e prints regenerados da mesma execução.
+### Modelo v2 × schema real
+
+| Tabela | Modelo v2 | Schema real (V1 a V10) | Divergência e por quê |
+| --- | --- | --- | --- |
+| `users` | `id`, `name`, `email` UK, `login` UK, `password`, auditoria | Igual. `varchar` com tamanho (150, 150, 50, 100); `created_at`/`last_updated_at` `NOT NULL`; `id DEFAULT gen_random_uuid()`; índice em `lower(name)` | O tamanho é parte do domínio do atributo (Machado). A auditoria é sempre gravada pelo listener, e o banco não aceita o que a aplicação nunca grava (Date). O `DEFAULT` do id serve à inserção por SQL, como a seed — a aplicação gera o UUID. O índice atende à busca por nome sem diferenciar maiúsculas |
+| `user_addresses` | `id`, `user_id` → `users` CASCADE, `address_id` UK, `label`, `is_default` padrão `false`, auditoria; índice em `user_id` | Igual. `label varchar(50)`; `address_id` → `addresses` RESTRICT; `EXCLUDE (user_id WITH =) WHERE (is_default) DEFERRABLE INITIALLY DEFERRED` | A chave de endereço está na direção certa (o export a inverte). "Um padrão por usuário" ganhou garantia no banco, conferida no commit, porque o Hibernate insere o vínculo novo antes de apagar o antigo (Etapa 18) |
+| `password_reset_tokens` | `id`, `user_id` UK → `users` CASCADE, `token_hash` UK, `expires_at`, `used`; sem auditoria | Igual, também sem auditoria. `expires_at` e `used` (`DEFAULT false`) `NOT NULL`; `token_hash varchar(100)` | O domínio sempre preenche validade e uso (Etapa 19) |
+| `owners` | `id` PK = FK `users` CASCADE, `cnpj` (14) UK, `legal_name`, `business_phone` (20), auditoria | Igual; `legal_name varchar(150)` | — |
+| `clients` | `id` PK = FK, `cpf` (11) UK, `phone` (20), `birth_date`, auditoria | Igual, mais o gatilho `tg_clients_cpf_de_uma_so_pessoa` | O modelo torna o CPF único em cada tabela; o gatilho (com trava consultiva por CPF) impede o mesmo CPF em **duas pessoas** entre `clients` e `couriers` — regra que a aplicação confere e que duas requisições simultâneas poderiam furar (Etapa 22) |
+| `couriers` | `id` PK = FK, `cpf` (11) UK, `phone` (20), `driver_license_number` UK, `vehicle_type`, `vehicle_plate` (8), `status` padrão `OFFLINE`, auditoria; `COMMENT` "obrigatório apenas para MOTORCYCLE e CAR" | Igual, com os mesmos `COMMENT`s; `driver_license_number varchar(11)`; `CHECK ck_couriers_license_by_vehicle`; o gatilho de CPF | O comentário do modelo virou restrição: invariante do domínio (`CourierVehicleType.requiresLicense`) e `CHECK` no banco — o que só está num comentário não é garantido por ninguém (Date) |
+| `admins` | `id` PK = FK, `employee_code` UK, `department`, `is_super_admin` padrão `false`, auditoria | Igual; tamanhos 50 e 100; mais o gatilho `tg_admins_ao_menos_um` (V10) | O gatilho, com trava consultiva, recusa a remoção que deixaria a tabela vazia: o sistema não fica sem administrador nem quando duas remoções acontecem ao mesmo tempo (revisão de código desta etapa) |
+| `restaurants` | `id`, `user_id` → `users` CASCADE, `address_id` UK, `name`, auditoria | Igual: `fk_restaurants_user` CASCADE (V8), `uk_restaurants_address_id`; mais `fk_restaurants_owner` → `owners` sem cascata (V7), `address_id` → `addresses` RESTRICT e índices em `user_id` e `lower(name)` | `→ owners` garante no banco que só quem tem perfil de dono tem restaurante. Fica sem cascata de propósito: com ela, tirar o perfil de dono levaria os restaurantes junto (Etapa 23) |
+| `restaurant_office_hours` | `id`, `restaurant_id` → `restaurants` CASCADE, `day_of_week`, `start_time`, `end_time`, auditoria; índice único (`restaurant_id`, `day_of_week`, `start_time`) | Igual, com a unicidade como restrição nomeada (`uk_restaurant_office_hours_start`) e `CHECK (start_time <> end_time)` | Restrição nomeada no lugar do índice anônimo: mesmo efeito, e o nome identifica a regra. O `CHECK` é a invariante do `OfficeHour` (Etapa 24) |
+| `roles`, `user_roles` | não existem | não existem (removidas na V6) | — |
+| Tipos `ENUM` | `day_of_week`, `courier_vehicle_type`, `courier_status` | os três, com os mesmos valores na mesma ordem (conferido pelo `SchemaMigrationIT`) | — |
+
+**O que vale para todas as tabelas.**
+
+- **Chaves estrangeiras não adiáveis.** O export do dbdiagram declara `DEFERRABLE INITIALLY IMMEDIATE`
+  em todas as chaves — é o padrão da ferramenta, não uma decisão do modelo. Uma chave assim só se
+  comporta diferente de uma não adiável se a transação pedir `SET CONSTRAINTS … DEFERRED`, e nenhuma
+  pede. O schema adia só a restrição em que a troca válida exige (o endereço padrão); toda outra é
+  conferida no próprio comando, e o erro aparece no comando que o causou (Date: a restrição é
+  verificada no momento da operação, salvo motivo para adiar).
+- **`addresses` fora do escopo.** A tabela continua com cidade e UF em texto, sem `city_id`: `cities` e
+  `states` ficaram para uma etapa própria, junto do cardápio.
+- **Garantias além do modelo.** Os dois `CHECK`s, os gatilhos de CPF e de "ao menos um administrador" e
+  `restaurants.user_id → owners` não estão no DDL do modelo. Todos protegem regras que o modelo ou o
+  sistema enunciam (nos comentários, na especialização, na relação dono–restaurante, na concessão do
+  perfil de administrador) e que a aplicação também confere — o banco é a última
+  linha, para o que duas requisições simultâneas podem furar.
+
+Nenhuma coluna do modelo ficou de fora, e nenhuma coluna a mais existe nas tabelas do escopo.
+
+### Resultado da revisão
+
+| Fonte | Regra | Estado encontrado | Correção | Conceito |
+| --- | --- | --- | --- | --- |
+| Etapa 22 — "o último administrador não deixa de ser administrador" | O sistema não fica sem administrador: só um administrador concede o perfil | Remover o perfil era recusado (409); **excluir o cadastro, não**: `DELETE /users/{id}` apagava o último administrador, e ninguém mais poderia conceder o perfil | `application/policy/user/LastAdminPolicy`, usada por `RemoveUserProfileUseCase` e `DeleteUserUseCase`; 409 `recurso-em-uso` documentado no `DELETE`; caso novo na coleção | Princípio orientador: uma regra aceita num caminho vale em todos. Duplicação verdadeira (Martin, cap. 16): a regra mora uma vez, na camada de aplicação |
+| Seção "Enums"; Etapas 21 e 24 | A entidade JPA não importa enum do domínio — a coluna `ENUM` é texto, e o gateway converte | Afirmado, **sem regra**: o texto citava `infraestrutura_so_conhece_portas_tecnicas`, que só olha as portas de `application.gateway`. Uma `CourierJpaEntity` com `CourierVehicleType` passaria no build | Regras `infraestrutura_so_conhece_do_dominio_as_excecoes` e `registros_e_views_nao_carregam_tipos_do_dominio`; citação corrigida (`CourierJpaEntity`, `docs/arquitetura/04`, Etapa 24) | A fronteira protege do que muda (Martin, cap. 17); decisão que não quebra o build é só intenção (Etapa 1) |
+| Etapa 22 — `application/policy` | Política é regra de aplicação compartilhada, não caso de uso nem atalho para o adaptador | Sem regra de build | `politicas_de_aplicacao_terminam_em_Policy`: nome `*Policy`, e só casos de uso (e políticas) a usam | CCP (Martin, cap. 13): a política muda com os casos de uso que a aplicam |
+| Convenção do domínio — objeto de valor | VO é `record` com construtor compacto que valida | Seguida, verificada só por revisão | `objetos_de_valor_sao_records` | Igualdade por valor e imutabilidade (*Clean Code*, cap. 6: estrutura de dados × objeto) |
+| Documentação da API (OpenAPI) | A descrição diz o comportamento real | Os quatro `PUT` de perfil diziam "no próximo login", e o comentário do controller, que os papéis eram os do token — falso desde a revisão da Etapa 22, quando a autorização passou a ler os perfis a cada requisição | "Vale já na próxima requisição"; comentário refeito | O contrato publicado não pode divergir da resposta (Etapa 9) |
+| O relatório como especificação | Visão Geral, Escopo, Mapa, Modelo v2 e Decisões descrevem o código como ele é | A Visão Geral mostrava `Role` e `RoleGateway` no fluxo do cadastro; o Escopo, `ROLE_CUSTOMER`, `user_roles`, "89 testes", "67 requests" e a associação de perfil a usuário existente como "parcial"; as decisões do modelo v2, como "planejadas" | Seções atualizadas; as seções de cada etapa mantêm os nomes da época, como diz a abertura | Princípio orientador: relatório e código não divergem |
+| Partes de agregado (perfis, endereço do usuário, horários) | A parte não conhece a raiz — senão os pacotes formam ciclo | Atendida, e verificada pela regra de ciclos | — (conferida ao contrário, abaixo) | ADP (Martin, cap. 14) |
+
+O ponto de atenção do Escopo continua de pé, porque é decisão do autor e não do código: o modelo v2
+fixa os tipos de usuário no schema (uma tabela por perfil), e o enunciado pede um CRUD do catálogo de
+tipos.
+
+### Regras de build
+
+| Regra | Onde | Protege |
+| --- | --- | --- |
+| `infraestrutura_so_conhece_do_dominio_as_excecoes`: do `domain`, a infraestrutura só depende de `domain.exception` | `InfrastructureModulesTest` (24 regras) | o enum como texto na JPA; a resposta HTTP montada da view, nunca da entidade. A exceção atravessa para virar `ProblemDetail` |
+| `registros_e_views_nao_carregam_tipos_do_dominio`: `adapter.datasource.data`, `adapter.service.data` e `adapter.presenter.view` não dependem do `domain` | `ArchitectureTest` (17 regras) | a tradução no gateway e no presenter: o valor do enum atravessa pelo nome |
+| `politicas_de_aplicacao_terminam_em_Policy`: em `application.policy`, só `*Policy`, usadas só por casos de uso e políticas | `ArchitectureTest` | a regra compartilhada fica no núcleo, e nenhum adaptador decide regra de aplicação |
+| `objetos_de_valor_sao_records`: tudo em `domain.vo` é `record` | `ArchitectureTest` | igualdade por valor e imutabilidade dos VOs |
+
+**Conferência ao contrário.** Sete classes temporárias, cada uma violando uma regra, fizeram falhar
+exatamente a regra visada: uma classe em `persistence/jpa/user/courier` com um campo
+`CourierVehicleType` (`infraestrutura_so_conhece_do_dominio_as_excecoes`); um `ViolacaoData` com um
+`CourierStatus` (`registros_e_views_…`); uma classe que não é `record` em `domain.vo`; uma classe sem o
+sufixo em `application.policy` e um controller do adaptador usando a `LastAdminPolicy`
+(`politicas_de_aplicacao_…`); e, para as partes de agregado, uma classe em
+`persistence/jpa/restaurant/officehour` referenciando a `RestaurantJpaEntity` e outra em
+`domain/entity/owner` referenciando o `User` — as duas derrubaram `nenhum_ciclo_entre_pacotes`.
+Removidas as classes, o build voltou a passar.
+
+### Testes em ordem aleatória
+
+A suíte inteira rodou com classes e métodos em ordem aleatória
+(`-Djunit.jupiter.testclass.order.default='org.junit.jupiter.api.ClassOrderer$Random'`,
+`-Djunit.jupiter.testmethod.order.default='org.junit.jupiter.api.MethodOrderer$Random'`, semente
+`20261006`): 775 unitários e 138 de integração, nenhuma falha, cobertura de 100% mantida. As classes de fato mudaram de ordem — a primeira deixou de ser `AuthControllerTest` e passou a ser `DtoTest`. Cada teste de integração cria os próprios dados com marca única, e nenhum depende do que outro deixou no banco compartilhado. Por isso o teste de integração da regra do último administrador não depende de quantos administradores há no banco compartilhado: ele exclui um administrador criado por ele (há outro, então passa) e confere o gatilho apagando todos numa transação desfeita no fim; a recusa pela aplicação é provada no teste unitário e, de ponta a ponta, na coleção.
+
+### Coleção Postman
+
+Um request novo, **92 — "Administrador tenta excluir o próprio cadastro, sendo o último
+administrador"**, na pasta de exclusão, logo depois de a coleção apagar o dono que ela mesma tornou
+administrador. É o único caso que mira a seed, porque só a seed pode ser o último administrador — e um
+caso que mira a seed não pode, se a regra regredir ou o banco tiver outro administrador, apagá-la. Por
+isso o pré-request confere a pré-condição com `pm.sendRequest`: só quando a listagem mostra o
+administrador da seed como o único é que ele vira o alvo; em qualquer outro caso, o pedido vai para um
+id inexistente e as asserções ficam como **puladas** (`pm.test.skip`) — nada é apagado e a coleção continua podendo rodar de novo, mesmo que uma execução interrompida tenha deixado outro administrador no banco. A coleção passa a ter 125 requests, e os
+prints foram regenerados da mesma execução (os de número 92 em diante foram renumerados).
+
+### Revisão de código da etapa
+
+Antes de fechar, o diff da etapa passou por uma revisão focada em falhas reais. Os achados:
+
+| Achado | Correção |
+| --- | --- |
+| **A regra do último administrador era só da aplicação.** A política conta os administradores e só depois grava; dois administradores que se excluem (ou tiram o próprio perfil) ao mesmo tempo passariam os dois pela contagem, e o sistema ficaria sem nenhum — contra a convenção de dar garantia no schema ao que duas requisições simultâneas podem furar. | `V10__at_least_one_admin.sql`: gatilho `AFTER DELETE` em `admins` com trava consultiva; a segunda remoção espera a primeira e, vendo a tabela vazia, é recusada (409 `dado-em-conflito`, como as outras disputas decididas pelo banco). Conferido no `SchemaMigrationIT` e com duas transações simultâneas. |
+| **O caso 92 da coleção quebraria as execuções seguintes** se uma execução interrompida deixasse outro administrador no banco: a pré-condição nunca mais valeria, e o caso falharia sempre. | Sem a pré-condição, as asserções ficam puladas (`pm.test.skip`) em vez de falhar. |
+| Faltava o caminho feliz: excluir um administrador quando há outro. | Teste unitário em `UserQueryUseCasesTest` e teste de integração por HTTP em `UserProfilesApiIT`. |
+| A regra nova do `ArchitectureTest` usava `..domain..`, que também casa com `org.springframework.data.domain`. | Destino ancorado no pacote do projeto (`com.postech.restaurantes.domain..`), também em `transporte_nao_conhece_o_dominio`. |
+| `transporte_nao_conhece_o_dominio` e a regra nova se sobrepõem. | Mantidas, com a diferença registrada: o transporte não conhece nem as exceções do domínio. |
+| A remoção de perfil confere "é administrador" duas vezes (no caso de uso e na política). | Mantido: o caso de uso decide *qual* perfil sai; a política, se o usuário é o último administrador — e a exclusão do cadastro precisa dessa conferência. |
+
+### O que foi entregue nesta etapa
+
+| Decisão | Conceito que a sustenta |
+| --- | --- |
+| **Quadro final modelo v2 × schema real**, a partir do schema extraído das migrations, não do texto das etapas | O relatório descreve o que existe; o que o banco tem é o que o `pg_dump` mostra |
+| **Divergências mantidas e justificadas** (tamanhos, `NOT NULL` de auditoria, chaves não adiáveis, garantias a mais) | O modelo é lógico; o schema físico decide o que o export não diz (Date, Machado). Cada desvio preserva a intenção do modelo |
+| **O último administrador não é excluído**, pela mesma `LastAdminPolicy` da remoção de perfil | Consistência entre caminhos (princípio orientador); regra compartilhada uma vez só, em `application/policy` |
+| **Quatro regras de build novas**, conferidas ao contrário | O que só está escrito não protege; a regra de dependência vale também para os tipos que atravessam a fronteira (Martin, caps. 17 e 22) |
+| **"Ao menos um administrador" garantido no banco** (V10: gatilho com trava consultiva) | Regra que a aplicação confere e que duas requisições simultâneas podem furar ganha garantia no schema (Date), como o CPF na V7 |
+| **Caso da coleção que mira a seed só com a pré-condição confirmada** | A coleção nunca destrói a seed, nem quando a regra que ela testa regride (Etapa 12) |
+| **Relatório, `docs/arquitetura/`, `docs/modelo-dados/`, README e `CLAUDE.md` sincronizados com o código** | Documentação perto do código e fiel a ele (Etapa 14) |
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `mvn clean verify` | **775 testes unitários** (766 + 3 da `LastAdminPolicy`, 2 da exclusão de administrador, 4 regras ArchUnit) e **138 de integração** (136 + o gatilho da V10 + a exclusão de administrador por HTTP) — BUILD SUCCESS; cobertura unitária **2009/2009 linhas, 544/544 ramos, 840/840 métodos** |
+| Ordem aleatória (semente `20261006`) | 775 unitários e 138 de integração, BUILD SUCCESS, cobertura de 100% |
+| Schema real × modelo | V1 a V10 aplicadas num PostgreSQL descartável; as nove tabelas do escopo e os três `ENUM`s comparados com o DDL do modelo: nenhuma coluna faltando ou sobrando; divergências as do quadro acima |
+| Postman (`npx newman@6`) | **125 requests (126 execuções, com a nova tentativa do Mailpit), 260 asserções, 0 falhas**, em duas execuções seguidas contra o mesmo banco de uma pilha descartável do Compose. A trava do caso 92 foi conferida à parte: com um segundo administrador no banco, o pedido foi para o id inexistente, as asserções ficaram puladas, e o administrador da seed continuou lá. Prints regenerados (125) |
+| Corrida entre dois administradores | Num PostgreSQL com V1 a V10 e só dois administradores, duas transações simultâneas excluindo um cada: a segunda esperou a trava da primeira e foi recusada ("O último administrador não pode deixar de existir"); sobrou um administrador |
+| Documentação | `docs/arquitetura/` 01 a 06 com as regras novas e a contagem (48 regras ArchUnit: 17 + 24 + 7); `package-info` da política atualizado |
 
 ---
 
 ## Decisões Técnicas (registro consolidado)
 
-**Planejadas (Modelo de Dados v2, Etapas 17 a 25 — ainda não implementadas):**
+**Implementadas:**
 
+- **Modelo de Dados v2 conferido tabela por tabela** contra o schema real, com cada divergência
+  justificada; regras de build novas para o que as Etapas 17 a 24 decidiram (a infraestrutura só
+  conhece do domínio as exceções; registros e views sem tipo do domínio; políticas de aplicação;
+  objetos de valor como `record`). Etapa 25.
+- **O sistema não fica sem administrador:** nem remover o perfil nem excluir o cadastro do último
+  administrador — uma regra só (`LastAdminPolicy`). Etapas 22 e 25.
 - **Tipo de usuário por especialização:** perfis em `owners`, `clients`, `couriers` e `admins`
-  (PK = FK para `users`), especialização sobreposta e total; o papel do JWT é derivado do perfil e
-  `roles`/`user_roles` deixam de existir. Etapas 20 a 22 (a 21 entregou a especialização e o papel
-  derivado; a 22, a manutenção dos perfis).
+  (PK = FK para `users`), especialização sobreposta e total; o papel é derivado do perfil, lido do
+  cadastro a cada requisição, e `roles`/`user_roles` deixaram de existir. Etapas 20 a 22.
 - **Enums do banco como tipos do domínio:** `CourierVehicleType` e `CourierStatus` no domínio;
   `java.time.DayOfWeek` para `day_of_week`; a JPA guarda o nome e o gateway converte, sem a
-  infraestrutura importar o domínio. Seção "Enums".
+  infraestrutura importar o domínio. Seção "Enums"; Etapas 21 e 24.
 - **Endereço sempre parte de um agregado:** do usuário via `user_addresses` (rótulo, um padrão) e do
   restaurante por `address_id` único; a aplicação remove o endereço, já que o cascade do banco não o
   alcança. Etapas 18 e 23.
 - **Um token de redefinição por usuário:** pedido novo reemite e invalida o anterior. Etapa 19.
-- **Posse também no restaurante:** dono só altera e exclui os próprios restaurantes. Etapa 23 (entregue).
-- **Horário por dia da semana** em tabela própria, com invariantes de intervalo no agregado. Etapa 24 (entregue).
+- **Posse também no restaurante:** dono só altera e exclui os próprios restaurantes; excluir o
+  usuário exclui os restaurantes dele. Etapa 23.
+- **Horário por dia da semana** em tabela própria, com invariantes de intervalo no agregado. Etapa 24.
 - **Migrations nunca inventam dado:** o que o modelo exige e o banco não tem só é preenchido para a
-  seed; fora dela, a migration falha com mensagem clara.
-
-**Implementadas:**
+  seed; fora dela, a migration falha com mensagem clara. Etapas 18 a 24.
+- **Regra que duas requisições simultâneas podem furar ganha garantia no schema:** CPF de uma pessoa
+  só (gatilho), restaurante só de quem tem perfil de dono, um padrão por usuário. Etapas 18 e 22.
 
 - **API REST em `infrastructure/api/rest/spring`, organizada como MVC:** um pacote por papel da
   classe (controller, dto/request, dto/response, assembler, exception…), caminhos em `route/ApiRoutes`,

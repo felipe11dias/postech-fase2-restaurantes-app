@@ -185,24 +185,26 @@ public class UserRestController {
     @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
     @Operation(summary = "Exclui um cadastro",
             description = "Remove também perfis, endereços, tokens de redefinição e os restaurantes do usuário (com o "
-                    + "endereço de cada um). Só o próprio usuário ou um administrador.")
+                    + "endereço de cada um). O último administrador não é excluído. Só o próprio usuário ou um "
+                    + "administrador.")
     @ApiResponse(responseCode = "204", description = "Cadastro excluído")
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
     @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Cadastro de outro usuário")
     @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Usuário não encontrado")
+    @ErrorResponse(type = ProblemType.RESOURCE_IN_USE, description = "Cadastro do último administrador")
     public void delete(@Parameter(description = "Id do usuário") @PathVariable UUID id) {
         controller.delete(id);
     }
 
     // --- Perfis do cadastro -------------------------------------------------------------------
-    // Os papéis do token são os do momento do login: incluir ou remover perfil vale para a
-    // autorização a partir do próximo login.
+    // A autorização usa os papéis do cadastro a cada requisição (BearerTokenAuthenticationFilter):
+    // incluir ou remover perfil vale na hora, com o mesmo token.
 
     @PutMapping("/{id}/profiles/owner")
     @PreAuthorize(DONO_OU_ADMIN)
     @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
     @Operation(summary = "Inclui ou altera o perfil de dono",
-            description = "Dá ao cadastro o papel ROLE_OWNER (no próximo login). Só o próprio usuário ou um administrador.")
+            description = "Dá ao cadastro o papel ROLE_OWNER (vale já na próxima requisição). Só o próprio usuário ou um administrador.")
     @ApiResponse(responseCode = "200", description = "Cadastro com o perfil de dono")
     @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Campo ausente ou CNPJ inválido")
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
@@ -218,7 +220,7 @@ public class UserRestController {
     @PreAuthorize(DONO_OU_ADMIN)
     @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
     @Operation(summary = "Inclui ou altera o perfil de cliente",
-            description = "Dá ao cadastro o papel ROLE_CLIENT (no próximo login). O CPF é o mesmo do perfil de "
+            description = "Dá ao cadastro o papel ROLE_CLIENT (vale já na próxima requisição). O CPF é o mesmo do perfil de "
                     + "entregador, se houver. Só o próprio usuário ou um administrador.")
     @ApiResponse(responseCode = "200", description = "Cadastro com o perfil de cliente")
     @ErrorResponse(type = ProblemType.INVALID_REQUEST,
@@ -236,7 +238,7 @@ public class UserRestController {
     @PreAuthorize(DONO_OU_ADMIN)
     @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
     @Operation(summary = "Inclui ou altera o perfil de entregador",
-            description = "Dá ao cadastro o papel ROLE_COURIER (no próximo login). Alterar não muda o status; o "
+            description = "Dá ao cadastro o papel ROLE_COURIER (vale já na próxima requisição). Alterar não muda o status; o "
                     + "entregador novo começa OFFLINE. Só o próprio usuário ou um administrador.")
     @ApiResponse(responseCode = "200", description = "Cadastro com o perfil de entregador")
     @ErrorResponse(type = ProblemType.INVALID_REQUEST,
@@ -255,7 +257,7 @@ public class UserRestController {
     @PreAuthorize(SO_ADMIN)
     @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
     @Operation(summary = "Inclui ou altera o perfil de administrador",
-            description = "Dá ao cadastro o papel ROLE_ADMIN (no próximo login). Só administrador — nem o próprio "
+            description = "Dá ao cadastro o papel ROLE_ADMIN (vale já na próxima requisição). Só administrador — nem o próprio "
                     + "usuário se torna administrador.")
     @ApiResponse(responseCode = "200", description = "Cadastro com o perfil de administrador")
     @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Código de funcionário ausente")

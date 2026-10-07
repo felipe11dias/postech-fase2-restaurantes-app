@@ -135,7 +135,7 @@ trabalho) são as únicas implementadas direto pela infraestrutura — ver
 
 ## 6. Como o build verifica
 
-[`ArchitectureTest`](../../src/test/java/com/postech/restaurantes/ArchitectureTest.java) (14 regras)
+[`ArchitectureTest`](../../src/test/java/com/postech/restaurantes/ArchitectureTest.java) (17 regras)
 quebra o build se a regra de dependência for violada: camadas concêntricas pelo DSL de *onion
 architecture*; `domain` sem dependência de outro pacote; `application` só com `domain`; `adapter`
 sem `infrastructure`; Spring, JPA, Hibernate, jjwt, Bean Validation, Jakarta Mail e Flyway só em

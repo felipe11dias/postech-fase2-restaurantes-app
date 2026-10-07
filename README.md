@@ -40,13 +40,13 @@ flowchart TB
 
 Dentro de cada camada o código é agrupado por agregado (`user`, `auth`, `address`…), para que a
 estrutura revele o domínio. A regra de dependência é **verificada no build** pelo ArchUnit
-(14 regras): nenhum tipo fora de `infrastructure` importa Spring, JPA, Hibernate, jjwt ou
+(17 regras): nenhum tipo fora de `infrastructure` importa Spring, JPA, Hibernate, jjwt ou
 Bean Validation.
 
 A infraestrutura, por sua vez, é um conjunto de **módulos substituíveis**: o pacote diz o papel e
 o subpacote a tecnologia (`persistence/jpa`, `token/jwt`, `mail/smtp`). Nenhum módulo conhece
 outro; só `main` (a composição) liga as pontas. Trocar uma tecnologia é apagar um subpacote e
-criar outro ao lado — outras 23 regras ArchUnit provam que nada mais dependia dele, que não há
+criar outro ao lado — outras 24 regras ArchUnit provam que nada mais dependia dele, que não há
 ciclos entre pacotes, que cada biblioteca só aparece no módulo que a encapsula e que a
 infraestrutura só implementa diretamente as portas técnicas (hash de senha, token aleatório,
 unidade de trabalho) — o resto passa por um gateway do adaptador; e, dentro da API, que cada
@@ -197,7 +197,7 @@ autocadastro não tem perfil de administrador.
    - Perfis de um cadastro existente se incluem, alteram e removem em `/api/v1/users/{id}/profiles/…`
      (o próprio usuário ou um administrador; o perfil de administrador, só um administrador). A
      autorização lê os perfis do cadastro a cada requisição: incluir ou remover perfil vale na hora,
-     com o mesmo token. O último administrador não perde o perfil de administrador.
+     com o mesmo token. O último administrador não perde o perfil de administrador nem é excluído.
 4. **Recuperação de senha:** `POST /api/v1/auth/forgot-password` responde `202` sempre, exista ou
    não o e-mail, e no mesmo tempo: o pedido é processado em segundo plano, então a API não revela
    quais e-mails têm conta nem pela resposta nem pela demora. O token chega **só por e-mail**, em
@@ -217,7 +217,7 @@ autocadastro não tem perfil de administrador.
 | `GET` | `/api/v1/users/{id}` | dono ou administrador | `200` |
 | `PUT` | `/api/v1/users/{id}` | dono ou administrador | `200` |
 | `PATCH` | `/api/v1/users/{id}/password` | dono ou administrador | `204` |
-| `DELETE` | `/api/v1/users/{id}` | dono ou administrador | `204` |
+| `DELETE` | `/api/v1/users/{id}` | dono ou administrador | `204` (com os restaurantes do usuário; não o último administrador) |
 | `PUT` | `/api/v1/users/{id}/profiles/{owner,client,courier}` | dono ou administrador | `200` (inclui ou altera o perfil) |
 | `PUT` | `/api/v1/users/{id}/profiles/admin` | administrador | `200` |
 | `DELETE` | `/api/v1/users/{id}/profiles/{tipo}` | dono ou administrador | `204` (não o último perfil; não o de dono com restaurante; não o do último administrador) |
@@ -243,7 +243,7 @@ que o cliente deve se apoiar:
 | `acesso-negado` | 403 | Cadastro de outro usuário; listagem por não administrador; restaurante de outro dono |
 | `recurso-nao-encontrado` | 404 | Usuário inexistente; perfil que o usuário não tem |
 | `conflito-de-dados` | 409 | E-mail, login, CPF ou CNPJ já cadastrado |
-| `recurso-em-uso` | 409 | Perfil de dono de quem tem restaurante; perfil de administrador do último administrador |
+| `recurso-em-uso` | 409 | Perfil de dono de quem tem restaurante; perfil de administrador ou cadastro do último administrador |
 | `erro-inesperado` | 500 | Falha não prevista (detalhe genérico; a causa vai para o log) |
 
 A documentação completa, com exemplos de cada resposta, está no Swagger UI.
@@ -251,7 +251,7 @@ A documentação completa, com exemplos de cada resposta, está no Swagger UI.
 ## Coleção Postman
 
 [`postman/Restaurantes.postman_collection.json`](postman/Restaurantes.postman_collection.json)
-(formato v2.1) tem **124 requests em 16 pastas** (usuários e restaurantes): um por caso de cada endpoint — o sucesso e cada
+(formato v2.1) tem **125 requests em 16 pastas** (usuários e restaurantes): um por caso de cada endpoint — o sucesso e cada
 erro previsto —, na ordem em que rodam de cima a baixo. Os scripts de teste conferem o status e
 o `type` de cada erro e guardam `{{adminToken}}`, `{{token}}` e `{{userId}}` para as requisições
 seguintes; se um login ou cadastro essencial falhar, a execução para ali, com o motivo, em vez de
@@ -262,7 +262,9 @@ A coleção cria os próprios usuários — um cliente, um segundo cadastro desc
 casos de acesso negado), um dono e um entregador — e os exclui ao fim. CPF, CNPJ e CNH são únicos
 no banco: o pré-request da coleção gera documentos válidos e novos a cada request
 (`{{cpfGerado}}`, `{{cnpjGerado}}`, `{{cnhGerada}}`). **Ela nunca altera os usuários da seed**: se a regra
-de posse regredir, o estrago fica no cadastro descartável. Por isso pode rodar quantas vezes
+de posse regredir, o estrago fica no cadastro descartável. O único caso que mira a seed — excluir o
+administrador dela, o último, e receber `409` — só mira depois que a listagem confirma que ele é o único
+administrador; senão vai para um id inexistente e falha sem apagar nada. Por isso pode rodar quantas vezes
 quiser contra o mesmo banco.
 
 - **No Postman:** *Import* → escolha o arquivo → *Run collection*. As variáveis `baseUrl`
@@ -306,8 +308,8 @@ mvn verify    # + testes de integração (Testcontainers) + gate de 100% de cobe
 - **Cobertura:** o build **falha** abaixo de 100% de linhas e ramos **dos testes unitários**. A
   integração é medida à parte, só para informação. Relatórios: `target/site/jacoco/index.html`
   (unitários) e `target/site/jacoco-it/index.html` (integração).
-- **Arquitetura e convenções:** o ArchUnit verifica a regra de dependência (14 regras), os módulos
-  da infraestrutura (23 regras) e as
+- **Arquitetura e convenções:** o ArchUnit verifica a regra de dependência (17 regras), os módulos
+  da infraestrutura (24 regras) e as
   convenções da própria suíte (7 regras: `@DisplayName` em todo teste, nome `deve…`, unitário
   sem contexto Spring, integração sem dublê de bean da aplicação…).
 

@@ -93,7 +93,7 @@ ponto de entrada (perfil de administrador fora do *autocadastro*, CPF e CNPJ ún
 ## 6. Como o build verifica
 
 - `ArchitectureTest`: `domain` não depende de nenhum outro pacote do projeto nem de biblioteca
-  (só o JDK).
+  (só o JDK); tudo em `domain.vo` é `record` (`objetos_de_valor_sao_records`, Etapa 25).
 - Testes unitários sem mocks, um por invariante (aceita o válido, recusa o inválido):
   [`UserTest`](../../src/test/java/com/postech/restaurantes/domain/entity/user/UserTest.java),
   `UserAddressTest`, `UserProfilesTest`, `PasswordResetTokenTest`, `AddressTest`,
