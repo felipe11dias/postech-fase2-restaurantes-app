@@ -11,14 +11,30 @@ desenvolvimento, está em [`relatorios/`](relatorios/).
 
 ## Estado da entrega
 
-| Funcionalidade | Estado |
+Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo é a da branch
+`etapa-25-revisao-modelo-v2`, última das 25 etapas do relatório técnico.
+
+| Requisito do enunciado | Estado |
 | --- | --- |
-| Cadastro de usuários (autocadastro, consulta, listagem, atualização, exclusão, troca de senha) | ✅ Implementado |
+| Usuários: cadastro, consulta, listagem, atualização, exclusão, troca de senha | ✅ Implementado |
 | Autenticação JWT, autorização por posse e papel de administrador | ✅ Implementado |
 | Recuperação de senha por e-mail (token de uso único com validade) | ✅ Implementado |
-| Tipos de usuário | 🔄 Parcial — catálogo fixo (dono de restaurante, cliente e administrador), escolhido no cadastro. Pendentes: o CRUD do catálogo e a troca do tipo de um usuário já cadastrado |
-| Cadastro de restaurantes | ⏳ Pendente |
-| Cadastro de itens de cardápio | ⏳ Pendente |
+| Tipo de usuário: distinguir "Dono de Restaurante" e "Cliente" | ✅ Perfis `owner`, `client`, `courier` e `admin`, em tabelas próprias; o papel é derivado do perfil |
+| Tipo de usuário: associar o tipo a usuários **existentes** | ✅ Incluir, alterar e remover perfil em `/api/v1/users/{id}/profiles/…`, valendo na hora |
+| Tipo de usuário: **CRUD de tipos de usuário** (campo "Nome do Tipo") | ⏳ Pendente — os perfis são fixos no modelo de dados v2 e não há catálogo editável; a forma de atender o requisito ainda será decidida |
+| Cadastro de restaurante: CRUD com nome, endereço, horário de funcionamento e dono | ✅ Implementado — endereço próprio, horário por dia da semana, dono com perfil de dono e regra de posse |
+| Cadastro de restaurante: **tipo de cozinha** | ⏳ Pendente — o modelo v2 prevê `cuisines` e `restaurant_cuisines`, ainda sem implementação |
+| Cadastro de itens de cardápio (nome, descrição, preço, só no local, caminho da foto) | ⏳ Pendente — nenhuma entidade, tabela ou endpoint |
+
+| Entregável da avaliação | Estado |
+| --- | --- |
+| Clean Architecture em camadas | ✅ Quatro camadas, verificadas no build (ArchUnit, 48 regras) |
+| Testes: unitários com 80% e de integração | ✅ 775 unitários com **100%** de linhas e ramos; 138 de integração com PostgreSQL real |
+| Documentação (arquitetura, endpoints, execução) | ✅ Este README, o relatório técnico, o Swagger, `docs/arquitetura/` e `docs/modelo-dados/` |
+| Coleção Postman | ✅ 125 requests, com um print por request; cobre usuários, perfis e restaurantes (cozinha e cardápio entram com as funcionalidades) |
+| Docker Compose (aplicação e banco) | ✅ Aplicação, PostgreSQL e Mailpit |
+| Repositório aberto | ✅ Público; a `main` ainda não recebeu as Etapas 17 a 25 (estão nas branches `etapa-NN-*`) |
+| Vídeo de apresentação (cerca de 5 minutos) | ⏳ Pendente — depende das funcionalidades acima |
 
 ## Arquitetura
 

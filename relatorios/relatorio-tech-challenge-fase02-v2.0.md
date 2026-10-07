@@ -64,6 +64,13 @@
 **Progresso:** 25 de 25 etapas concluídas. As Etapas 17 a 24 adequaram o projeto ao Modelo de
 Dados v2 (seção "Modelo de Dados v2 — adequação"), e a 25 conferiu o resultado contra o modelo e
 as referências.
+
+**Atenção ao ler "25 de 25":** são as etapas planejadas para a adequação ao Modelo de Dados v2, e
+todas estão concluídas. Isso **não** significa que o escopo do enunciado da Fase 2 esteja completo:
+faltam o cardápio, o tipo de cozinha do restaurante, o CRUD de tipos de usuário e o vídeo. A seção
+"Escopo do Tech Challenge Fase 2 e estado" e a subseção "Conformidade com o enunciado" dizem onde
+o projeto está e o que resta.
+
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -89,16 +96,18 @@ as referências.
 As Etapas 1 a 15 deste relatório constroem a **base** do sistema — arquitetura, agregado de usuário,
 autenticação, persistência, erros, documentação, testes e execução. A 16 trouxe o restaurante, e as
 17 a 25 adequaram usuário e restaurante ao Modelo de Dados v2. O escopo funcional do enunciado
-ainda não está completo:
+ainda não está completo — a situação abaixo é a da branch `etapa-25-revisao-modelo-v2`, conferida contra o
+enunciado da Fase 2 (ver "Conformidade com o enunciado", ao fim desta seção):
 
 | Requisito funcional do enunciado | Estado | Onde |
 | --- | --- | --- |
 | Usuários (herdado da Fase 1): cadastro, consulta, atualização, exclusão, troca de senha, login | ✅ | Etapas 2 a 8 |
 | Tipo de usuário: distinguir "Dono de Restaurante" e "Cliente" | ✅ perfis em tabelas próprias (`owners`, `clients`, `couriers`, `admins`); o papel (`ROLE_OWNER`, `ROLE_CLIENT`, `ROLE_COURIER`, `ROLE_ADMIN`) é derivado do perfil | Etapas 20 e 21 |
 | Tipo de usuário: associar o tipo a usuários **existentes** | ✅ incluir, alterar e remover perfil de cadastro existente (`/api/v1/users/{id}/profiles/...`), valendo na hora para a autorização | Etapa 22 |
-| Tipo de usuário: CRUD do catálogo (campo "nome do tipo") | ⏳ pendente — **ponto de atenção:** o modelo v2 fixa os tipos no schema (uma tabela por perfil) e não tem catálogo editável; a forma de atender a este requisito precisa ser decidida pelo autor | — |
-| Cadastro de restaurante (nome, endereço, horário de funcionamento, dono - Imagem 2) | ✅ endereço próprio, dono com perfil de dono e regra de posse, horário por dia da semana | Etapas 16, 18, 21, 23 e 24 |
-| Cadastro de itens do cardápio (nome, descrição, preço, só no local, caminho da foto) | ⏳ pendente | — |
+| Tipo de usuário: **CRUD do catálogo** (campo "nome do tipo"; o enunciado diz "incluindo um CRUD para gerenciar tipos de usuário") | ⏳ pendente — **ponto de atenção:** o modelo v2 fixa os tipos no schema (uma tabela por perfil) e não tem catálogo editável; a forma de atender a este requisito precisa ser decidida pelo autor | — |
+| Cadastro de restaurante: CRUD com nome, endereço, horário de funcionamento e dono | ✅ endereço próprio, dono com perfil de dono e regra de posse, horário por dia da semana | Etapas 16, 18, 21, 23 e 24 |
+| Cadastro de restaurante: **tipo de cozinha** | ⏳ pendente — o enunciado o lista entre os campos obrigatórios; o modelo v2 prevê `cuisines` e `restaurant_cuisines`, que ficaram fora do escopo das Etapas 17 a 25 | — |
+| Cadastro de itens do cardápio (nome, descrição, preço, só no local, caminho da foto) | ⏳ pendente — nenhuma entidade, tabela ou endpoint. O modelo v2 tem `products` e `images`, mas `images.content` é `blob` e o enunciado pede apenas o **caminho** da foto: o trecho precisa de adaptação | — |
 
 | Requisito técnico e de entrega | Estado | Onde |
 | --- | --- | --- |
@@ -108,8 +117,30 @@ ainda não está completo:
 | Documentação do projeto (arquitetura, endpoints, execução) | ✅ README, este relatório, Swagger, `docs/arquitetura/` e `docs/modelo-dados/` | Etapas 9, 12, 14 e 25 |
 | Coleção Postman | ✅ 125 requests, com um print por request | Etapas 12, 16 e 18 a 25 |
 | Docker Compose com aplicação e banco | ✅ aplicação, PostgreSQL e Mailpit | Etapa 10 |
-| Repositório aberto | ✅ público no GitHub (`felipe11dias/postech-fase2-restaurantes-app`), uma branch por etapa | — |
-| Vídeo de apresentação | ⏳ pendente — depende das features | — |
+| Repositório aberto | ✅ público no GitHub (`felipe11dias/postech-fase2-restaurantes-app`), uma branch por etapa. **A `main` está na Etapa 16**: as Etapas 17 a 25 estão só nas branches `etapa-NN-*` e ainda precisam ser mescladas | — |
+| Vídeo de apresentação (cerca de 5 minutos) | ⏳ pendente — depende das features | — |
+
+### Conformidade com o enunciado
+
+Os nove fatores de avaliação do enunciado, conferidos contra o estado atual:
+
+| # | Fator | Situação | Observação |
+| --- | --- | --- | --- |
+| 1 | Funcionalidade (tipo de usuário, restaurante, item do cardápio) | **Parcial** | Restaurante quase completo (falta o tipo de cozinha); tipo de usuário sem o CRUD do catálogo; cardápio inexistente |
+| 2 | Qualidade do código (práticas do Spring Boot, código organizado e documentado) | ✅ | Bean Validation, ProblemDetail, HATEOAS, Actuator, JWT; Javadoc e `package-info` por pacote; 48 regras do ArchUnit |
+| 3 | Documentação (arquitetura, endpoints, configuração e execução) | ✅ | README, este relatório, Swagger, `docs/arquitetura/`, `docs/modelo-dados/` |
+| 4 | Collections para teste | ✅ | 125 requests e 260 asserções, um print por request; cobre usuários, perfis e restaurantes |
+| 5 | Docker Compose (aplicação e banco) | ✅ | Aplicação, PostgreSQL e Mailpit; o professor cria o `.env` e gera o segredo JWT (passo a passo no README) |
+| 6 | Repositório aberto | ✅, com risco | Público; a `main` está defasada em relação às Etapas 17 a 25 |
+| 7 | Clean Architecture | ✅ | Quatro camadas e módulos de infraestrutura substituíveis, verificados no build |
+| 8 | Cobertura de teste (80% unitários; integração) | ✅ | 775 unitários com 100% de linhas e ramos; 138 de integração com PostgreSQL real |
+| 9 | Vídeo de cerca de 5 minutos | ⏳ | Não gravado |
+
+**Lacunas, por prioridade.** (1) O cardápio, o maior vazio: um dos três cadastros do enunciado. (2) O
+tipo de cozinha, campo obrigatório do restaurante. (3) O CRUD de tipos de usuário — depende de decisão
+do autor sobre como conciliar o requisito com o modelo v2 (uma tabela de tipos editável, que contraria
+o modelo; ou um recurso de catálogo derivado dos perfis fixos, com a justificativa no relatório). (4)
+Mesclar as Etapas 17 a 25 na `main`. (5) Gravar o vídeo, depois de 1 a 3.
 
 As features pendentes seguem as mesmas regras já verificadas no build: cada uma ganha o próprio
 subpacote em cada camada (*screaming architecture*), com entidade que valida seus invariantes,
