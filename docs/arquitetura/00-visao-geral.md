@@ -32,7 +32,7 @@
 
 | Camada (aula) | Pacote | O que contém |
 |---|---|---|
-| Entidades | [`domain`](../../src/main/java/com/postech/restaurantes/domain) | `User`, `Role`, `Address`, `PasswordResetToken`, VOs `Email` e `ZipCode`, exceções de negócio, `Guard` |
+| Entidades | [`domain`](../../src/main/java/com/postech/restaurantes/domain) | `User`, `Role`, `Address`, `City`, `State`, `PasswordResetToken`, VOs `Email` e `ZipCode`, exceções de negócio, `Guard` |
 | Casos de Uso | [`application`](../../src/main/java/com/postech/restaurantes/application) | 9 casos de uso (`create` + `run`), as portas (`I*Gateway`) e os DTOs de entrada |
 | Adaptadores de Interface | [`adapter`](../../src/main/java/com/postech/restaurantes/adapter) | controllers, gateways, interfaces de origem de dados e de serviços externos, presenters e views |
 | Frameworks & Drivers | [`infrastructure`](../../src/main/java/com/postech/restaurantes/infrastructure) | módulos `main`, `api/rest/spring`, `persistence/jpa`, `token/jwt`, `crypto`, `mail/smtp` — o único lugar com Spring |
@@ -93,7 +93,7 @@ flowchart LR
         PORT["gateway<br/>I*Gateway (portas)"]
     end
     subgraph dom["Entidades (domain)"]
-        E["User · Role · Address · ..."]
+        E["User · Role · Address · City · State · ..."]
     end
     REST --> C
     C --> G

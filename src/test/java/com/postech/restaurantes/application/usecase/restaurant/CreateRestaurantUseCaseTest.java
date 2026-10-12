@@ -46,7 +46,8 @@ class CreateRestaurantUseCaseTest {
 
         userId = UUID.randomUUID();
         addressId = UUID.randomUUID();
-        address = Address.restore(addressId, "Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
+        address = Address.restore(addressId, UUID.randomUUID(), "Rua A", "10", null, "Bairro",
+                "Cidade", "SP", "01000000");
         owner = User.restore(userId, "Dono", "dono@x.com", "dono", "hash",
                 Set.of(Role.restore(UUID.randomUUID(), RoleName.ROLE_OWNER)), List.of(address), null, null);
     }

@@ -5,14 +5,15 @@ import com.postech.restaurantes.domain.vo.ZipCode;
 import java.util.UUID;
 
 /**
- * Endereço de um usuário. Rua, cidade, UF e CEP são obrigatórios; número, complemento e
- * bairro são opcionais e normalizados (em branco vira ausente).
+ * Endereço compartilhado pelos agregados. Rua e CEP são obrigatórios; a localização pode ser
+ * informada por cidade/UF ou pelo id da cidade. A restauração exige a relação persistida.
  */
 public final class Address {
 
     private static final int STATE_LENGTH = 2;
 
     private final UUID id;
+    private UUID cityId;
     private String street;
     private String number;
     private String complement;
@@ -27,12 +28,34 @@ public final class Address {
 
     public static Address create(String street, String number, String complement,
                                  String neighborhood, String city, String state, String zipCode) {
-        return fill(new Address(null), street, number, complement, neighborhood, city, state, zipCode);
+        return create(null, street, number, complement, neighborhood, city, state, zipCode);
     }
 
-    public static Address restore(UUID id, String street, String number, String complement,
+    public static Address create(UUID cityId, String street, String number, String complement,
+                                 String neighborhood, String city, String state, String zipCode) {
+        Address address = fill(new Address(null), street, number, complement, neighborhood, city, state, zipCode);
+        if (cityId != null) {
+            address.setCityId(cityId);
+        }
+        return address;
+    }
+
+    public static Address createForCity(UUID cityId, String street, String number, String complement,
+                                        String neighborhood, String zipCode) {
+        Address address = new Address(null);
+        address.setCityId(cityId);
+        address.setStreet(street);
+        address.setNumber(number);
+        address.setComplement(complement);
+        address.setNeighborhood(neighborhood);
+        address.setZipCode(ZipCode.of(zipCode));
+        return address;
+    }
+
+    public static Address restore(UUID id, UUID cityId, String street, String number, String complement,
                                   String neighborhood, String city, String state, String zipCode) {
         Address address = new Address(Guard.requireNonNull(id, "Id do endereço inválido"));
+        address.setCityId(cityId);
         return fill(address, street, number, complement, neighborhood, city, state, zipCode);
     }
 
@@ -50,6 +73,10 @@ public final class Address {
 
     public void setStreet(String street) {
         this.street = Guard.requireNonBlank(street, "Rua inválida");
+    }
+
+    public void setCityId(UUID cityId) {
+        this.cityId = Guard.requireNonNull(cityId, "Id da cidade do endereço inválido");
     }
 
     public void setNumber(String number) {
@@ -81,6 +108,10 @@ public final class Address {
 
     public UUID getId() {
         return id;
+    }
+
+    public UUID getCityId() {
+        return cityId;
     }
 
     public String getStreet() {

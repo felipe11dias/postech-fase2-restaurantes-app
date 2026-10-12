@@ -34,13 +34,27 @@ class AddressTest {
     }
 
     @Test
+    @DisplayName("Cria endereço preservando a cidade referenciada")
+    void deveCriarComIdDaCidade() {
+        UUID cityId = UUID.randomUUID();
+
+        Address address = Address.create(cityId, "Rua A", "1", null, "Centro",
+                "São Paulo", "SP", "01001000");
+
+        assertEquals(cityId, address.getCityId());
+        assertEquals("São Paulo", address.getCity());
+    }
+
+    @Test
     @DisplayName("Restaura endereço com id conhecido")
     void deveRestaurarComId() {
         UUID id = UUID.randomUUID();
+        UUID cityId = UUID.randomUUID();
 
-        Address address = Address.restore(id, "Rua A", null, null, null, "Cidade", "RJ", "20000000");
+        Address address = Address.restore(id, cityId, "Rua A", null, null, null, "Cidade", "RJ", "20000000");
 
         assertEquals(id, address.getId());
+        assertEquals(cityId, address.getCityId());
         assertEquals("RJ", address.getState());
     }
 
@@ -48,7 +62,16 @@ class AddressTest {
     @DisplayName("Recusa restauração sem id")
     void deveRecusarRestaurarQuandoIdNulo() {
         assertThrows(IllegalArgumentException.class,
-                () -> Address.restore(null, "Rua A", null, null, null, "Cidade", "RJ", "20000000"));
+                () -> Address.restore(null, UUID.randomUUID(), "Rua A", null, null, null,
+                        "Cidade", "RJ", "20000000"));
+    }
+
+    @Test
+    @DisplayName("Recusa restauração sem cidade")
+    void deveRecusarRestaurarQuandoCidadeNula() {
+        assertThrows(IllegalArgumentException.class,
+                () -> Address.restore(UUID.randomUUID(), null, "Rua A", null, null, null,
+                        "Cidade", "RJ", "20000000"));
     }
 
     @Test
@@ -107,12 +130,16 @@ class AddressTest {
     @DisplayName("Setters revalidam e a entidade não fica corrompida")
     void deveRevalidarNosSetters() {
         Address address = valido();
+        UUID cityId = UUID.randomUUID();
+        address.setCityId(cityId);
 
         assertThrows(IllegalArgumentException.class, () -> address.setStreet(""));
+        assertThrows(IllegalArgumentException.class, () -> address.setCityId(null));
         assertThrows(IllegalArgumentException.class, () -> address.setCity(" "));
         assertThrows(IllegalArgumentException.class, () -> address.setState("ABC"));
 
         assertEquals("Rua das Flores", address.getStreet());
+        assertEquals(cityId, address.getCityId());
         assertEquals("São Paulo", address.getCity());
         assertEquals("SP", address.getState());
     }

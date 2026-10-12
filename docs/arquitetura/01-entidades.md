@@ -37,7 +37,9 @@
 | [`User`](../../src/main/java/com/postech/restaurantes/domain/entity/user/User.java) | `domain/entity/user` | nome, e-mail e login válidos; **ao menos um papel**; endereços válidos; recebe o *hash* da senha, nunca a senha |
 | [`Role`](../../src/main/java/com/postech/restaurantes/domain/entity/user/Role.java) / [`RoleName`](../../src/main/java/com/postech/restaurantes/domain/entity/user/RoleName.java) | `domain/entity/user` | papel é um dos três reconhecidos (dono, cliente, administrador); igualdade pelo nome |
 | [`PasswordResetToken`](../../src/main/java/com/postech/restaurantes/domain/entity/user/PasswordResetToken.java) | `domain/entity/user` | vence no instante informado; usável só uma vez (`markUsed`); o **instante vem por parâmetro** — a entidade não consulta o relógio |
-| [`Address`](../../src/main/java/com/postech/restaurantes/domain/entity/address/Address.java) | `domain/entity/address` | campos obrigatórios, UF com 2 letras, CEP válido; pacote próprio porque o restaurante também terá endereço |
+| [`Address`](../../src/main/java/com/postech/restaurantes/domain/entity/address/Address.java) | `domain/entity/address` | rua e CEP válidos; localização por cidade/UF ou `cityId`; ao restaurar, exige o id da cidade relacionada |
+| [`City`](../../src/main/java/com/postech/restaurantes/domain/entity/location/city/City.java) | `domain/entity/location/city` | nome obrigatório e vínculo obrigatório por `stateId` |
+| [`State`](../../src/main/java/com/postech/restaurantes/domain/entity/location/state/State.java) | `domain/entity/location/state` | nome obrigatório e sigla normalizada para duas letras maiúsculas |
 | [`Email`](../../src/main/java/com/postech/restaurantes/domain/vo/Email.java), [`ZipCode`](../../src/main/java/com/postech/restaurantes/domain/vo/ZipCode.java) | `domain/vo` | *records* que validam e **normalizam** no construtor (e-mail em minúsculas, CEP só com dígitos) |
 | [`Guard`](../../src/main/java/com/postech/restaurantes/domain/Guard.java) | `domain` | `requireNonNull`, `requireNonBlank`, `require`, `trimToNull` — lançam `InvariantViolationException` |
 | [`domain/exception`](../../src/main/java/com/postech/restaurantes/domain/exception) | `domain/exception` | `DomainException` e subclasses (`DuplicateResourceException`, `ResourceNotFoundException`, …); `InvariantViolationException` para invariante violada |
@@ -68,7 +70,7 @@ proibido no *autocadastro*, resposta idêntica no "esqueci minha senha") mora no
 
 | Padrão | Onde | Problema que resolve |
 |---|---|---|
-| Fábricas estáticas `create` / `restore` com construtor privado | `User`, `Role`, `PasswordResetToken`, `Address` | toda instância passa por validação; não existe `new User()` inválido (Aula 03) |
+| Fábricas estáticas `create` / `restore` com construtor privado | `User`, `Role`, `PasswordResetToken`, `Address`, `City`, `State` | toda instância passa por validação; `restore` exige identificadores e vínculo da cidade já persistida (Aula 03) |
 | *Value Object* como `record` | `Email`, `ZipCode` | o valor é validado e normalizado uma vez, e dois e-mails iguais são iguais |
 | Cláusula de guarda | `Guard` | a validação lê como uma frase e sempre lança a mesma exceção, cuja mensagem é escrita para o usuário final |
 | Setter que revalida | `User.setName`, `setEmail`, … | a entidade continua consistente depois de criada (Aula 03, p. 8) |
@@ -89,5 +91,5 @@ proibido no *autocadastro*, resposta idêntica no "esqueci minha senha") mora no
   (só o JDK).
 - Testes unitários sem mocks, um por invariante (aceita o válido, recusa o inválido):
   [`UserTest`](../../src/test/java/com/postech/restaurantes/domain/entity/user/UserTest.java),
-  `RoleTest`, `RoleNameTest`, `PasswordResetTokenTest`, `AddressTest`, `EmailTest`,
+  `RoleTest`, `RoleNameTest`, `PasswordResetTokenTest`, `AddressTest`, `CityTest`, `StateTest`, `EmailTest`,
   `ZipCodeTest`, `GuardTest`, `DomainExceptionsTest`.

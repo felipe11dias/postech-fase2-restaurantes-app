@@ -69,7 +69,8 @@ class RestaurantControllerTest {
         userId = UUID.randomUUID();
         addressId = UUID.randomUUID();
 
-        AddressData addressData = new AddressData(addressId, "Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
+        AddressData addressData = new AddressData(addressId, UUID.randomUUID(), "Rua A", "10", null,
+                "Bairro", "Cidade", "SP", "01000000");
         userData = new UserData(userId, "Dono", "dono@x.com", "dono", "hash",
                 Set.of(new RoleData(UUID.randomUUID(), RoleName.ROLE_OWNER.name())), List.of(addressData), null, null);
 

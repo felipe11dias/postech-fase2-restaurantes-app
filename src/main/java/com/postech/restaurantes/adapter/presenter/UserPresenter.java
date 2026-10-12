@@ -41,7 +41,8 @@ public final class UserPresenter {
     }
 
     private static AddressView toView(Address address) {
-        return new AddressView(address.getId(), address.getStreet(), address.getNumber(), address.getComplement(),
-                address.getNeighborhood(), address.getCity(), address.getState(), address.getZipCode().value());
+        return new AddressView(address.getId(), address.getCityId(), address.getStreet(), address.getNumber(),
+                address.getComplement(), address.getNeighborhood(), address.getCity(), address.getState(),
+                address.getZipCode().value());
     }
 }

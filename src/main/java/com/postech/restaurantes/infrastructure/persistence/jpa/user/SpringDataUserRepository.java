@@ -16,13 +16,13 @@ import org.springframework.data.repository.query.Param;
 public interface SpringDataUserRepository extends JpaRepository<UserJpaEntity, UUID> {
 
     @Override
-    @EntityGraph(attributePaths = {"roles", "addresses"})
+    @EntityGraph(attributePaths = {"roles", "addresses.city.state"})
     Optional<UserJpaEntity> findById(UUID id);
 
-    @EntityGraph(attributePaths = {"roles", "addresses"})
+    @EntityGraph(attributePaths = {"roles", "addresses.city.state"})
     Optional<UserJpaEntity> findByLogin(String login);
 
-    @EntityGraph(attributePaths = {"roles", "addresses"})
+    @EntityGraph(attributePaths = {"roles", "addresses.city.state"})
     Optional<UserJpaEntity> findByEmail(String email);
 
     /**
@@ -34,6 +34,6 @@ public interface SpringDataUserRepository extends JpaRepository<UserJpaEntity, U
     Page<UUID> findIdsByName(@Param("name") String name, Pageable pageable);
 
     /** Segundo passo: os usuários da página, com papéis e endereços em uma única consulta. */
-    @EntityGraph(attributePaths = {"roles", "addresses"})
+    @EntityGraph(attributePaths = {"roles", "addresses.city.state"})
     List<UserJpaEntity> findByIdIn(Collection<UUID> ids, Sort sort);
 }

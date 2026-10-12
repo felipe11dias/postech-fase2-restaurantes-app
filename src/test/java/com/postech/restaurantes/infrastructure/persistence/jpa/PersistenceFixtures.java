@@ -4,6 +4,8 @@ import com.postech.restaurantes.adapter.datasource.data.AddressData;
 import com.postech.restaurantes.adapter.datasource.data.PasswordResetTokenData;
 import com.postech.restaurantes.adapter.datasource.data.RoleData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
+import com.postech.restaurantes.infrastructure.persistence.jpa.location.CityJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.location.StateJpaEntity;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.AddressJpaEntity;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.PasswordResetTokenJpaEntity;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.RoleJpaEntity;
@@ -20,13 +22,15 @@ public final class PersistenceFixtures {
     public static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     public static final UUID ROLE_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     public static final UUID ADDRESS_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
+    public static final UUID STATE_ID = UUID.fromString("55555555-5555-5555-5555-555555555555");
+    public static final UUID CITY_ID = UUID.fromString("66666666-6666-6666-6666-666666666666");
     public static final UUID TOKEN_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
     public static final String HASH = "$2a$10$hashDeExemploComTamanhoSuficienteParaBCrypt";
 
     public static final RoleData CUSTOMER_DATA = new RoleData(ROLE_ID, "ROLE_CUSTOMER");
 
-    public static final AddressData ADDRESS_DATA = new AddressData(ADDRESS_ID, "Rua das Flores", "100", "Apto 21",
-            "Centro", "São Paulo", "SP", "01001000");
+    public static final AddressData ADDRESS_DATA = new AddressData(ADDRESS_ID, CITY_ID, "Rua das Flores", "100",
+            "Apto 21", "Centro", "São Paulo", "SP", "01001000");
 
     public static final UserData USER_DATA = new UserData(USER_ID, "João Silva", "joao.silva@email.com", "joao.silva",
             HASH, Set.of(CUSTOMER_DATA), List.of(ADDRESS_DATA), NOW.minusDays(1), NOW);
@@ -51,10 +55,25 @@ public final class PersistenceFixtures {
         address.setNumber("100");
         address.setComplement("Apto 21");
         address.setNeighborhood("Centro");
-        address.setCity("São Paulo");
-        address.setState("SP");
+        address.setCity(cityEntity());
         address.setZipCode("01001000");
         return address;
+    }
+
+    public static StateJpaEntity stateEntity() {
+        StateJpaEntity state = new StateJpaEntity();
+        state.setId(STATE_ID);
+        state.setName("São Paulo");
+        state.setAcronym("SP");
+        return state;
+    }
+
+    public static CityJpaEntity cityEntity() {
+        CityJpaEntity city = new CityJpaEntity();
+        city.setId(CITY_ID);
+        city.setName("São Paulo");
+        city.setState(stateEntity());
+        return city;
     }
 
     /** Usuário já persistido: com id, auditoria, um papel e um endereço. */

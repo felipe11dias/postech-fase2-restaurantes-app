@@ -8,6 +8,10 @@ import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.AddressJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.location.CityJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.location.SpringDataCityRepository;
+import com.postech.restaurantes.infrastructure.persistence.jpa.location.SpringDataStateRepository;
+import com.postech.restaurantes.infrastructure.persistence.jpa.location.StateJpaEntity;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -44,13 +48,31 @@ public class UserDataSourceJpa implements IUserDataSource {
             "lastUpdatedAt", "lastUpdatedAt");
 
     private static final String DEFAULT_SORT_PROPERTY = "name";
+    private static final Map<String, String> STATE_NAMES = Map.ofEntries(
+            Map.entry("AC", "Acre"), Map.entry("AL", "Alagoas"), Map.entry("AP", "Amapá"),
+            Map.entry("AM", "Amazonas"), Map.entry("BA", "Bahia"), Map.entry("CE", "Ceará"),
+            Map.entry("DF", "Distrito Federal"), Map.entry("ES", "Espírito Santo"),
+            Map.entry("GO", "Goiás"), Map.entry("MA", "Maranhão"), Map.entry("MT", "Mato Grosso"),
+            Map.entry("MS", "Mato Grosso do Sul"), Map.entry("MG", "Minas Gerais"),
+            Map.entry("PA", "Pará"), Map.entry("PB", "Paraíba"), Map.entry("PR", "Paraná"),
+            Map.entry("PE", "Pernambuco"), Map.entry("PI", "Piauí"),
+            Map.entry("RJ", "Rio de Janeiro"), Map.entry("RN", "Rio Grande do Norte"),
+            Map.entry("RS", "Rio Grande do Sul"), Map.entry("RO", "Rondônia"),
+            Map.entry("RR", "Roraima"), Map.entry("SC", "Santa Catarina"),
+            Map.entry("SP", "São Paulo"), Map.entry("SE", "Sergipe"),
+            Map.entry("TO", "Tocantins"));
 
     private final SpringDataUserRepository users;
     private final SpringDataRoleRepository roles;
+    private final SpringDataCityRepository cities;
+    private final SpringDataStateRepository states;
 
-    public UserDataSourceJpa(SpringDataUserRepository users, SpringDataRoleRepository roles) {
+    public UserDataSourceJpa(SpringDataUserRepository users, SpringDataRoleRepository roles,
+                             SpringDataCityRepository cities, SpringDataStateRepository states) {
         this.users = users;
         this.roles = roles;
+        this.cities = cities;
+        this.states = states;
     }
 
     @Override
@@ -132,7 +154,7 @@ public class UserDataSourceJpa implements IUserDataSource {
         entity.setLogin(data.login());
         entity.setPassword(data.passwordHash());
         entity.replaceRoles(resolveRoles(data.roles()));
-        entity.replaceAddresses(data.addresses().stream().map(UserDataSourceJpa::toEntity).toList());
+        entity.replaceAddresses(data.addresses().stream().map(this::toEntity).toList());
     }
 
     /**
@@ -149,16 +171,46 @@ public class UserDataSourceJpa implements IUserDataSource {
      * os novos. É a tradução literal de {@code User.replaceAddresses} — a lista é substituída
      * como um todo, não reconciliada item a item.
      */
-    private static AddressJpaEntity toEntity(AddressData data) {
+    private AddressJpaEntity toEntity(AddressData data) {
         AddressJpaEntity entity = new AddressJpaEntity();
         entity.setStreet(data.street());
         entity.setNumber(data.number());
         entity.setComplement(data.complement());
         entity.setNeighborhood(data.neighborhood());
-        entity.setCity(data.city());
-        entity.setState(data.state());
+        entity.setCity(resolveCity(data));
         entity.setZipCode(data.zipCode());
         return entity;
+    }
+
+    private CityJpaEntity resolveCity(AddressData address) {
+        if (address.cityId() != null) {
+            CityJpaEntity city = cities.findById(address.cityId())
+                    .orElseThrow(() -> new IllegalArgumentException("Cidade do endereço inexistente"));
+            if ((address.city() != null && !city.getName().equalsIgnoreCase(address.city()))
+                    || (address.state() != null
+                            && !city.getState().getAcronym().equalsIgnoreCase(address.state()))) {
+                throw new IllegalArgumentException("Cidade do endereço não corresponde aos dados informados");
+            }
+            return city;
+        }
+        StateJpaEntity state = states.findByAcronymIgnoreCase(address.state())
+                .orElseGet(() -> criarEstado(address.state()));
+        return cities.findByNameIgnoreCaseAndState_Id(address.city(), state.getId())
+                .orElseGet(() -> criarCidade(address.city(), state));
+    }
+
+    private StateJpaEntity criarEstado(String acronym) {
+        StateJpaEntity state = new StateJpaEntity();
+        state.setAcronym(acronym);
+        state.setName(STATE_NAMES.getOrDefault(acronym, acronym));
+        return states.saveAndFlush(state);
+    }
+
+    private CityJpaEntity criarCidade(String name, StateJpaEntity state) {
+        CityJpaEntity city = new CityJpaEntity();
+        city.setState(state);
+        city.setName(name);
+        return cities.saveAndFlush(city);
     }
 
     static UserData toData(UserJpaEntity entity) {
@@ -172,8 +224,10 @@ public class UserDataSourceJpa implements IUserDataSource {
     }
 
     private static AddressData toData(AddressJpaEntity entity) {
-        return new AddressData(entity.getId(), entity.getStreet(), entity.getNumber(), entity.getComplement(),
-                entity.getNeighborhood(), entity.getCity(), entity.getState(), entity.getZipCode());
+        CityJpaEntity city = entity.getCity();
+        return new AddressData(entity.getId(), city.getId(), entity.getStreet(), entity.getNumber(),
+                entity.getComplement(), entity.getNeighborhood(), city.getName(), city.getState().getAcronym(),
+                entity.getZipCode());
     }
 
     private static Sort toSort(PageRequest request) {

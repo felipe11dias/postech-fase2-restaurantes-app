@@ -1,5 +1,12 @@
 # Changelog — Restaurantes (Fase 2)
 
+## Etapa 26 — Normalização de endereços, cidades e estados
+- Entidades de domínio `City` e `State`, com validação de invariantes e testes unitários; `Address` passa a carregar o id da cidade ao ser restaurado.
+- Migration Flyway V4 cria os catálogos `states` e `cities`, converte os endereços existentes para `city_id` e remove as colunas textuais antigas sem perder os dados.
+- Mapeamento JPA `addresses -> cities -> states`; a persistência resolve ou cria as linhas geográficas para preservar o contrato atual da API.
+- Requests aceitam `cityId` opcional; com ele, `city`/`state` podem ser omitidos e, se enviados, são conferidos. Sem o id, os campos textuais mantêm a compatibilidade; respostas expõem `cityId` e preservam os nomes legíveis.
+- Cobertura com testes de domínio, persistência e migration PostgreSQL via Testcontainers.
+
 ## Etapa 16 — Módulo de Gestão de Restaurantes (Imagem 2)
 - Criação da tabela `restaurants` via Flyway migration `V3__create_restaurant_schema.sql` com chaves estrangeiras vinculadas a `users` e `addresses`.
 - Criação da entidade de domínio `Restaurant` com verificação estrita de invariantes (nome, dono com perfil `ROLE_OWNER` ou `ROLE_ADMIN`, endereço do dono e horários de funcionamento).

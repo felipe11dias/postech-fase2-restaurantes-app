@@ -35,13 +35,16 @@ class UserApiIT extends WebIntegrationTestSupport {
     void deveCadastrarSemAutenticacao() {
         String login = "api" + SEQUENCIA.incrementAndGet() + UUID.randomUUID().toString().substring(0, 6);
 
-        ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(novoUsuario(login)), JsonNode.class);
+        ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(novoUsuarioComCidadeId(login)), JsonNode.class);
 
         assertEquals(HttpStatus.CREATED, resposta.getStatusCode());
         JsonNode corpo = resposta.getBody();
         assertNotNull(corpo.get("id").asText());
         assertEquals(login, corpo.get("login").asText());
         assertEquals("ROLE_CUSTOMER", corpo.get("roles").get(0).get("name").asText());
+        assertTrue(corpo.get("addresses").get(0).get("cityId").isTextual());
+        assertEquals("São Paulo", corpo.get("addresses").get(0).get("city").asText());
+        assertEquals("SP", corpo.get("addresses").get(0).get("state").asText());
         assertEquals("01001000", corpo.get("addresses").get(0).get("zipCode").asText(), "CEP sai normalizado");
         assertTrue(corpo.has("_links"));
         assertTrue(resposta.getHeaders().getLocation().toString().endsWith(USERS + "/" + corpo.get("id").asText()));
@@ -237,6 +240,22 @@ class UserApiIT extends WebIntegrationTestSupport {
                 "addresses", List.of(Map.of("street", "Rua das Flores", "number", "100",
                         "complement", "Apto 21", "neighborhood", "Centro", "city", "São Paulo",
                         "state", "SP", "zipCode", "01001-000")));
+    }
+
+    private Map<String, Object> novoUsuarioComCidadeId(String login) {
+        return Map.of(
+                "name", "Usuário " + login,
+                "email", login + "@email.com",
+                "login", login,
+                "password", "senhaSegura123",
+                "roles", List.of("ROLE_CUSTOMER"),
+                "addresses", List.of(Map.of(
+                        "cityId", "c0000000-0000-4000-8000-000000000001",
+                        "street", "Rua das Flores",
+                        "number", "100",
+                        "complement", "Apto 21",
+                        "neighborhood", "Centro",
+                        "zipCode", "01001-000")));
     }
 
     private Usuario cadastrarEAutenticar() {

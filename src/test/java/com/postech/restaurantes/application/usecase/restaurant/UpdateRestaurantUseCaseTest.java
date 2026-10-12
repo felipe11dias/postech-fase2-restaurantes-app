@@ -47,7 +47,8 @@ class UpdateRestaurantUseCaseTest {
         restaurantId = UUID.randomUUID();
         userId = UUID.randomUUID();
         addressId = UUID.randomUUID();
-        Address address = Address.restore(addressId, "Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
+        Address address = Address.restore(addressId, UUID.randomUUID(), "Rua A", "10", null, "Bairro",
+                "Cidade", "SP", "01000000");
         owner = User.restore(userId, "Dono", "dono@x.com", "dono", "hash",
                 Set.of(Role.restore(UUID.randomUUID(), RoleName.ROLE_OWNER)), List.of(address), null, null);
         restaurant = Restaurant.restore(restaurantId, userId, addressId, "Antigo", LocalTime.of(8, 0), LocalTime.of(22, 0), null, null);

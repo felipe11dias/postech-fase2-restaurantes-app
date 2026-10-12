@@ -41,7 +41,7 @@ tecnologia. Trocar uma tecnologia é apagar um subpacote e criar outro ao lado.
 |---|---|---|---|
 | [`main`](../../src/main/java/com/postech/restaurantes/infrastructure/main) | a composição (Main, cap. 26): `CompositionConfig`, `PasswordResetProperties` | Spring (`@Configuration`) | — é o único que conhece todos |
 | [`api/rest/spring`](../../src/main/java/com/postech/restaurantes/infrastructure/api/rest/spring) | entrega HTTP, organizada como MVC: `controller` (`@RestController`), `dto/request` e `dto/response`, `assembler` (HATEOAS), `route` (caminhos), `config`, `exception` (ProblemDetail), `doc` (OpenAPI), `validation`, `security` | Spring MVC, Spring Security, Spring HATEOAS, springdoc, Bean Validation | `api/rest/<outra>` ou outro canal (`api/graphql/...`) chamando os mesmos controllers de adaptação |
-| [`persistence/jpa`](../../src/main/java/com/postech/restaurantes/infrastructure/persistence/jpa) | `I*DataSource` (`UserDataSourceJpa`, …) e `IUnitOfWork` (`TransactionalUnitOfWork`); `audit` (colunas de auditoria) | JPA/Hibernate, Spring Data, PostgreSQL | `persistence/jdbc` com as mesmas interfaces; o schema continua do Flyway |
+| [`persistence/jpa`](../../src/main/java/com/postech/restaurantes/infrastructure/persistence/jpa) | `I*DataSource` (`UserDataSourceJpa`, …), `IUnitOfWork` (`TransactionalUnitOfWork`), `audit` e `location` (entidades/repositórios de cidade e estado) | JPA/Hibernate, Spring Data, PostgreSQL | `persistence/jdbc` com as mesmas interfaces; o schema continua do Flyway |
 | [`token/jwt`](../../src/main/java/com/postech/restaurantes/infrastructure/token/jwt) | `ITokenEncoder` e `IAccessTokenReader` (`JwtTokenEncoder`, HS256 fixo) | jjwt | `token/<outro>` implementando as duas interfaces |
 | [`crypto`](../../src/main/java/com/postech/restaurantes/infrastructure/crypto) | `IPasswordEncoder` (`BCryptPasswordAdapter`), `ISecureTokenGenerator` (`SecureRandomTokenGenerator`) | spring-security-crypto, JDK | nova classe (ex.: Argon2) implementando a porta |
 | [`mail/smtp`](../../src/main/java/com/postech/restaurantes/infrastructure/mail/smtp) | `IMailSender` (`SmtpMailSender`) — **só transporte**, com timeouts de 5 s | Spring Mail | `mail/<provedor>` implementando `IMailSender`; o texto do e-mail está no adaptador e não muda |
@@ -63,11 +63,15 @@ se a resposta esperasse por isso, o tempo dela revelaria quem tem conta. Concorr
 de entrega, e fica na borda: o núcleo continua síncrono.
 
 **Schema versionado.** O Flyway é o dono do schema
-([`V1__create_schema.sql`](../../src/main/resources/db/migration/V1__create_schema.sql)); o JPA só
-valida (`ddl-auto: validate`). O V1 documenta a normalização: papéis e endereços em tabelas
-próprias (1FN), a chave composta `user_roles` sem dependência parcial (2FN), nada derivável em
-`users` (3FN) e todo determinante — e-mail, login — como chave candidata (BCNF). A seed
-(`V2__seed_demo_users.sql`) cria os usuários de demonstração.
+([`db/migration`](../../src/main/resources/db/migration)); o JPA só valida (`ddl-auto: validate`).
+Além das tabelas normalizadas já descritas no V1, a migration V4 cria `states` e `cities`, converte
+os textos de cidade/UF de `addresses` em `city_id` e preserva os endereços existentes. A origem
+de dados aceita o `cityId` opcional da requisição; quando presente, cidade e UF também são opcionais
+e, se enviados, precisam corresponder ao registro referenciado. Sem o id, resolve a cidade pelo par
+nome/sigla; registros ausentes são criados para manter o formato de entrada atual. O estado guarda
+nome oficial e sigla. O catálogo não é uma carga nacional: começa pelos endereços existentes e
+cresce com os endereços recebidos. A seed (`V2__seed_demo_users.sql`) cria os usuários de
+demonstração.
 
 **Execução.** Docker Compose sobe a aplicação, o PostgreSQL e o Mailpit (SMTP de testes), com
 imagens de versão fixa e portas só em `127.0.0.1`.
@@ -82,6 +86,7 @@ imagens de versão fixa e portas só em `127.0.0.1`.
 | MVC dentro do módulo de API (Etapa 15) | `controller`, `dto/request`, `dto/response`, `assembler`, `exception`… | o pacote diz o papel da classe; restaurante e cardápio entram nos mesmos pacotes |
 | Rotas em um lugar só | `route/ApiRoutes` | `@RequestMapping`, `SecurityConfig` e links HATEOAS leem o mesmo caminho, e `controller` ↔ `assembler` não formam ciclo |
 | Data mapper em duas camadas | `*JpaEntity` + gateway | domínio sem anotação; o mapeamento de banco muda sem mexer na entidade |
+| Chaves estrangeiras para localização | `AddressJpaEntity.city` → `CityJpaEntity.state` | normalização e integridade referencial sem acoplar as entidades de domínio a JPA |
 | Busca paginada em duas consultas | `UserDataSourceJpa.search` | `join fetch` com paginação faria o Hibernate recortar a página em memória |
 
 ## 5. Desvios conscientes

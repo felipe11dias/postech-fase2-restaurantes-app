@@ -1,9 +1,11 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa.user;
 
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ADDRESS_ID;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.CITY_ID;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.HASH;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.NOW;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ROLE_ID;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.STATE_ID;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.TOKEN_ID;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.USER_ID;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.addressEntity;
@@ -20,6 +22,8 @@ import com.postech.restaurantes.infrastructure.persistence.jpa.user.AddressJpaEn
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.PasswordResetTokenJpaEntity;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.RoleJpaEntity;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.UserJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.location.CityJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.location.StateJpaEntity;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -33,6 +37,41 @@ import org.junit.jupiter.api.Test;
  * dois lados da associação coerentes.
  */
 class JpaEntitiesTest {
+
+    @Nested
+    @DisplayName("Localização")
+    class Localizacao {
+
+        @Test
+        @DisplayName("Estado mapeia id, nome e sigla")
+        void deveMapearEstado() {
+            StateJpaEntity state = new StateJpaEntity();
+            state.setId(STATE_ID);
+            state.setName("São Paulo");
+            state.setAcronym("SP");
+
+            assertEquals(STATE_ID, state.getId());
+            assertEquals("São Paulo", state.getName());
+            assertEquals("SP", state.getAcronym());
+        }
+
+        @Test
+        @DisplayName("Cidade mapeia id, nome e estado relacionado")
+        void deveMapearCidade() {
+            StateJpaEntity state = new StateJpaEntity();
+            state.setId(STATE_ID);
+            state.setName("São Paulo");
+            state.setAcronym("SP");
+            CityJpaEntity city = new CityJpaEntity();
+            city.setId(CITY_ID);
+            city.setName("São Paulo");
+            city.setState(state);
+
+            assertEquals(CITY_ID, city.getId());
+            assertEquals("São Paulo", city.getName());
+            assertSame(state, city.getState());
+        }
+    }
 
     @Nested
     @DisplayName("Usuário")
@@ -130,8 +169,8 @@ class JpaEntitiesTest {
             assertEquals("100", address.getNumber());
             assertEquals("Apto 21", address.getComplement());
             assertEquals("Centro", address.getNeighborhood());
-            assertEquals("São Paulo", address.getCity());
-            assertEquals("SP", address.getState());
+            assertEquals("São Paulo", address.getCity().getName());
+            assertEquals("SP", address.getCity().getState().getAcronym());
             assertEquals("01001000", address.getZipCode());
             assertNull(address.getUser());
         }

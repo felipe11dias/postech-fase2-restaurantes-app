@@ -9,6 +9,7 @@ import com.postech.restaurantes.domain.entity.address.Address;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -43,6 +44,18 @@ class DtoTest {
         assertEquals("Rua A", address.getStreet());
         assertEquals("SP", address.getState());
         assertEquals("01001000", address.getZipCode().value());
+    }
+
+    @Test
+    @DisplayName("AddressDTO preserva o id da cidade")
+    void deveConverterEnderecoComCidadeReferenciada() {
+        UUID cityId = UUID.randomUUID();
+        Address address = new AddressDTO(cityId, "Rua A", "1", null, "Centro", null, null, "01001000")
+                .toEntity();
+
+        assertEquals(cityId, address.getCityId());
+        assertNull(address.getCity());
+        assertNull(address.getState());
     }
 
     @Test

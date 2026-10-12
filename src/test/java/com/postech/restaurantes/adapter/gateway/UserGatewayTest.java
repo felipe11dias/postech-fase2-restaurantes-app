@@ -3,6 +3,7 @@ package com.postech.restaurantes.adapter.gateway;
 import static com.postech.restaurantes.adapter.AdapterFixtures.ADDRESS_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.ADDRESS_ID;
 import static com.postech.restaurantes.adapter.AdapterFixtures.CUSTOMER_DATA;
+import static com.postech.restaurantes.adapter.AdapterFixtures.CITY_ID;
 import static com.postech.restaurantes.adapter.AdapterFixtures.HASH;
 import static com.postech.restaurantes.adapter.AdapterFixtures.NOW;
 import static com.postech.restaurantes.adapter.AdapterFixtures.ROLE_ID;
@@ -66,6 +67,7 @@ class UserGatewayTest {
         assertEquals(Set.of(Role.restore(ROLE_ID, RoleName.ROLE_CUSTOMER)), user.getRoles());
         Address address = user.getAddresses().get(0);
         assertEquals(ADDRESS_ID, address.getId());
+        assertEquals(CITY_ID, address.getCityId());
         assertEquals("01001000", address.getZipCode().value());
         assertEquals(NOW.minusDays(1), user.getCreatedAt());
         assertEquals(NOW, user.getLastUpdatedAt());
@@ -140,6 +142,7 @@ class UserGatewayTest {
         verify(dataSource).update(captor.capture());
         assertEquals(USER_ID, captor.getValue().id());
         assertEquals(ADDRESS_ID, captor.getValue().addresses().get(0).id());
+        assertEquals(CITY_ID, captor.getValue().addresses().get(0).cityId());
         assertEquals(CUSTOMER_DATA, captor.getValue().roles().iterator().next());
         assertEquals(ADDRESS_DATA, captor.getValue().addresses().get(0));
         assertEquals(USER_ID, result.getId());

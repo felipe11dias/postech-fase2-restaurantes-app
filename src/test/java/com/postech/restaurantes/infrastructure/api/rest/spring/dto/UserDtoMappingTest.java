@@ -22,6 +22,7 @@ import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.Updat
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.response.UserResponse;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -104,6 +105,18 @@ class UserDtoMappingTest {
             assertEquals("São Paulo", dto.city());
             assertEquals("SP", dto.state());
             assertEquals("01001-000", dto.zipCode());
+        }
+
+        @Test
+        @DisplayName("Endereço aceita o id da cidade sem perder os dados legíveis")
+        void deveConverterEnderecoComCidadeReferenciada() {
+            UUID cityId = UUID.randomUUID();
+            AddressDTO dto = new AddressRequest(cityId, "Rua das Flores", "100", "Apto 21", "Centro",
+                    null, null, "01001-000").toDTO();
+
+            assertEquals(cityId, dto.cityId());
+            assertNull(dto.city());
+            assertNull(dto.state());
         }
     }
 

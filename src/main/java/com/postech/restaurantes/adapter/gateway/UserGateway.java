@@ -95,7 +95,7 @@ public final class UserGateway implements IUserGateway {
     }
 
     private static Address toEntity(AddressData data) {
-        return Address.restore(data.id(), data.street(), data.number(), data.complement(),
+        return Address.restore(data.id(), data.cityId(), data.street(), data.number(), data.complement(),
                 data.neighborhood(), data.city(), data.state(), data.zipCode());
     }
 
@@ -104,7 +104,8 @@ public final class UserGateway implements IUserGateway {
     }
 
     private static AddressData toData(Address address) {
-        return new AddressData(address.getId(), address.getStreet(), address.getNumber(), address.getComplement(),
-                address.getNeighborhood(), address.getCity(), address.getState(), address.getZipCode().value());
+        return new AddressData(address.getId(), address.getCityId(), address.getStreet(), address.getNumber(),
+                address.getComplement(), address.getNeighborhood(), address.getCity(), address.getState(),
+                address.getZipCode().value());
     }
 }

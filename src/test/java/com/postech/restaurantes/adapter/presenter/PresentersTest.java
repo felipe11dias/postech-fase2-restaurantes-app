@@ -1,6 +1,7 @@
 package com.postech.restaurantes.adapter.presenter;
 
 import static com.postech.restaurantes.adapter.AdapterFixtures.ADDRESS_ID;
+import static com.postech.restaurantes.adapter.AdapterFixtures.CITY_ID;
 import static com.postech.restaurantes.adapter.AdapterFixtures.NOW;
 import static com.postech.restaurantes.adapter.AdapterFixtures.ROLE_ID;
 import static com.postech.restaurantes.adapter.AdapterFixtures.USER_DATA;
@@ -44,6 +45,7 @@ class PresentersTest {
         assertEquals(ROLE_ID, view.roles().get(0).id());
         assertEquals("ROLE_CUSTOMER", view.roles().get(0).name());
         assertEquals(ADDRESS_ID, view.addresses().get(0).id());
+        assertEquals(CITY_ID, view.addresses().get(0).cityId());
         assertEquals("01001000", view.addresses().get(0).zipCode());
         assertEquals("SP", view.addresses().get(0).state());
         assertEquals(NOW.minusDays(1), view.createdAt());
