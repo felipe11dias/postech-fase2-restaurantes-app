@@ -1,18 +1,17 @@
 package com.postech.restaurantes.application.dto.common;
 
+import com.postech.restaurantes.domain.Guard;
 import com.postech.restaurantes.domain.entity.address.Address;
 import java.util.UUID;
 
-/** Dados de endereço recebidos pelos casos de uso. A conversão para o domínio vive aqui. */
+/** Entrada de endereço: a cidade é escolhida no catálogo, nunca criada pelo cadastro. */
 public record AddressDTO(UUID cityId, String street, String number, String complement, String neighborhood,
-                         String city, String state, String zipCode) {
-
-    public AddressDTO(String street, String number, String complement, String neighborhood,
-                      String city, String state, String zipCode) {
-        this(null, street, number, complement, neighborhood, city, state, zipCode);
+                         String zipCode) {
+    public AddressDTO {
+        Guard.requireNonNull(cityId, "Id da cidade do endereço inválido");
     }
 
     public Address toEntity() {
-        return Address.create(street, number, complement, neighborhood, city, state, zipCode);
+        return Address.create(cityId, street, number, complement, neighborhood, zipCode);
     }
 }

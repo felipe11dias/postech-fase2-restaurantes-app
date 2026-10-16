@@ -154,7 +154,7 @@ public final class UserGateway implements IUserGateway {
     }
 
     private static UserAddress toEntity(UserAddressData data) {
-        return UserAddress.restore(data.id(), data.cityId(), data.label(), data.isDefault(), AddressMapping.toEntity(data.address()));
+        return UserAddress.restore(data.id(), data.label(), data.isDefault(), AddressMapping.toEntity(data.address()));
     }
 
     private static UserAddressData toData(UserAddress userAddress) {

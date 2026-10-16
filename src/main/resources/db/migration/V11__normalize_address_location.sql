@@ -1,5 +1,5 @@
 -- ============================================================================
--- V4 — Normalização dos catálogos geográficos e do endereço.
+-- V11 — Normalização dos catálogos geográficos e do endereço.
 --
 -- Converte cidade/UF armazenadas em texto em chaves estrangeiras, preservando
 -- os endereços já gravados pelas migrations anteriores.

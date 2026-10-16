@@ -1,5 +1,7 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import com.postech.restaurantes.adapter.datasource.data.AddressData;
 import com.postech.restaurantes.adapter.datasource.data.PasswordResetTokenData;
 import com.postech.restaurantes.adapter.datasource.data.ClientData;
@@ -28,8 +30,8 @@ public final class PersistenceFixtures {
     public static final LocalDateTime NOW = LocalDateTime.of(2026, 3, 10, 12, 0);
     public static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     public static final UUID ADDRESS_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
-    public static final UUID STATE_ID = UUID.fromString("55555555-5555-5555-5555-555555555555");
-    public static final UUID CITY_ID = UUID.fromString("66666666-6666-6666-6666-666666666666");
+    public static final UUID STATE_ID = LocationFixtures.STATE_ID;
+    public static final UUID CITY_ID = LocationFixtures.CITY_ID;
     public static final UUID TOKEN_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
     public static final UUID USER_ADDRESS_ID = UUID.fromString("55555555-5555-5555-5555-555555555555");
     public static final String HASH = "$2a$10$hashDeExemploComTamanhoSuficienteParaBCrypt";
@@ -39,8 +41,7 @@ public final class PersistenceFixtures {
     public static final List<OfficeHourData> OFFICE_HOURS_DATA =
             List.of(new OfficeHourData("MONDAY", LocalTime.of(8, 0), LocalTime.of(22, 0)));
 
-    public static final AddressData ADDRESS_DATA = new AddressData(ADDRESS_ID, "Rua das Flores", "100", "Apto 21",
-            "Centro", "São Paulo", "SP", "01001000");
+    public static final AddressData ADDRESS_DATA = new AddressData(ADDRESS_ID, LocationFixtures.cityId("São Paulo", "SP"), "Rua das Flores", "100", "Apto 21", "Centro", "01001000", LocationFixtures.cityData("São Paulo", "SP"));
 
     public static final UserAddressData USER_ADDRESS_DATA =
             new UserAddressData(USER_ADDRESS_ID, "Casa", true, ADDRESS_DATA);
@@ -64,6 +65,15 @@ public final class PersistenceFixtures {
         address.setCity(cityEntity());
         address.setZipCode("01001000");
         return address;
+    }
+
+    public static UserAddressJpaEntity userAddressEntity() {
+        UserAddressJpaEntity entity = new UserAddressJpaEntity();
+        entity.setId(USER_ADDRESS_ID);
+        entity.setLabel("Casa");
+        entity.setDefaultAddress(true);
+        entity.setAddress(addressEntity());
+        return entity;
     }
 
     public static StateJpaEntity stateEntity() {

@@ -1,5 +1,7 @@
 package com.postech.restaurantes.infrastructure.api.rest.spring.dto;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.ADDRESS_ID;
 import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.NOW;
 import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.USER_ADDRESS_ID;
@@ -43,7 +45,7 @@ import org.junit.jupiter.api.Test;
 class UserDtoMappingTest {
 
     private static AddressRequest enderecoRequest() {
-        return new AddressRequest("Rua das Flores", "100", "Apto 21", "Centro", "São Paulo", "SP", "01001-000");
+        return new AddressRequest(LocationFixtures.cityId("São Paulo", "SP"), "Rua das Flores", "100", "Apto 21", "Centro", "01001-000");
     }
 
     private static UserAddressRequest enderecoDoUsuarioRequest() {
@@ -132,8 +134,7 @@ class UserDtoMappingTest {
             assertEquals("100", dto.number());
             assertEquals("Apto 21", dto.complement());
             assertEquals("Centro", dto.neighborhood());
-            assertEquals("São Paulo", dto.city());
-            assertEquals("SP", dto.state());
+            assertEquals(LocationFixtures.CITY_ID, dto.cityId());
             assertEquals("01001-000", dto.zipCode());
         }
 
@@ -141,12 +142,10 @@ class UserDtoMappingTest {
         @DisplayName("Endereço aceita o id da cidade sem perder os dados legíveis")
         void deveConverterEnderecoComCidadeReferenciada() {
             UUID cityId = UUID.randomUUID();
-            AddressDTO dto = new AddressRequest(cityId, "Rua das Flores", "100", "Apto 21", "Centro",
-                    null, null, "01001-000").toDTO();
+            AddressDTO dto = new AddressRequest(cityId, "Rua das Flores", "100", "Apto 21", "Centro", "01001-000").toDTO();
 
             assertEquals(cityId, dto.cityId());
-            assertNull(dto.city());
-            assertNull(dto.state());
+            assertEquals("01001-000", dto.zipCode());
         }
     }
 

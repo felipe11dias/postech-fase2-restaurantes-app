@@ -10,7 +10,7 @@ public final class AddressPresenter {
     }
 
     public static AddressView toView(Address address) {
-        return new AddressView(address.getId(), address.getStreet(), address.getNumber(), address.getComplement(),
-                address.getNeighborhood(), address.getCity(), address.getState(), address.getZipCode().value());
+        return new AddressView(address.getId(), LocationPresenter.toView(address.getCity()), address.getStreet(), address.getNumber(), address.getComplement(),
+                address.getNeighborhood(), address.getZipCode().value());
     }
 }

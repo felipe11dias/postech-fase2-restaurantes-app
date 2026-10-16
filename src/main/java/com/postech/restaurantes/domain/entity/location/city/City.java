@@ -1,35 +1,38 @@
 package com.postech.restaurantes.domain.entity.location.city;
 
 import com.postech.restaurantes.domain.Guard;
+import com.postech.restaurantes.domain.entity.location.state.State;
 import java.util.UUID;
 
 /** Cidade pertencente a um estado. */
 public final class City {
 
     private final UUID id;
-    private UUID stateId;
+    private State state;
     private String name;
 
     private City(UUID id) {
         this.id = id;
     }
 
-    public static City create(UUID stateId, String name) {
-        return fill(new City(null), stateId, name);
+    public static City create(State state, String name) {
+        return fill(new City(null), state, name);
     }
 
-    public static City restore(UUID id, UUID stateId, String name) {
-        return fill(new City(Guard.requireNonNull(id, "Id da cidade inválido")), stateId, name);
+    public static City restore(UUID id, State state, String name) {
+        return fill(new City(Guard.requireNonNull(id, "Id da cidade inválido")), state, name);
     }
 
-    private static City fill(City city, UUID stateId, String name) {
-        city.setStateId(stateId);
+    private static City fill(City city, State state, String name) {
+        city.setState(state);
         city.setName(name);
         return city;
     }
 
-    public void setStateId(UUID stateId) {
-        this.stateId = Guard.requireNonNull(stateId, "Estado da cidade inválido");
+    public void setState(State state) {
+        Guard.requireNonNull(state, "Estado da cidade inválido");
+        Guard.requireNonNull(state.getId(), "Id do estado da cidade inválido");
+        this.state = state;
     }
 
     public void setName(String name) {
@@ -41,7 +44,11 @@ public final class City {
     }
 
     public UUID getStateId() {
-        return stateId;
+        return state.getId();
+    }
+
+    public State getState() {
+        return state;
     }
 
     public String getName() {

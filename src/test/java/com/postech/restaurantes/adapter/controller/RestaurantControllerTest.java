@@ -1,5 +1,7 @@
 package com.postech.restaurantes.adapter.controller;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import static com.postech.restaurantes.adapter.AdapterFixtures.OFFICE_HOURS_DTO;
 import static com.postech.restaurantes.adapter.AdapterFixtures.OFFICE_HOURS_DATA;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -69,10 +71,9 @@ class RestaurantControllerTest {
 
         restaurantId = UUID.randomUUID();
         userId = UUID.randomUUID();
-        endereco = new AddressDTO("Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
+        endereco = new AddressDTO(LocationFixtures.cityId("Cidade", "SP"), "Rua A", "10", null, "Bairro", "01000000");
 
-        AddressData addressData = new AddressData(UUID.randomUUID(), UUID.randomUUID(), "Rua A", "10", null,
-                "Bairro", "Cidade", "SP", "01000000");
+        AddressData addressData = new AddressData(UUID.randomUUID(), UUID.randomUUID(), "Rua A", "10", null, "Bairro", "01000000", LocationFixtures.cityData(UUID.randomUUID(), "Cidade", "SP"));
         userData = new UserData(userId, "Dono", "dono@x.com", "dono", "hash",
                 new OwnerData("11222333000181", "Sabor Ltda", "1131234567"), null, null, null, List.of(), null, null);
 

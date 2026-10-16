@@ -60,9 +60,9 @@ class PresentersTest {
         assertEquals("Casa", view.addresses().get(0).label());
         assertTrue(view.addresses().get(0).isDefault());
         assertEquals(ADDRESS_ID, view.addresses().get(0).address().id());
-        assertEquals(CITY_ID, view.addresses().get(0).cityId());
+        assertEquals(CITY_ID, view.addresses().get(0).address().city().id());
         assertEquals("01001000", view.addresses().get(0).address().zipCode());
-        assertEquals("SP", view.addresses().get(0).address().state());
+        assertEquals("SP", view.addresses().get(0).address().city().state().acronym());
         assertEquals(NOW.minusDays(1), view.createdAt());
         assertEquals(NOW, view.lastUpdatedAt());
         assertFalse(view.toString().contains(USER_DATA.passwordHash()));

@@ -1,5 +1,7 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa.user;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ADDRESS_ID;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.CITY_ID;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.HASH;
@@ -37,7 +39,7 @@ import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.address.UserAddressJpaEntity;
 import com.postech.restaurantes.infrastructure.persistence.jpa.location.SpringDataCityRepository;
-import com.postech.restaurantes.infrastructure.persistence.jpa.location.SpringDataStateRepository;
+import com.postech.restaurantes.infrastructure.persistence.jpa.location.CityReferenceResolver;
 import com.postech.restaurantes.infrastructure.persistence.jpa.location.CityJpaEntity;
 import com.postech.restaurantes.infrastructure.persistence.jpa.location.StateJpaEntity;
 import java.util.List;
@@ -63,20 +65,19 @@ class UserDataSourceJpaTest {
 
     private SpringDataUserRepository users;
     private SpringDataCityRepository cities;
-    private SpringDataStateRepository states;
     private UserDataSourceJpa dataSource;
 
     @BeforeEach
     void setUp() {
         users = mock(SpringDataUserRepository.class);
-        roles = mock(SpringDataRoleRepository.class);
         cities = mock(SpringDataCityRepository.class);
-        states = mock(SpringDataStateRepository.class);
-        dataSource = new UserDataSourceJpa(users, roles, cities, states);
+        dataSource = new UserDataSourceJpa(users, new CityReferenceResolver(cities));
+        when(users.save(any())).thenAnswer(invocation -> {
+            UserJpaEntity entity = invocation.getArgument(0);
+            entity.setId(USER_ID);
+            return entity;
+        });
         when(cities.findById(CITY_ID)).thenReturn(Optional.of(cityEntity()));
-        when(states.findByAcronymIgnoreCase("SP")).thenReturn(Optional.of(stateEntity()));
-        when(cities.findByNameIgnoreCaseAndState_Id("São Paulo", STATE_ID))
-                .thenReturn(Optional.of(cityEntity()));
     }
 
     @Test
@@ -99,7 +100,7 @@ class UserDataSourceJpaTest {
         assertEquals("Casa", data.addresses().get(0).label());
         assertTrue(data.addresses().get(0).isDefault());
         assertEquals(ADDRESS_ID, data.addresses().get(0).address().id());
-        assertEquals(CITY_ID, data.addresses().get(0).cityId());
+        assertEquals(CITY_ID, data.addresses().get(0).address().cityId());
         assertEquals("01001000", data.addresses().get(0).address().zipCode());
         assertEquals(NOW.minusDays(1), data.createdAt());
         assertEquals(NOW, data.lastUpdatedAt());
@@ -275,7 +276,7 @@ class UserDataSourceJpaTest {
 
         dataSource.insert(new UserData(null, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
                 null, CLIENT_DATA, null, null, List.of(new UserAddressData(null, "Trabalho", true,
-                        new AddressData(ADDRESS_ID, "Rua A", "1", null, "Centro", "São Paulo", "SP", "01001000"))),
+                        new AddressData(ADDRESS_ID, LocationFixtures.cityId("São Paulo", "SP"), "Rua A", "1", null, "Centro", "01001000", LocationFixtures.cityData("São Paulo", "SP")))),
                 NOW, NOW));
 
         UserJpaEntity gravado = capturarGravado();
@@ -295,7 +296,7 @@ class UserDataSourceJpaTest {
         UserAddressJpaEntity vinculo = existente.getAddresses().get(0);
         when(users.findById(USER_ID)).thenReturn(Optional.of(existente));
         when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        AddressData outraRua = new AddressData(null, "Rua Outra", "7", null, "Centro", "São Paulo", "SP", "01001000");
+        AddressData outraRua = new AddressData(null, LocationFixtures.cityId("São Paulo", "SP"), "Rua Outra", "7", null, "Centro", "01001000", LocationFixtures.cityData("São Paulo", "SP"));
 
         dataSource.update(new UserData(USER_ID, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
                 null, CLIENT_DATA, null, null, List.of(new UserAddressData(USER_ADDRESS_ID, "Casa Nova", false, outraRua),
@@ -318,79 +319,33 @@ class UserDataSourceJpaTest {
                 List.of(new UserAddressData(UUID.randomUUID(), null, true, USER_ADDRESS_DATA.address())), NOW, NOW);
 
         assertThrows(IllegalStateException.class, () -> dataSource.update(comVinculoAlheio));
-        assertEquals(CITY_ID, gravado.getAddresses().get(0).getCity().getId());
     }
 
     @Test
-    @DisplayName("Vincula a cidade pelo id sem exigir os nomes de cidade e UF")
-    void deveVincularCidadeSomentePeloId() {
-        when(roles.findAllById(any())).thenReturn(List.of(roleEntity()));
+    @DisplayName("Resolves an existing city by id without creating catalog entries")
+    void shouldResolveExistingCityById() {
         when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        AddressData address = new AddressData(null, CITY_ID, "Rua A", "1", null, "Centro", "01001000");
 
         dataSource.insert(new UserData(null, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
-                USER_DATA.roles(), List.of(new AddressData(null, CITY_ID, "Rua A", "1", null, "Centro",
-                        null, null, "01001000")), NOW, NOW));
+                null, CLIENT_DATA, null, null, List.of(new UserAddressData(null, "Casa", true, address)), NOW, NOW));
 
-        assertEquals(CITY_ID, capturarGravado().getAddresses().get(0).getCity().getId());
+        assertEquals(CITY_ID, capturarGravado().getAddresses().get(0).getAddress().getCity().getId());
+        verify(cities).findById(CITY_ID);
     }
 
     @Test
-    @DisplayName("Cria os registros de estado e cidade quando ainda não existem")
-    void deveCriarLocalizacaoAusente() {
-        ArgumentCaptor<StateJpaEntity> estadoCaptor = ArgumentCaptor.forClass(StateJpaEntity.class);
-        ArgumentCaptor<CityJpaEntity> cidadeCaptor = ArgumentCaptor.forClass(CityJpaEntity.class);
-        when(states.findByAcronymIgnoreCase("RJ")).thenReturn(Optional.empty());
-        when(states.saveAndFlush(any())).thenAnswer(invocation -> {
-            StateJpaEntity estado = invocation.getArgument(0);
-            estado.setId(STATE_ID);
-            return estado;
-        });
-        when(cities.findByNameIgnoreCaseAndState_Id("Rio de Janeiro", STATE_ID)).thenReturn(Optional.empty());
-        when(cities.saveAndFlush(any())).thenAnswer(invocation -> {
-            CityJpaEntity cidade = invocation.getArgument(0);
-            cidade.setId(CITY_ID);
-            return cidade;
-        });
-        when(roles.findAllById(any())).thenReturn(List.of(roleEntity()));
-        when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    @DisplayName("Rejects an unknown city before persisting a user")
+    void shouldRejectUnknownCity() {
+        UUID cityId = UUID.randomUUID();
+        AddressData address = new AddressData(null, cityId, "Rua A", "1", null, "Centro", "01001000");
+        UserData data = new UserData(null, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
+                null, CLIENT_DATA, null, null, List.of(new UserAddressData(null, "Casa", true, address)), NOW, NOW);
 
-        dataSource.insert(new UserData(null, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
-                USER_DATA.roles(), List.of(new AddressData(null, "Rua A", "1", null, "Centro",
-                        "Rio de Janeiro", "RJ", "01001000")), NOW, NOW));
-
-        verify(states).saveAndFlush(estadoCaptor.capture());
-        verify(cities).saveAndFlush(cidadeCaptor.capture());
-        assertEquals("Rio de Janeiro", estadoCaptor.getValue().getName());
-        assertEquals("Rio de Janeiro", cidadeCaptor.getValue().getName());
-    }
-
-    @Test
-    @DisplayName("Recusa endereço que aponta para uma cidade inexistente")
-    void deveRecusarCidadeIdInexistente() {
-        UUID inexistente = UUID.randomUUID();
-        when(cities.findById(inexistente)).thenReturn(Optional.empty());
-        when(roles.findAllById(any())).thenReturn(List.of(roleEntity()));
-
-        assertThrows(IllegalArgumentException.class, () -> dataSource.insert(new UserData(null, "João Silva",
-                "joao.silva@email.com", "joao.silva", HASH, USER_DATA.roles(),
-                List.of(new AddressData(null, inexistente, "Rua A", "1", null, "Centro",
-                        "São Paulo", "SP", "01001000")), NOW, NOW)));
-    }
-
-    @Test
-    @DisplayName("Recusa id de cidade quando nome ou sigla não correspondem")
-    void deveRecusarCidadeIdComDadosDivergentes() {
-        when(cities.findById(CITY_ID)).thenReturn(Optional.of(cityEntity()));
-        when(roles.findAllById(any())).thenReturn(List.of(roleEntity()));
-
-        assertThrows(IllegalArgumentException.class, () -> dataSource.insert(new UserData(null, "João Silva",
-                "joao.silva@email.com", "joao.silva", HASH, USER_DATA.roles(),
-                List.of(new AddressData(null, CITY_ID, "Rua A", "1", null, "Centro",
-                        "Campinas", "SP", "01001000")), NOW, NOW)));
-        assertThrows(IllegalArgumentException.class, () -> dataSource.insert(new UserData(null, "João Silva",
-                "joao.silva@email.com", "joao.silva", HASH, USER_DATA.roles(),
-                List.of(new AddressData(null, CITY_ID, "Rua A", "1", null, "Centro",
-                        "São Paulo", "RJ", "01001000")), NOW, NOW)));
+        assertThrows(com.postech.restaurantes.domain.exception.ResourceNotFoundException.class,
+                () -> dataSource.insert(data));
+        verify(users, never()).save(any());
+        verify(users, never()).saveAndFlush(any());
     }
 
     @Test

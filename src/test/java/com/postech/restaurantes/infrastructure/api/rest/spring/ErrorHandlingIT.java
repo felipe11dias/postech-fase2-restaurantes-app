@@ -78,7 +78,7 @@ class ErrorHandlingIT extends WebIntegrationTestSupport {
     void deveTraduzirInvarianteDoDominio() {
         Map<String, Object> corpo = novoUsuario("cep" + sufixo());
         corpo.put("addresses", List.of(Map.of("address", Map.of("street", "Rua A", "number", "1",
-                "neighborhood", "Centro", "city", "São Paulo", "state", "SP", "zipCode", "123"))));
+                "neighborhood", "Centro", "cityId", "c0000000-0000-4000-8000-000000000001", "zipCode", "123"))));
 
         ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(corpo), JsonNode.class);
 
@@ -198,7 +198,7 @@ class ErrorHandlingIT extends WebIntegrationTestSupport {
                 corpoAutenticado(Map.of("userId", cliente.id(), "name", "Não É Dono",
                         "officeHours", List.of(Map.of("dayOfWeek", "MONDAY", "startTime", "08:00:00", "endTime", "22:00:00")),
                         "address", Map.of("street", "Rua A", "number", "1", "neighborhood", "Centro",
-                                "city", "São Paulo", "state", "SP", "zipCode", "01001000")), admin()),
+                                "cityId", "c0000000-0000-4000-8000-000000000001", "zipCode", "01001000")), admin()),
                 JsonNode.class);
 
         JsonNode problema = conferir(resposta, HttpStatus.FORBIDDEN, "operacao-nao-permitida",

@@ -1,5 +1,7 @@
 package com.postech.restaurantes.application.usecase;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import com.postech.restaurantes.application.dto.common.AddressDTO;
 import com.postech.restaurantes.application.dto.restaurant.OfficeHourDTO;
 import com.postech.restaurantes.application.dto.user.UserAddressDTO;
@@ -37,7 +39,7 @@ public final class UseCaseFixtures {
     public static final UserProfiles ADMIN =
             new UserProfiles(null, null, null, AdminProfile.restore("ADM-1", null, true));
     public static final AddressDTO ADDRESS_DTO =
-            new AddressDTO("Rua das Flores", "100", "Apto 21", "Centro", "São Paulo", "SP", "01001-000");
+            new AddressDTO(LocationFixtures.cityId("São Paulo", "SP"), "Rua das Flores", "100", "Apto 21", "Centro", "01001-000");
     public static final UserAddressDTO USER_ADDRESS_DTO = new UserAddressDTO(null, "Casa", true, ADDRESS_DTO);
     public static final List<OfficeHour> OFFICE_HOURS =
             List.of(new OfficeHour(DayOfWeek.MONDAY, LocalTime.of(8, 0), LocalTime.of(22, 0)));

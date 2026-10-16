@@ -1,5 +1,7 @@
 package com.postech.restaurantes.application.dto.common;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -34,12 +36,12 @@ class DtoTest {
     @Test
     @DisplayName("AddressDTO converte para a entidade validada")
     void deveConverterEnderecoParaEntidade() {
-        AddressDTO dto = new AddressDTO("Rua A", "1", null, "Centro", "Cidade", "sp", "01001-000");
+        AddressDTO dto = new AddressDTO(LocationFixtures.cityId("Cidade", "sp"), "Rua A", "1", null, "Centro", "01001-000");
 
         Address address = dto.toEntity();
 
         assertEquals("Rua A", address.getStreet());
-        assertEquals("SP", address.getState());
+        assertEquals(dto.cityId(), address.getCityId());
         assertEquals("01001000", address.getZipCode().value());
     }
 
@@ -47,12 +49,11 @@ class DtoTest {
     @DisplayName("AddressDTO preserva o id da cidade")
     void deveConverterEnderecoComCidadeReferenciada() {
         UUID cityId = UUID.randomUUID();
-        Address address = new AddressDTO(cityId, "Rua A", "1", null, "Centro", null, null, "01001000")
+        Address address = new AddressDTO(cityId, "Rua A", "1", null, "Centro", "01001000")
                 .toEntity();
 
         assertEquals(cityId, address.getCityId());
         assertNull(address.getCity());
-        assertNull(address.getState());
     }
 
     @Test

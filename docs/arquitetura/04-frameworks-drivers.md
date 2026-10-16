@@ -64,14 +64,23 @@ de entrega, e fica na borda: o núcleo continua síncrono.
 
 **Schema versionado.** O Flyway é o dono do schema
 ([`db/migration`](../../src/main/resources/db/migration)); o JPA só valida (`ddl-auto: validate`).
-Além das tabelas normalizadas já descritas no V1, a migration V4 cria `states` e `cities`, converte
-os textos de cidade/UF de `addresses` em `city_id` e preserva os endereços existentes. A origem
-de dados aceita o `cityId` opcional da requisição; quando presente, cidade e UF também são opcionais
-e, se enviados, precisam corresponder ao registro referenciado. Sem o id, resolve a cidade pelo par
-nome/sigla; registros ausentes são criados para manter o formato de entrada atual. O estado guarda
-nome oficial e sigla. O catálogo não é uma carga nacional: começa pelos endereços existentes e
-cresce com os endereços recebidos. A seed (`V2__seed_demo_users.sql`) cria os usuários de
-demonstração.
+As migrations V1–V10 da main permanecem com suas versões originais. A V11 cria `states` e
+`cities`, converte cidade/UF em `addresses.city_id NOT NULL`, preserva ids e vínculos existentes
+e remove os campos textuais. A V12 semeia as 27 unidades federativas, as capitais e Campinas.
+É um catálogo inicial; os demais municípios entram por novas migrations, sem cadastro via API.
+A seed V2 continua responsável pelos usuários de demonstração.
+
+`CityReferenceResolver` consulta o id existente, compartilhado por `UserDataSourceJpa` e
+`RestaurantDataSourceJpa`; cidade inexistente lança `ResourceNotFoundException` e o handler
+existente responde 404, seguindo o padrão de recursos não encontrados. Não há gravação de estado ou cidade durante o salvamento de endereços.
+Os repositórios dos catálogos estendem `Repository` e declaram somente consultas. O relacionamento
+`AddressJpaEntity.city -> CityJpaEntity.state` não tem cascata de persistência ou remoção.
+
+`GET /api/v1/states` lista as 27 unidades federativas em ordem alfabética. `GET /api/v1/cities`
+é paginado, aceita filtros `stateId` e `name`, ordena por nome e id e preserva os filtros nos
+links HATEOAS. As duas consultas são públicas para permitir o autocadastro; não há operações de
+escrita. `AddressRequest` exige `cityId` tanto no construtor quanto em Bean Validation, e converte
+esse id sem perdas para `AddressDTO`. A resposta HTTP aninha `CityResponse` e `StateResponse`.
 
 **Perfis no lugar do catálogo de papéis (Etapa 21, V6).** `roles` e `user_roles` saíram: o papel
 passou a ser derivado do perfil (`owners`, `clients`, `couriers`, `admins`), e uma informação que se

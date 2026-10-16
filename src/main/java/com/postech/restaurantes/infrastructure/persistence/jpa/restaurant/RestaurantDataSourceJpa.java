@@ -7,6 +7,7 @@ import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.infrastructure.persistence.jpa.address.AddressJpaMapping;
+import com.postech.restaurantes.infrastructure.persistence.jpa.location.CityReferenceResolver;
 import com.postech.restaurantes.infrastructure.persistence.jpa.restaurant.officehour.OfficeHourJpaEntity;
 import java.util.List;
 import java.util.Map;
@@ -33,9 +34,11 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
     private static final String DEFAULT_SORT_PROPERTY = "name";
 
     private final SpringDataRestaurantRepository restaurants;
+    private final CityReferenceResolver cityResolver;
 
-    public RestaurantDataSourceJpa(SpringDataRestaurantRepository restaurants) {
+    public RestaurantDataSourceJpa(SpringDataRestaurantRepository restaurants, CityReferenceResolver cityResolver) {
         this.restaurants = restaurants;
+        this.cityResolver = cityResolver;
     }
 
     @Override
@@ -49,10 +52,10 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
     public PageResult<RestaurantData> search(String name, UUID ownerId, PageRequest request) {
         Sort sort = toSort(request);
         Pageable pageable = org.springframework.data.domain.PageRequest.of(request.page(), request.size(), sort);
-        String nome = name == null ? "" : name;
+        String filter = name == null ? "" : name;
         Page<UUID> ids = ownerId == null
-                ? restaurants.findIdsByName(nome, pageable)
-                : restaurants.findIdsByNameAndUserId(nome, ownerId, pageable);
+                ? restaurants.findIdsByName(filter, pageable)
+                : restaurants.findIdsByNameAndUserId(filter, ownerId, pageable);
         List<RestaurantData> content = ids.isEmpty()
                 ? List.of()
                 : restaurants.findByIdIn(ids.getContent(), sort).stream().map(RestaurantDataSourceJpa::toData).toList();
@@ -105,9 +108,9 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
     private void apply(RestaurantJpaEntity entity, RestaurantData data) {
         entity.setUserId(data.userId());
         if (entity.getAddress() == null) {
-            entity.setAddress(AddressJpaMapping.toEntity(data.address()));
+            entity.setAddress(AddressJpaMapping.toEntity(data.address(), cityResolver.resolve(data.address().cityId())));
         } else {
-            AddressJpaMapping.copy(data.address(), entity.getAddress());
+            AddressJpaMapping.copy(data.address(), entity.getAddress(), cityResolver.resolve(data.address().cityId()));
         }
         entity.setName(data.name());
         entity.replaceOfficeHours(reconcile(entity.getOfficeHours(), data.officeHours()));

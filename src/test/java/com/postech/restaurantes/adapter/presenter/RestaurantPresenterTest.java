@@ -1,5 +1,7 @@
 package com.postech.restaurantes.adapter.presenter;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import static com.postech.restaurantes.adapter.AdapterFixtures.OFFICE_HOURS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -16,8 +18,7 @@ import org.junit.jupiter.api.Test;
 
 class RestaurantPresenterTest {
 
-    private static final Address ENDERECO = Address.restore(UUID.randomUUID(), "Rua A", "10", null, "Bairro", "Cidade",
-            "SP", "01000000");
+    private static final Address ENDERECO = Address.restore(UUID.randomUUID(), LocationFixtures.city("Cidade", "SP"), "Rua A", "10", null, "Bairro", "01000000");
 
     @Test
     @DisplayName("Converte entidade para view")

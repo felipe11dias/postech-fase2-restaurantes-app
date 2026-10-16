@@ -8,10 +8,7 @@ import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.infrastructure.persistence.jpa.address.AddressJpaMapping;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.address.UserAddressJpaEntity;
-import com.postech.restaurantes.infrastructure.persistence.jpa.location.CityJpaEntity;
-import com.postech.restaurantes.infrastructure.persistence.jpa.location.SpringDataCityRepository;
-import com.postech.restaurantes.infrastructure.persistence.jpa.location.SpringDataStateRepository;
-import com.postech.restaurantes.infrastructure.persistence.jpa.location.StateJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.location.CityReferenceResolver;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -46,29 +43,12 @@ public class UserDataSourceJpa implements IUserDataSource {
             "lastUpdatedAt", "lastUpdatedAt");
 
     private static final String DEFAULT_SORT_PROPERTY = "name";
-    private static final Map<String, String> STATE_NAMES = Map.ofEntries(
-            Map.entry("AC", "Acre"), Map.entry("AL", "Alagoas"), Map.entry("AP", "Amapá"),
-            Map.entry("AM", "Amazonas"), Map.entry("BA", "Bahia"), Map.entry("CE", "Ceará"),
-            Map.entry("DF", "Distrito Federal"), Map.entry("ES", "Espírito Santo"),
-            Map.entry("GO", "Goiás"), Map.entry("MA", "Maranhão"), Map.entry("MT", "Mato Grosso"),
-            Map.entry("MS", "Mato Grosso do Sul"), Map.entry("MG", "Minas Gerais"),
-            Map.entry("PA", "Pará"), Map.entry("PB", "Paraíba"), Map.entry("PR", "Paraná"),
-            Map.entry("PE", "Pernambuco"), Map.entry("PI", "Piauí"),
-            Map.entry("RJ", "Rio de Janeiro"), Map.entry("RN", "Rio Grande do Norte"),
-            Map.entry("RS", "Rio Grande do Sul"), Map.entry("RO", "Rondônia"),
-            Map.entry("RR", "Roraima"), Map.entry("SC", "Santa Catarina"),
-            Map.entry("SP", "São Paulo"), Map.entry("SE", "Sergipe"),
-            Map.entry("TO", "Tocantins"));
-
     private final SpringDataUserRepository users;
-    private final SpringDataCityRepository cities;
-    private final SpringDataStateRepository states;
+    private final CityReferenceResolver cityResolver;
 
-    public UserDataSourceJpa(SpringDataUserRepository users,
-                             SpringDataCityRepository cities, SpringDataStateRepository states) {
+    public UserDataSourceJpa(SpringDataUserRepository users, CityReferenceResolver cityResolver) {
         this.users = users;
-        this.cities = cities;
-        this.states = states;
+        this.cityResolver = cityResolver;
     }
 
     @Override
@@ -138,9 +118,9 @@ public class UserDataSourceJpa implements IUserDataSource {
         UserJpaEntity entity = new UserJpaEntity();
         apply(entity, user);
         // O {@code save} emite o id do usuário; só então os perfis, que o usam como chave, entram.
-        UserJpaEntity gravado = users.save(entity);
-        ProfileJpaMapping.apply(gravado, user);
-        return toData(users.saveAndFlush(gravado));
+        UserJpaEntity saved = users.save(entity);
+        ProfileJpaMapping.apply(saved, user);
+        return toData(users.saveAndFlush(saved));
     }
 
     /** Ver {@link #insert}: o {@code saveAndFlush} garante o {@code last_updated_at} novo na volta. */
@@ -184,15 +164,11 @@ public class UserDataSourceJpa implements IUserDataSource {
         entity.setEmail(data.email());
         entity.setLogin(data.login());
         entity.setPassword(data.passwordHash());
-        entity.replaceRoles(resolveRoles(data.roles()));
-        entity.replaceAddresses(data.addresses().stream().map(this::toEntity).toList());
+        entity.replaceAddresses(reconcile(entity.getAddresses(), data.addresses()));
     }
 
-    /**
-     * Papéis são catálogo: o vínculo N:M aponta para as linhas que já existem em
-     * {@code roles}, nunca cria novas.
-     */
-    private static List<UserAddressJpaEntity> reconcile(List<UserAddressJpaEntity> current,
+    /** Mantém os vínculos existentes pelo id e cria apenas os novos. */
+    private List<UserAddressJpaEntity> reconcile(List<UserAddressJpaEntity> current,
                                                         List<UserAddressData> wanted) {
         Map<UUID, UserAddressJpaEntity> byId = current.stream()
                 .collect(Collectors.toMap(UserAddressJpaEntity::getId, Function.identity()));
@@ -202,53 +178,22 @@ public class UserDataSourceJpa implements IUserDataSource {
     }
 
     /** O domínio só deixa passar id de um endereço do próprio usuário; ausência aqui é falha de estado. */
-    private static UserAddressJpaEntity update(UserAddressJpaEntity existing, UserAddressData data) {
+    private UserAddressJpaEntity update(UserAddressJpaEntity existing, UserAddressData data) {
         if (existing == null) {
             throw new IllegalStateException("Endereço do usuário inexistente para atualização: " + data.id());
         }
         existing.setLabel(data.label());
         existing.setDefaultAddress(data.isDefault());
-        AddressJpaMapping.copy(data.address(), existing.getAddress());
+        AddressJpaMapping.copy(data.address(), existing.getAddress(), cityResolver.resolve(data.address().cityId()));
         return existing;
     }
 
-    private static UserAddressJpaEntity toEntity(UserAddressData data) {
+    private UserAddressJpaEntity toEntity(UserAddressData data) {
         UserAddressJpaEntity entity = new UserAddressJpaEntity();
         entity.setLabel(data.label());
         entity.setDefaultAddress(data.isDefault());
-        entity.setAddress(AddressJpaMapping.toEntity(data.address()));
+        entity.setAddress(AddressJpaMapping.toEntity(data.address(), cityResolver.resolve(data.address().cityId())));
         return entity;
-    }
-
-    private CityJpaEntity resolveCity(AddressData address) {
-        if (address.cityId() != null) {
-            CityJpaEntity city = cities.findById(address.cityId())
-                    .orElseThrow(() -> new IllegalArgumentException("Cidade do endereço inexistente"));
-            if ((address.city() != null && !city.getName().equalsIgnoreCase(address.city()))
-                    || (address.state() != null
-                            && !city.getState().getAcronym().equalsIgnoreCase(address.state()))) {
-                throw new IllegalArgumentException("Cidade do endereço não corresponde aos dados informados");
-            }
-            return city;
-        }
-        StateJpaEntity state = states.findByAcronymIgnoreCase(address.state())
-                .orElseGet(() -> criarEstado(address.state()));
-        return cities.findByNameIgnoreCaseAndState_Id(address.city(), state.getId())
-                .orElseGet(() -> criarCidade(address.city(), state));
-    }
-
-    private StateJpaEntity criarEstado(String acronym) {
-        StateJpaEntity state = new StateJpaEntity();
-        state.setAcronym(acronym);
-        state.setName(STATE_NAMES.getOrDefault(acronym, acronym));
-        return states.saveAndFlush(state);
-    }
-
-    private CityJpaEntity criarCidade(String name, StateJpaEntity state) {
-        CityJpaEntity city = new CityJpaEntity();
-        city.setState(state);
-        city.setName(name);
-        return cities.saveAndFlush(city);
     }
 
     static UserData toData(UserJpaEntity entity) {

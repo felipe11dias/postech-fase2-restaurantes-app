@@ -1,5 +1,7 @@
 package com.postech.restaurantes.adapter.gateway;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import static com.postech.restaurantes.adapter.AdapterFixtures.OFFICE_HOURS;
 import static com.postech.restaurantes.adapter.AdapterFixtures.OFFICE_HOURS_DATA;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,7 +48,7 @@ class RestaurantGatewayTest {
 
         id = UUID.randomUUID();
         userId = UUID.randomUUID();
-        addressData = new AddressData(UUID.randomUUID(), "Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
+        addressData = new AddressData(UUID.randomUUID(), LocationFixtures.cityId("Cidade", "SP"), "Rua A", "10", null, "Bairro", "01000000", LocationFixtures.cityData("Cidade", "SP"));
         data = new RestaurantData(id, userId, addressData, "Sabor", OFFICE_HOURS_DATA,
                 LocalDateTime.now(), LocalDateTime.now());
     }
@@ -82,7 +84,7 @@ class RestaurantGatewayTest {
     void deveInserirEAtualizar() {
         when(dataSource.insert(any())).thenReturn(data);
         when(dataSource.update(any())).thenReturn(data);
-        Address endereco = Address.create("Rua A", "10", null, "Bairro", "Cidade", "sp", "01000-000");
+        Address endereco = Address.create(LocationFixtures.cityId("Cidade", "sp"), "Rua A", "10", null, "Bairro", "01000-000");
         Restaurant r = Restaurant.restore(id, userId, endereco, "Sabor", OFFICE_HOURS, null, null);
 
         Restaurant inserted = gateway.insert(r);
@@ -93,7 +95,7 @@ class RestaurantGatewayTest {
         ArgumentCaptor<RestaurantData> captor = ArgumentCaptor.forClass(RestaurantData.class);
         verify(dataSource).insert(captor.capture());
         assertNull(captor.getValue().address().id());
-        assertEquals("SP", captor.getValue().address().state());
+        assertEquals(LocationFixtures.CITY_ID, captor.getValue().address().cityId());
         assertEquals("01000000", captor.getValue().address().zipCode());
     }
 
