@@ -19,10 +19,11 @@ import com.postech.restaurantes.application.gateway.IMailGateway;
 import com.postech.restaurantes.application.gateway.IPasswordResetTokenGateway;
 import com.postech.restaurantes.application.gateway.ISecureTokenGenerator;
 import com.postech.restaurantes.application.gateway.IUserGateway;
-import com.postech.restaurantes.domain.entity.user.PasswordResetToken;
+import com.postech.restaurantes.domain.entity.password.PasswordResetToken;
 import com.postech.restaurantes.domain.vo.Email;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -64,6 +65,26 @@ class ForgotPasswordUseCaseTest {
         assertEquals(NOW.plus(VALIDITY), token.getExpiresAt());
         assertFalse(token.isUsed());
         verify(mailGateway).sendPasswordReset(Email.of("joao.silva@email.com"), "token-em-claro", VALIDITY);
+    }
+
+    @Test
+    @DisplayName("Quem já tem token recebe o mesmo token reemitido (hash e validade novos), sem inserir outro")
+    void deveReemitirOTokenExistente() {
+        PasswordResetToken anterior = PasswordResetToken.restore(UUID.randomUUID(), USER_ID, "hash-antigo",
+                NOW.minusMinutes(5), true);
+        when(userGateway.findByEmail(any())).thenReturn(Optional.of(existingUser()));
+        when(tokenGateway.findByUserId(USER_ID)).thenReturn(Optional.of(anterior));
+        when(tokenGenerator.generate()).thenReturn("token-novo");
+        when(tokenGenerator.hash("token-novo")).thenReturn("hash-novo");
+
+        useCase.run("joao.silva@email.com");
+
+        verify(tokenGateway).update(anterior);
+        verify(tokenGateway, never()).insert(any());
+        assertEquals("hash-novo", anterior.getTokenHash());
+        assertEquals(NOW.plus(VALIDITY), anterior.getExpiresAt());
+        assertFalse(anterior.isUsed());
+        verify(mailGateway).sendPasswordReset(Email.of("joao.silva@email.com"), "token-novo", VALIDITY);
     }
 
     @Test

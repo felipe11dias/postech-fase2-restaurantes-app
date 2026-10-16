@@ -157,7 +157,9 @@
                   "const sufixo = Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);",
                   "pm.collectionVariables.set(\"userLogin\", \"postman.\" + sufixo);",
                   "pm.collectionVariables.set(\"userEmail\", \"postman.\" + sufixo + \"@email.com\");",
-                  "pm.collectionVariables.set(\"userPassword\", \"senhaSegura123\");"
+                  "pm.collectionVariables.set(\"userPassword\", \"senhaSegura123\");",
+                  "// O CPF gerado para este request fica guardado: o caso de CPF repetido o reusa.",
+                  "pm.collectionVariables.set(\"userCpf\", pm.variables.get(\"cpfGerado\"));"
                 ]
               }
             },
@@ -171,9 +173,14 @@
                   "    const corpo = pm.response.json();",
                   "    pm.test(\"Location aponta para o cadastro criado\", () =>",
                   "        pm.expect(pm.response.headers.get(\"Location\")).to.match(new RegExp(\"/api/v1/users/\" + corpo.id + \"$\")));",
-                  "    pm.test(\"Papel de cliente e CEP normalizado\", () => {",
-                  "        pm.expect(corpo.roles[0].name).to.eql(\"ROLE_CUSTOMER\");",
-                  "        pm.expect(corpo.addresses[0].zipCode).to.eql(\"01001000\");",
+                  "    pm.test(\"Papel derivado do perfil de cliente, CPF sem máscara, endereço padrão rotulado e CEP normalizado\", () => {",
+                  "        pm.expect(corpo.roles).to.eql([\"ROLE_CLIENT\"]);",
+                  "        pm.expect(corpo.client.cpf).to.eql(pm.collectionVariables.get(\"userCpf\"));",
+                  "        pm.expect(corpo.client.birthDate).to.eql(\"1990-05-20\");",
+                  "        pm.expect(corpo.owner).to.eql(null);",
+                  "        pm.expect(corpo.addresses[0].label).to.eql(\"Casa\");",
+                  "        pm.expect(corpo.addresses[0].isDefault).to.eql(true);",
+                  "        pm.expect(corpo.addresses[0].address.zipCode).to.eql(\"01001000\");",
                   "        pm.expect(corpo._links).to.have.property(\"self\");",
                   "    });",
                   "    pm.test(\"A resposta não expõe senha nem hash\", () => {",
@@ -200,7 +207,7 @@
             "url": "{{baseUrl}}/api/v1/users",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"roles\": [\n    \"ROLE_CUSTOMER\"\n  ],\n  \"addresses\": [\n    {\n      \"street\": \"Rua das Flores\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"client\": {\n    \"cpf\": \"{{cpfGerado}}\",\n    \"phone\": \"(11) 91234-5678\",\n    \"birthDate\": \"1990-05-20\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -251,7 +258,7 @@
             "description": "Os casos de 403 miram este cadastro descartável, nunca um usuário da seed: se a regra de posse regredir, o estrago fica nele.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Outro Cliente Postman\",\n  \"email\": \"{{outroLogin}}@email.com\",\n  \"login\": \"{{outroLogin}}\",\n  \"password\": \"senhaSegura123\",\n  \"roles\": [\n    \"ROLE_CUSTOMER\"\n  ],\n  \"addresses\": []\n}",
+              "raw": "{\n  \"name\": \"Outro Cliente Postman\",\n  \"email\": \"{{outroLogin}}@email.com\",\n  \"login\": \"{{outroLogin}}\",\n  \"password\": \"senhaSegura123\",\n  \"client\": {\n    \"cpf\": \"{{cpfGerado}}\",\n    \"phone\": \"(11) 91234-5678\"\n  },\n  \"addresses\": []\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -261,7 +268,102 @@
           }
         },
         {
-          "name": "06 Login do novo usuário",
+          "name": "06 Autocadastro de dono de restaurante",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.test(\"Papel derivado do perfil de dono; CNPJ sem máscara\", () => {",
+                  "        pm.expect(corpo.roles).to.eql([\"ROLE_OWNER\"]);",
+                  "        pm.expect(corpo.owner.cnpj).to.match(/^\\d{14}$/);",
+                  "        pm.expect(corpo.owner.legalName).to.eql(\"Sabor Postman Ltda\");",
+                  "        pm.expect(corpo.client).to.eql(null);",
+                  "    });",
+                  "    pm.collectionVariables.set(\"donoUserId\", corpo.id);",
+                  "} else {",
+                  "    console.error(\"donoUserId não foi obtido (status \" + pm.response.code + \"): execução interrompida\");",
+                  "    postman.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users",
+            "description": "Os casos de 403 miram este cadastro descartável, nunca um usuário da seed: se a regra de posse regredir, o estrago fica nele.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dono Postman\",\n  \"email\": \"dono.{{userEmail}}\",\n  \"login\": \"dono.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"owner\": {\n    \"cnpj\": \"{{cnpjGerado}}\",\n    \"legalName\": \"Sabor Postman Ltda\",\n    \"businessPhone\": \"(11) 3123-4567\"\n  },\n  \"addresses\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "07 Autocadastro de entregador de moto, também cliente (mesmo CPF)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.test(\"Papéis de cliente e entregador; entregador começa fora de serviço\", () => {",
+                  "        pm.expect(corpo.roles).to.eql([\"ROLE_CLIENT\", \"ROLE_COURIER\"]);",
+                  "        pm.expect(corpo.courier.cpf).to.eql(corpo.client.cpf);",
+                  "        pm.expect(corpo.courier.vehicleType).to.eql(\"MOTORCYCLE\");",
+                  "        pm.expect(corpo.courier.vehiclePlate).to.eql(\"ABC1D23\");",
+                  "        pm.expect(corpo.courier.status).to.eql(\"OFFLINE\");",
+                  "    });",
+                  "    pm.collectionVariables.set(\"entregadorUserId\", corpo.id);",
+                  "} else {",
+                  "    console.error(\"entregadorUserId não foi obtido (status \" + pm.response.code + \"): execução interrompida\");",
+                  "    postman.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users",
+            "description": "Os casos de 403 miram este cadastro descartável, nunca um usuário da seed: se a regra de posse regredir, o estrago fica nele.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Entregador Postman\",\n  \"email\": \"entregador.{{userEmail}}\",\n  \"login\": \"entregador.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"client\": {\n    \"cpf\": \"{{cpfGerado}}\",\n    \"phone\": \"(11) 91234-5678\"\n  },\n  \"courier\": {\n    \"cpf\": \"{{cpfGerado}}\",\n    \"phone\": \"(11) 91234-5678\",\n    \"vehicleType\": \"MOTORCYCLE\",\n    \"driverLicense\": \"{{cnhGerada}}\",\n    \"vehiclePlate\": \"abc1d23\"\n  },\n  \"addresses\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "08 Login do novo usuário",
           "event": [
             {
               "listen": "test",
@@ -306,7 +408,7 @@
           }
         },
         {
-          "name": "07 Autocadastro com campos inválidos",
+          "name": "09 Autocadastro com campos inválidos",
           "event": [
             {
               "listen": "test",
@@ -343,7 +445,7 @@
             "url": "{{baseUrl}}/api/v1/users",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"\",\n  \"email\": \"nao-e-email\",\n  \"login\": \"\",\n  \"password\": \"123\",\n  \"roles\": [\n    \"ROLE_CUSTOMER\"\n  ],\n  \"addresses\": []\n}",
+              "raw": "{\n  \"name\": \"\",\n  \"email\": \"nao-e-email\",\n  \"login\": \"\",\n  \"password\": \"123\",\n  \"addresses\": []\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -353,7 +455,7 @@
           }
         },
         {
-          "name": "08 Autocadastro com papel inexistente",
+          "name": "10 Autocadastro com CPF inválido",
           "event": [
             {
               "listen": "test",
@@ -367,7 +469,8 @@
                   "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
                   "    pm.expect(p.status).to.eql(400);",
                   "    pm.expect(p).to.have.property(\"timestamp\");",
-                  "});"
+                  "});",
+                  "pm.test(\"Mensagem: CPF inválido\", () => pm.expect(pm.response.json().detail).to.eql(\"CPF inválido\"));"
                 ]
               }
             }
@@ -383,7 +486,7 @@
             "url": "{{baseUrl}}/api/v1/users",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"papel.{{userEmail}}\",\n  \"login\": \"papel.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"roles\": [\n    \"ROLE_GERENTE\"\n  ],\n  \"addresses\": [\n    {\n      \"street\": \"Rua das Flores\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"cpf.{{userEmail}}\",\n  \"login\": \"cpf.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"client\": {\n    \"cpf\": \"529.982.247-26\",\n    \"phone\": \"(11) 91234-5678\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -393,21 +496,22 @@
           }
         },
         {
-          "name": "09 Autocadastro pedindo ROLE_ADMIN",
+          "name": "11 Autocadastro sem nenhum perfil",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
-                  "pm.test(\"ProblemDetail operacao-nao-permitida\", () => {",
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
                   "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
                   "    const p = pm.response.json();",
-                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:operacao-nao-permitida\");",
-                  "    pm.expect(p.status).to.eql(403);",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
                   "    pm.expect(p).to.have.property(\"timestamp\");",
-                  "});"
+                  "});",
+                  "pm.test(\"Mensagem: Usuário deve ter ao menos um perfil\", () => pm.expect(pm.response.json().detail).to.eql(\"Usuário deve ter ao menos um perfil\"));"
                 ]
               }
             }
@@ -423,7 +527,7 @@
             "url": "{{baseUrl}}/api/v1/users",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"admin.{{userEmail}}\",\n  \"login\": \"admin.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"roles\": [\n    \"ROLE_ADMIN\"\n  ],\n  \"addresses\": [\n    {\n      \"street\": \"Rua das Flores\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"semperfil.{{userEmail}}\",\n  \"login\": \"semperfil.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -433,7 +537,48 @@
           }
         },
         {
-          "name": "10 Autocadastro com e-mail já cadastrado",
+          "name": "12 Autocadastro de entregador de moto sem CNH",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: Moto e carro exigem CNH e placa\", () => pm.expect(pm.response.json().detail).to.eql(\"Moto e carro exigem CNH e placa\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"moto.{{userEmail}}\",\n  \"login\": \"moto.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"courier\": {\n    \"cpf\": \"{{cpfGerado}}\",\n    \"phone\": \"(11) 91234-5678\",\n    \"vehicleType\": \"MOTORCYCLE\",\n    \"vehiclePlate\": \"ABC1D23\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "13 Autocadastro com e-mail já cadastrado",
           "event": [
             {
               "listen": "test",
@@ -447,7 +592,8 @@
                   "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:conflito-de-dados\");",
                   "    pm.expect(p.status).to.eql(409);",
                   "    pm.expect(p).to.have.property(\"timestamp\");",
-                  "});"
+                  "});",
+                  "pm.test(\"Mensagem: E-mail já cadastrado\", () => pm.expect(pm.response.json().detail).to.eql(\"E-mail já cadastrado\"));"
                 ]
               }
             }
@@ -463,7 +609,89 @@
             "url": "{{baseUrl}}/api/v1/users",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"outro.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"roles\": [\n    \"ROLE_CUSTOMER\"\n  ],\n  \"addresses\": [\n    {\n      \"street\": \"Rua das Flores\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"outro.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"client\": {\n    \"cpf\": \"{{cpfGerado}}\",\n    \"phone\": \"(11) 91234-5678\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "14 Autocadastro com CPF já cadastrado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"ProblemDetail conflito-de-dados\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:conflito-de-dados\");",
+                  "    pm.expect(p.status).to.eql(409);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: CPF já cadastrado\", () => pm.expect(pm.response.json().detail).to.eql(\"CPF já cadastrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"cpfdup.{{userEmail}}\",\n  \"login\": \"cpfdup.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"client\": {\n    \"cpf\": \"{{userCpf}}\",\n    \"phone\": \"(11) 91234-5678\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "15 Autocadastro de dono com o CNPJ do dono da seed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"ProblemDetail conflito-de-dados\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:conflito-de-dados\");",
+                  "    pm.expect(p.status).to.eql(409);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: CNPJ já cadastrado\", () => pm.expect(pm.response.json().detail).to.eql(\"CNPJ já cadastrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"cnpjdup.{{userEmail}}\",\n  \"login\": \"cnpjdup.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"owner\": {\n    \"cnpj\": \"04.252.011/0001-10\",\n    \"legalName\": \"Outra Razão Social Ltda\",\n    \"businessPhone\": \"(11) 3123-4567\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -479,7 +707,7 @@
       "description": "Só o próprio usuário ou um administrador.",
       "item": [
         {
-          "name": "11 Consulta do próprio cadastro",
+          "name": "16 Consulta do próprio cadastro",
           "event": [
             {
               "listen": "test",
@@ -508,7 +736,7 @@
           }
         },
         {
-          "name": "12 Consulta sem token",
+          "name": "17 Consulta sem token",
           "event": [
             {
               "listen": "test",
@@ -534,7 +762,7 @@
           }
         },
         {
-          "name": "13 Consulta com id que não é UUID",
+          "name": "18 Consulta com id que não é UUID",
           "event": [
             {
               "listen": "test",
@@ -565,7 +793,7 @@
           }
         },
         {
-          "name": "14 Consulta do cadastro de outro usuário",
+          "name": "19 Consulta do cadastro de outro usuário",
           "event": [
             {
               "listen": "test",
@@ -596,7 +824,7 @@
           }
         },
         {
-          "name": "15 Administrador consulta usuário inexistente",
+          "name": "20 Administrador consulta usuário inexistente",
           "event": [
             {
               "listen": "test",
@@ -633,7 +861,7 @@
       "description": "Paginada, com busca parcial por nome. Só administrador.",
       "item": [
         {
-          "name": "16 Administrador lista com busca e paginação",
+          "name": "21 Administrador lista com busca e paginação",
           "event": [
             {
               "listen": "test",
@@ -667,7 +895,7 @@
           }
         },
         {
-          "name": "17 Listagem com tamanho de página acima do limite",
+          "name": "22 Listagem com tamanho de página acima do limite",
           "event": [
             {
               "listen": "test",
@@ -698,7 +926,7 @@
           }
         },
         {
-          "name": "18 Listagem sem token",
+          "name": "23 Listagem sem token",
           "event": [
             {
               "listen": "test",
@@ -724,7 +952,7 @@
           }
         },
         {
-          "name": "19 Usuário comum tenta listar",
+          "name": "24 Usuário comum tenta listar",
           "event": [
             {
               "listen": "test",
@@ -761,7 +989,7 @@
       "description": "Substitui nome, e-mail, login e endereços. Não altera senha nem papéis.",
       "item": [
         {
-          "name": "20 Atualização do próprio cadastro",
+          "name": "25 Atualização do próprio cadastro",
           "event": [
             {
               "listen": "test",
@@ -773,7 +1001,9 @@
                   "pm.test(\"Nome e endereço novos\", () => {",
                   "    pm.expect(corpo.name).to.eql(\"Cliente Postman Atualizado\");",
                   "    pm.expect(corpo.addresses).to.have.lengthOf(1);",
-                  "    pm.expect(corpo.addresses[0].street).to.eql(\"Avenida Paulista\");",
+                  "    pm.expect(corpo.addresses[0].label).to.eql(\"Trabalho\");",
+                  "    pm.expect(corpo.addresses[0].isDefault).to.eql(true);",
+                  "    pm.expect(corpo.addresses[0].address.street).to.eql(\"Avenida Paulista\");",
                   "});",
                   "pm.test(\"A resposta não expõe senha nem hash\", () => {",
                   "    pm.expect(pm.response.json()).to.not.have.property(\"password\");",
@@ -798,7 +1028,7 @@
             "url": "{{baseUrl}}/api/v1/users/{{userId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"street\": \"Avenida Paulista\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Trabalho\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Avenida Paulista\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -808,7 +1038,7 @@
           }
         },
         {
-          "name": "21 Atualização com campos inválidos",
+          "name": "26 Atualização com campos inválidos",
           "event": [
             {
               "listen": "test",
@@ -857,7 +1087,7 @@
           }
         },
         {
-          "name": "22 Atualização sem token",
+          "name": "27 Atualização sem token",
           "event": [
             {
               "listen": "test",
@@ -887,7 +1117,7 @@
             "url": "{{baseUrl}}/api/v1/users/{{userId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"street\": \"Avenida Paulista\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Avenida Paulista\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -897,7 +1127,7 @@
           }
         },
         {
-          "name": "23 Atualização do cadastro de outro usuário",
+          "name": "28 Atualização do cadastro de outro usuário",
           "event": [
             {
               "listen": "test",
@@ -931,7 +1161,7 @@
             "url": "{{baseUrl}}/api/v1/users/{{outroUserId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"street\": \"Avenida Paulista\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Avenida Paulista\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -941,7 +1171,7 @@
           }
         },
         {
-          "name": "24 Administrador atualiza usuário inexistente",
+          "name": "29 Administrador atualiza usuário inexistente",
           "event": [
             {
               "listen": "test",
@@ -975,7 +1205,7 @@
             "url": "{{baseUrl}}/api/v1/users/00000000-0000-4000-8000-000000000000",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"ninguem.{{userEmail}}\",\n  \"login\": \"ninguem.{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"street\": \"Avenida Paulista\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"ninguem.{{userEmail}}\",\n  \"login\": \"ninguem.{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Avenida Paulista\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -985,7 +1215,7 @@
           }
         },
         {
-          "name": "25 Atualização com e-mail de outro cadastro",
+          "name": "30 Atualização com e-mail de outro cadastro",
           "event": [
             {
               "listen": "test",
@@ -1019,7 +1249,7 @@
             "url": "{{baseUrl}}/api/v1/users/{{userId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"cliente.demo@email.com\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"street\": \"Avenida Paulista\",\n      \"number\": \"100\",\n      \"complement\": \"Apto 21\",\n      \"neighborhood\": \"Centro\",\n      \"city\": \"São Paulo\",\n      \"state\": \"SP\",\n      \"zipCode\": \"01001-000\"\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"cliente.demo@email.com\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Avenida Paulista\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1035,7 +1265,7 @@
       "description": "Exige a senha atual. Atualiza {{userPassword}} e {{token}}.",
       "item": [
         {
-          "name": "26 Troca com senha atual incorreta",
+          "name": "31 Troca com senha atual incorreta",
           "event": [
             {
               "listen": "test",
@@ -1079,7 +1309,7 @@
           }
         },
         {
-          "name": "27 Troca com campos ausentes",
+          "name": "32 Troca com campos ausentes",
           "event": [
             {
               "listen": "test",
@@ -1129,7 +1359,7 @@
           }
         },
         {
-          "name": "28 Troca sem token",
+          "name": "33 Troca sem token",
           "event": [
             {
               "listen": "test",
@@ -1169,7 +1399,7 @@
           }
         },
         {
-          "name": "29 Troca da senha de outro usuário",
+          "name": "34 Troca da senha de outro usuário",
           "event": [
             {
               "listen": "test",
@@ -1213,7 +1443,7 @@
           }
         },
         {
-          "name": "30 Administrador troca a senha de usuário inexistente",
+          "name": "35 Administrador troca a senha de usuário inexistente",
           "event": [
             {
               "listen": "test",
@@ -1257,7 +1487,7 @@
           }
         },
         {
-          "name": "31 Troca de senha",
+          "name": "36 Troca de senha",
           "event": [
             {
               "listen": "test",
@@ -1295,7 +1525,7 @@
           }
         },
         {
-          "name": "32 Login com a senha nova",
+          "name": "37 Login com a senha nova",
           "event": [
             {
               "listen": "test",
@@ -1346,7 +1576,7 @@
       "description": "O token só existe no corpo do e-mail. As requisições ao Mailpit ({{mailpitUrl}}) fazem o que o usuário faria: abrir a caixa de entrada e copiar o token.",
       "item": [
         {
-          "name": "33 Esqueci minha senha",
+          "name": "38 Esqueci minha senha",
           "event": [
             {
               "listen": "test",
@@ -1379,7 +1609,7 @@
           }
         },
         {
-          "name": "34 Esqueci minha senha com e-mail desconhecido (mesma resposta)",
+          "name": "39 Esqueci minha senha com e-mail desconhecido (mesma resposta)",
           "event": [
             {
               "listen": "test",
@@ -1413,7 +1643,7 @@
           }
         },
         {
-          "name": "35 Esqueci minha senha com e-mail malformado",
+          "name": "40 Esqueci minha senha com e-mail malformado",
           "event": [
             {
               "listen": "test",
@@ -1457,7 +1687,7 @@
           }
         },
         {
-          "name": "36 Mailpit: localiza o e-mail de redefinição",
+          "name": "41 Mailpit: localiza o e-mail de redefinição",
           "event": [
             {
               "listen": "prerequest",
@@ -1508,7 +1738,7 @@
           }
         },
         {
-          "name": "37 Mailpit: lê o token no corpo do e-mail",
+          "name": "42 Mailpit: lê o token no corpo do e-mail",
           "event": [
             {
               "listen": "test",
@@ -1530,7 +1760,7 @@
           }
         },
         {
-          "name": "38 Redefinição com confirmação divergente",
+          "name": "43 Redefinição com confirmação divergente",
           "event": [
             {
               "listen": "test",
@@ -1570,7 +1800,7 @@
           }
         },
         {
-          "name": "39 Redefinição com campos ausentes",
+          "name": "44 Redefinição com campos ausentes",
           "event": [
             {
               "listen": "test",
@@ -1616,7 +1846,7 @@
           }
         },
         {
-          "name": "40 Redefinição com token desconhecido",
+          "name": "45 Redefinição com token desconhecido",
           "event": [
             {
               "listen": "test",
@@ -1656,7 +1886,7 @@
           }
         },
         {
-          "name": "41 Redefinição de senha",
+          "name": "46 Redefinição de senha",
           "event": [
             {
               "listen": "test",
@@ -1690,7 +1920,7 @@
           }
         },
         {
-          "name": "42 Reuso do mesmo token",
+          "name": "47 Reuso do mesmo token",
           "event": [
             {
               "listen": "test",
@@ -1730,7 +1960,7 @@
           }
         },
         {
-          "name": "43 Login com a senha redefinida",
+          "name": "48 Login com a senha redefinida",
           "event": [
             {
               "listen": "test",
@@ -1777,11 +2007,1533 @@
       ]
     },
     {
-      "name": "08 Exclusão (DELETE /api/v1/users/{id})",
+      "name": "08 Perfis (PUT, DELETE e PATCH /api/v1/users/{id}/profiles)",
+      "item": [
+        {
+          "name": "49 Inclusão do perfil de dono no próprio cadastro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.test(\"Papéis de dono e cliente; CNPJ sem máscara\", () => {",
+                  "        pm.expect(corpo.roles).to.eql([\"ROLE_OWNER\", \"ROLE_CLIENT\"]);",
+                  "        pm.expect(corpo.owner.cnpj).to.match(/^\\d{14}$/);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/owner",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cnpj\": \"{{cnpjGerado}}\",\n  \"legalName\": \"Sabor Postman Ltda\",\n  \"businessPhone\": \"(11) 3123-4567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "O papel novo vale na hora: a autorização lê os perfis do cadastro a cada requisição."
+          }
+        },
+        {
+          "name": "50 Perfil de dono com CNPJ inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: CNPJ inválido\", () => pm.expect(pm.response.json().detail).to.eql(\"CNPJ inválido\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/owner",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cnpj\": \"11.222.333/0001-82\",\n  \"legalName\": \"Sabor Postman Ltda\",\n  \"businessPhone\": \"(11) 3123-4567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "51 Perfil de dono sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:nao-autenticado\");",
+                  "    pm.expect(p.status).to.eql(401);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/owner",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cnpj\": \"{{cnpjGerado}}\",\n  \"legalName\": \"Sabor Postman Ltda\",\n  \"businessPhone\": \"(11) 3123-4567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "52 Perfil de dono no cadastro de outro usuário",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:acesso-negado\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{outroUserId}}/profiles/owner",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cnpj\": \"{{cnpjGerado}}\",\n  \"legalName\": \"Sabor Postman Ltda\",\n  \"businessPhone\": \"(11) 3123-4567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "53 Administrador inclui perfil de dono em usuário inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\");",
+                  "    pm.expect(p.status).to.eql(404);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: Usuário não encontrado\", () => pm.expect(pm.response.json().detail).to.eql(\"Usuário não encontrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/00000000-0000-4000-8000-000000000000/profiles/owner",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cnpj\": \"{{cnpjGerado}}\",\n  \"legalName\": \"Sabor Postman Ltda\",\n  \"businessPhone\": \"(11) 3123-4567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "54 Perfil de dono com o CNPJ do dono da seed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"ProblemDetail conflito-de-dados\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:conflito-de-dados\");",
+                  "    pm.expect(p.status).to.eql(409);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: CNPJ já cadastrado\", () => pm.expect(pm.response.json().detail).to.eql(\"CNPJ já cadastrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/owner",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cnpj\": \"04.252.011/0001-10\",\n  \"legalName\": \"Sabor Postman Ltda\",\n  \"businessPhone\": \"(11) 3123-4567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "55 Alteração do perfil de cliente do próprio cadastro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.test(\"Telefone novo, o mesmo CPF\", () => {",
+                  "        pm.expect(corpo.client.phone).to.eql(\"1133334444\");",
+                  "        pm.expect(corpo.client.cpf).to.eql(pm.collectionVariables.get(\"userCpf\"));",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/client",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"{{userCpf}}\",\n  \"phone\": \"(11) 3333-4444\",\n  \"birthDate\": \"1990-05-20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "56 Perfil de cliente com nascimento futuro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: Data de nascimento não pode ser futura\", () => pm.expect(pm.response.json().detail).to.eql(\"Data de nascimento não pode ser futura\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/client",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"{{userCpf}}\",\n  \"phone\": \"(11) 3333-4444\",\n  \"birthDate\": \"2999-01-01\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "57 Perfil de cliente sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:nao-autenticado\");",
+                  "    pm.expect(p.status).to.eql(401);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/client",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"{{userCpf}}\",\n  \"phone\": \"(11) 3333-4444\",\n  \"birthDate\": \"1990-05-20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "58 Perfil de cliente no cadastro de outro usuário",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:acesso-negado\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{outroUserId}}/profiles/client",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"{{userCpf}}\",\n  \"phone\": \"(11) 3333-4444\",\n  \"birthDate\": \"1990-05-20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "59 Administrador inclui perfil de cliente em usuário inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\");",
+                  "    pm.expect(p.status).to.eql(404);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: Usuário não encontrado\", () => pm.expect(pm.response.json().detail).to.eql(\"Usuário não encontrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/00000000-0000-4000-8000-000000000000/profiles/client",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"{{userCpf}}\",\n  \"phone\": \"(11) 3333-4444\",\n  \"birthDate\": \"1990-05-20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "60 Administrador dá ao dono criado pela coleção o CPF do cliente da seed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"ProblemDetail conflito-de-dados\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:conflito-de-dados\");",
+                  "    pm.expect(p.status).to.eql(409);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: CPF já cadastrado\", () => pm.expect(pm.response.json().detail).to.eql(\"CPF já cadastrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{donoUserId}}/profiles/client",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"529.982.247-25\",\n  \"phone\": \"(11) 91234-5678\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "61 Inclusão do perfil de entregador no próprio cadastro (o CPF do cliente)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.test(\"Papel de entregador; começa fora de serviço\", () => {",
+                  "        pm.expect(corpo.roles).to.include(\"ROLE_COURIER\");",
+                  "        pm.expect(corpo.courier.cpf).to.eql(corpo.client.cpf);",
+                  "        pm.expect(corpo.courier.status).to.eql(\"OFFLINE\");",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/courier",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"{{userCpf}}\",\n  \"phone\": \"(11) 91234-5678\",\n  \"vehicleType\": \"BICYCLE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "62 Perfil de entregador de carro sem placa",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: Moto e carro exigem CNH e placa\", () => pm.expect(pm.response.json().detail).to.eql(\"Moto e carro exigem CNH e placa\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/courier",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"{{userCpf}}\",\n  \"phone\": \"(11) 91234-5678\",\n  \"vehicleType\": \"CAR\",\n  \"driverLicense\": \"{{cnhGerada}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "63 Perfil de entregador sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:nao-autenticado\");",
+                  "    pm.expect(p.status).to.eql(401);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/courier",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"{{userCpf}}\",\n  \"phone\": \"(11) 91234-5678\",\n  \"vehicleType\": \"BICYCLE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "64 Perfil de entregador no cadastro de outro usuário",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:acesso-negado\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{outroUserId}}/profiles/courier",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"{{userCpf}}\",\n  \"phone\": \"(11) 91234-5678\",\n  \"vehicleType\": \"BICYCLE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "65 Administrador inclui perfil de entregador em usuário inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\");",
+                  "    pm.expect(p.status).to.eql(404);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: Usuário não encontrado\", () => pm.expect(pm.response.json().detail).to.eql(\"Usuário não encontrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/00000000-0000-4000-8000-000000000000/profiles/courier",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"{{userCpf}}\",\n  \"phone\": \"(11) 91234-5678\",\n  \"vehicleType\": \"BICYCLE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "66 Administrador dá ao dono criado pela coleção um entregador com o CPF do cliente da seed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"ProblemDetail conflito-de-dados\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:conflito-de-dados\");",
+                  "    pm.expect(p.status).to.eql(409);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: CPF já cadastrado\", () => pm.expect(pm.response.json().detail).to.eql(\"CPF já cadastrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{donoUserId}}/profiles/courier",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"529.982.247-25\",\n  \"phone\": \"(11) 91234-5678\",\n  \"vehicleType\": \"BICYCLE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "67 Administrador inclui o perfil de administrador no dono criado pela coleção",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.test(\"Papéis de dono e administrador\", () => {",
+                  "        pm.expect(corpo.roles).to.eql([\"ROLE_OWNER\", \"ROLE_ADMIN\"]);",
+                  "        pm.expect(corpo.admin.department).to.eql(\"Suporte\");",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{donoUserId}}/profiles/admin",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeCode\": \"ADM-{{cnhGerada}}\",\n  \"department\": \"Suporte\",\n  \"superAdmin\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "68 Perfil de administrador sem código de funcionário",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{donoUserId}}/profiles/admin",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeCode\": \"\",\n  \"department\": \"Suporte\",\n  \"superAdmin\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "69 Perfil de administrador sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:nao-autenticado\");",
+                  "    pm.expect(p.status).to.eql(401);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/admin",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeCode\": \"ADM-{{cnhGerada}}\",\n  \"department\": \"Suporte\",\n  \"superAdmin\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "70 Usuário comum tenta se tornar administrador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:acesso-negado\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/admin",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeCode\": \"ADM-{{cnhGerada}}\",\n  \"department\": \"Suporte\",\n  \"superAdmin\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Nem o próprio usuário se dá o perfil de administrador."
+          }
+        },
+        {
+          "name": "71 Administrador inclui perfil de administrador em usuário inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\");",
+                  "    pm.expect(p.status).to.eql(404);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: Usuário não encontrado\", () => pm.expect(pm.response.json().detail).to.eql(\"Usuário não encontrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/00000000-0000-4000-8000-000000000000/profiles/admin",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeCode\": \"ADM-{{cnhGerada}}\",\n  \"department\": \"Suporte\",\n  \"superAdmin\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "72 Perfil de administrador com o código do administrador da seed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"ProblemDetail conflito-de-dados\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:conflito-de-dados\");",
+                  "    pm.expect(p.status).to.eql(409);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{entregadorUserId}}/profiles/admin",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeCode\": \"ADM-0001\",\n  \"department\": \"Suporte\",\n  \"superAdmin\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "73 Entregador fica disponível",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.test(\"Status novo\", () => pm.expect(corpo.courier.status).to.eql(\"AVAILABLE\"));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/courier/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"AVAILABLE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "74 Status de entregador desconhecido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: Status do entregador inválido: DORMINDO\", () => pm.expect(pm.response.json().detail).to.eql(\"Status do entregador inválido: DORMINDO\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/courier/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"DORMINDO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "75 Status de entregador sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:nao-autenticado\");",
+                  "    pm.expect(p.status).to.eql(401);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/courier/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"BUSY\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "76 Status do entregador de outro usuário",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:acesso-negado\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{outroUserId}}/profiles/courier/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"BUSY\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "77 Administrador troca o status de quem não é entregador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\");",
+                  "    pm.expect(p.status).to.eql(404);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: O usuário não tem perfil de entregador\", () => pm.expect(pm.response.json().detail).to.eql(\"O usuário não tem perfil de entregador\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{donoUserId}}/profiles/courier/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"BUSY\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "78 Remoção do perfil de entregador do próprio cadastro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/courier"
+          }
+        },
+        {
+          "name": "79 Remoção de tipo de perfil desconhecido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(p.status).to.eql(400);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: Tipo de perfil inválido: gerente\", () => pm.expect(pm.response.json().detail).to.eql(\"Tipo de perfil inválido: gerente\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/gerente"
+          }
+        },
+        {
+          "name": "80 Remoção de perfil sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:nao-autenticado\");",
+                  "    pm.expect(p.status).to.eql(401);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/client"
+          }
+        },
+        {
+          "name": "81 Remoção de perfil do cadastro de outro usuário",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:acesso-negado\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{outroUserId}}/profiles/client"
+          }
+        },
+        {
+          "name": "82 Remoção de perfil que o usuário não tem",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\");",
+                  "    pm.expect(p.status).to.eql(404);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: O usuário não tem perfil de entregador\", () => pm.expect(pm.response.json().detail).to.eql(\"O usuário não tem perfil de entregador\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{userId}}/profiles/courier",
+            "description": "O perfil de entregador acabou de sair."
+          }
+        },
+        {
+          "name": "83 Administrador cadastra restaurante para o dono criado pela coleção",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "    pm.collectionVariables.set(\"donoRestaurantId\", pm.response.json().id);",
+                  "} else {",
+                  "    console.error(\"donoRestaurantId não foi obtido (status \" + pm.response.code + \"): execução interrompida\");",
+                  "    postman.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{donoUserId}}\",\n  \"address\": {\n    \"street\": \"Rua do Dono Postman\",\n    \"number\": \"10\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001-000\"\n  },\n  \"name\": \"Restaurante do Dono Postman\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Preparação do caso seguinte: o perfil de dono não sai enquanto houver restaurante."
+          }
+        },
+        {
+          "name": "84 Administrador tenta remover o perfil de dono de quem tem restaurante",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"ProblemDetail recurso-em-uso\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:recurso-em-uso\");",
+                  "    pm.expect(p.status).to.eql(409);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: O perfil de dono não pode ser removido enquanto o usuário tiver restaurantes\", () =>",
+                  "    pm.expect(pm.response.json().detail).to.eql(\"O perfil de dono não pode ser removido enquanto o usuário tiver restaurantes\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{donoUserId}}/profiles/owner",
+            "description": "Mira o dono criado pela coleção, nunca a seed: se a regra regredir, o estrago fica nele."
+          }
+        },
+        {
+          "name": "85 Administrador exclui o restaurante do dono criado pela coleção",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{donoRestaurantId}}",
+            "description": "A coleção apaga o que cria."
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Exclusão (DELETE /api/v1/users/{id})",
       "description": "Remove também endereços e tokens de redefinição.",
       "item": [
         {
-          "name": "44 Exclusão sem token",
+          "name": "86 Exclusão sem token",
           "event": [
             {
               "listen": "test",
@@ -1807,7 +3559,7 @@
           }
         },
         {
-          "name": "45 Exclusão do cadastro de outro usuário",
+          "name": "87 Exclusão do cadastro de outro usuário",
           "event": [
             {
               "listen": "test",
@@ -1838,7 +3590,7 @@
           }
         },
         {
-          "name": "46 Administrador exclui usuário inexistente",
+          "name": "88 Administrador exclui usuário inexistente",
           "event": [
             {
               "listen": "test",
@@ -1869,7 +3621,7 @@
           }
         },
         {
-          "name": "47 Administrador exclui o cadastro de outro usuário",
+          "name": "89 Administrador exclui o cadastro de outro usuário",
           "event": [
             {
               "listen": "test",
@@ -1894,7 +3646,122 @@
           }
         },
         {
-          "name": "48 Exclusão do próprio cadastro",
+          "name": "90 Administrador exclui o dono criado pela coleção",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{donoUserId}}",
+            "description": "A coleção apaga o que cria: o perfil de dono sai junto com o usuário."
+          }
+        },
+        {
+          "name": "91 Administrador exclui o entregador criado pela coleção",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{entregadorUserId}}",
+            "description": "A coleção apaga o que cria: os perfis de cliente e de entregador saem junto com o usuário."
+          }
+        },
+        {
+          "name": "92 Administrador tenta excluir o próprio cadastro, sendo o último administrador",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Só a seed pode ser o último administrador, e a coleção nunca mira a seed num pedido que daria certo:",
+                  "// o alvo só passa a ser o administrador da seed quando a listagem confirma que ele é o único. Se o banco",
+                  "// tem outro administrador (deixado, por exemplo, por uma execução interrompida antes de a coleção apagar",
+                  "// o dono que ela tornou administrador), o pedido vai para um id inexistente e as asserções ficam como",
+                  "// puladas: nada é apagado, e a coleção continua podendo rodar de novo.",
+                  "const SEED_ADMIN = \"a0000000-0000-4000-8000-000000000003\";",
+                  "pm.collectionVariables.set(\"ultimoAdminId\", \"00000000-0000-4000-8000-000000000000\");",
+                  "pm.collectionVariables.set(\"ultimoAdminConfirmado\", \"false\");",
+                  "pm.sendRequest({",
+                  "    url: pm.collectionVariables.get(\"baseUrl\") + \"/api/v1/users?page=0&size=100\",",
+                  "    header: { Authorization: \"Bearer \" + pm.collectionVariables.get(\"adminToken\") }",
+                  "}, (erro, resposta) => {",
+                  "    if (erro || resposta.code !== 200) return;",
+                  "    const corpo = resposta.json();",
+                  "    const usuarios = (corpo._embedded && corpo._embedded.userResponseList) || [];",
+                  "    const admins = usuarios.filter(u => u.admin);",
+                  "    if (corpo.page.totalElements <= 100 && admins.length === 1 && admins[0].id === SEED_ADMIN) {",
+                  "        pm.collectionVariables.set(\"ultimoAdminId\", SEED_ADMIN);",
+                  "        pm.collectionVariables.set(\"ultimoAdminConfirmado\", \"true\");",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sem a pré-condição confirmada (outro administrador no banco), o caso não se aplica: as asserções ficam puladas.",
+                  "const caso = pm.collectionVariables.get(\"ultimoAdminConfirmado\") === \"true\" ? pm.test : pm.test.skip;",
+                  "caso(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "caso(\"ProblemDetail recurso-em-uso\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:recurso-em-uso\");",
+                  "    pm.expect(p.status).to.eql(409);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "caso(\"Mensagem: O último administrador não pode ser excluído\", () =>",
+                  "    pm.expect(pm.response.json().detail).to.eql(\"O último administrador não pode ser excluído\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{ultimoAdminId}}",
+            "description": "Excluídos o dono (que a coleção tornou administrador) e o entregador, sobra só o administrador da seed. Sem administrador, ninguém mais concederia o perfil: a exclusão é recusada com 409. Se o banco tiver outro administrador, o caso não se aplica e as asserções ficam puladas."
+          }
+        },
+        {
+          "name": "93 Exclusão do próprio cadastro",
           "event": [
             {
               "listen": "test",
@@ -1918,7 +3785,7 @@
           }
         },
         {
-          "name": "49 Consulta após a exclusão",
+          "name": "94 Consulta após a exclusão",
           "event": [
             {
               "listen": "test",
@@ -1951,11 +3818,11 @@
       ]
     },
     {
-      "name": "09 Erros transversais",
+      "name": "10 Erros transversais",
       "description": "Tratados pelo mesmo GlobalExceptionHandler, em qualquer endpoint.",
       "item": [
         {
-          "name": "50 Corpo JSON malformado",
+          "name": "95 Corpo JSON malformado",
           "event": [
             {
               "listen": "test",
@@ -1995,7 +3862,7 @@
           }
         },
         {
-          "name": "51 Método não suportado",
+          "name": "96 Método não suportado",
           "event": [
             {
               "listen": "test",
@@ -2021,7 +3888,7 @@
           }
         },
         {
-          "name": "52 Token malformado",
+          "name": "97 Token malformado",
           "event": [
             {
               "listen": "prerequest",
@@ -2058,11 +3925,11 @@
       ]
     },
     {
-      "name": "10 Restaurantes — Login e Preparação do Dono",
+      "name": "11 Restaurantes — Login e Preparação do Dono",
       "description": "Obtém o token do dono de restaurante da seed e seu endereço.",
       "item": [
         {
-          "name": "53 Login do dono do restaurante da seed",
+          "name": "98 Login do dono do restaurante da seed",
           "event": [
             {
               "listen": "test",
@@ -2110,7 +3977,7 @@
           }
         },
         {
-          "name": "54 Consulta do perfil do dono para obter id e endereço",
+          "name": "99 Consulta do perfil do dono para obter o id",
           "event": [
             {
               "listen": "test",
@@ -2121,7 +3988,6 @@
                   "if (pm.response.code === 200) {",
                   "    const corpo = pm.response.json();",
                   "    pm.collectionVariables.set(\"ownerUserId\", corpo.id);",
-                  "    pm.collectionVariables.set(\"ownerAddressId\", corpo.addresses[0].id);",
                   "}"
                 ]
               }
@@ -2148,15 +4014,106 @@
               ]
             }
           }
+        },
+        {
+          "name": "100 Autocadastro de um segundo dono (alvo dos casos de posse)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const sufixo = Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);",
+                  "pm.collectionVariables.set(\"outroDonoLogin\", \"postman.dono2.\" + sufixo);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.collectionVariables.set(\"outroDonoUserId\", corpo.id);",
+                  "} else {",
+                  "    console.error(\"outroDonoUserId não foi obtido (status \" + pm.response.code + \"): execução interrompida\");",
+                  "    postman.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Segundo Dono Postman\",\n  \"email\": \"{{outroDonoLogin}}@email.com\",\n  \"login\": \"{{outroDonoLogin}}\",\n  \"password\": \"senhaSegura123\",\n  \"owner\": {\n    \"cnpj\": \"{{cnpjGerado}}\",\n    \"legalName\": \"Segundo Dono Ltda\",\n    \"businessPhone\": \"(11) 3123-4567\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "A coleção cria e, no fim, exclui este dono."
+          }
+        },
+        {
+          "name": "101 Login do segundo dono",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.collectionVariables.set(\"outroDonoToken\", corpo.token);",
+                  "} else {",
+                  "    console.error(\"outroDonoToken não foi obtido (status \" + pm.response.code + \"): execução interrompida\");",
+                  "    postman.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{outroDonoLogin}}\",\n  \"password\": \"senhaSegura123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
         }
       ]
     },
     {
-      "name": "11 Restaurantes — Cadastro (POST /api/v1/restaurants)",
+      "name": "12 Restaurantes — Cadastro (POST /api/v1/restaurants)",
       "description": "Criação de novos restaurantes.",
       "item": [
         {
-          "name": "55 Cadastro de restaurante pelo dono",
+          "name": "102 Cadastro de restaurante pelo dono",
           "event": [
             {
               "listen": "test",
@@ -2168,6 +4125,19 @@
                   "if (pm.response.code === 201) {",
                   "    const corpo = pm.response.json();",
                   "    pm.collectionVariables.set(\"restaurantId\", corpo.id);",
+                  "    pm.collectionVariables.set(\"restaurantAddressId\", corpo.address.id);",
+                  "    pm.test(\"Endereço próprio do restaurante, com CEP normalizado\", () => {",
+                  "        pm.expect(corpo.address.id).to.be.a(\"string\");",
+                  "        pm.expect(corpo.address.street).to.eql(\"Avenida Paulista\");",
+                  "        pm.expect(corpo.address.zipCode).to.eql(\"01310100\");",
+                  "    });",
+                  "    pm.test(\"O dono é quem cadastrou\", () =>",
+                  "        pm.expect(corpo.userId).to.eql(pm.collectionVariables.get(\"ownerUserId\")));",
+                  "    pm.test(\"Horários por dia, na ordem da semana; o de sexta vira a meia-noite\", () => {",
+                  "        pm.expect(corpo.officeHours.map(h => h.dayOfWeek + \" \" + h.startTime)).to.eql(",
+                  "            [\"MONDAY 11:00:00\", \"MONDAY 18:00:00\", \"FRIDAY 18:00:00\", \"SUNDAY 10:00:00\"]);",
+                  "        pm.expect(corpo.officeHours[2].endTime).to.eql(\"02:00:00\");",
+                  "    });",
                   "}"
                 ]
               }
@@ -2198,7 +4168,53 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"addressId\": \"{{ownerAddressId}}\",\n  \"name\": \"Restaurante Sabor & Arte\",\n  \"officeHourStart\": \"08:00:00\",\n  \"officeHourEnd\": \"22:00:00\"\n}",
+              "raw": "{\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante Sabor & Arte\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"11:00:00\",\n      \"endTime\": \"15:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"18:00:00\",\n      \"endTime\": \"23:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"FRIDAY\",\n      \"startTime\": \"18:00:00\",\n      \"endTime\": \"02:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"SUNDAY\",\n      \"startTime\": \"10:00:00\",\n      \"endTime\": \"16:00:00\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Sem userId no corpo: o dono do restaurante é quem está autenticado."
+          }
+        },
+        {
+          "name": "103 Segundo dono cadastra o próprio restaurante",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.test(\"O dono é quem cadastrou\", () => pm.expect(corpo.userId).to.eql(pm.collectionVariables.get(\"outroDonoUserId\")));",
+                  "    pm.collectionVariables.set(\"outroDonoRestaurantId\", corpo.id);",
+                  "} else {",
+                  "    console.error(\"outroDonoRestaurantId não foi obtido (status \" + pm.response.code + \"): execução interrompida\");",
+                  "    postman.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{outroDonoToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"address\": {\n    \"street\": \"Rua do Segundo Dono\",\n    \"number\": \"20\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001-000\"\n  },\n  \"name\": \"Restaurante do Segundo Dono\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2208,7 +4224,51 @@
           }
         },
         {
-          "name": "56 Cadastro de restaurante com campos inválidos",
+          "name": "104 Dono tenta cadastrar restaurante para outro dono",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:acesso-negado\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{outroDonoUserId}}\",\n  \"address\": {\n    \"street\": \"Rua do Segundo Dono\",\n    \"number\": \"20\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001-000\"\n  },\n  \"name\": \"Restaurante Alheio\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Indicar outro dono é operação de administrador."
+          }
+        },
+        {
+          "name": "105 Cadastro de restaurante com campos inválidos",
           "event": [
             {
               "listen": "test",
@@ -2245,7 +4305,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"addressId\": \"{{ownerAddressId}}\",\n  \"name\": \"\",\n  \"officeHourStart\": \"08:00:00\",\n  \"officeHourEnd\": \"08:00:00\"\n}",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"08:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2255,7 +4315,61 @@
           }
         },
         {
-          "name": "57 Cadastro de restaurante sem token",
+          "name": "106 Cadastro de restaurante com horários sobrepostos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "});",
+                  "pm.test(\"Mensagem: Os horários de funcionamento não podem se sobrepor\", () =>",
+                  "    pm.expect(pm.response.json().detail).to.eql(\"Os horários de funcionamento não podem se sobrepor\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/restaurants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "restaurants"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante Sobreposto\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"FRIDAY\",\n      \"startTime\": \"18:00:00\",\n      \"endTime\": \"02:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"SATURDAY\",\n      \"startTime\": \"01:00:00\",\n      \"endTime\": \"10:00:00\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "O expediente de sexta vira a meia-noite e invade o de sábado."
+          }
+        },
+        {
+          "name": "107 Cadastro de restaurante sem token",
           "event": [
             {
               "listen": "test",
@@ -2288,7 +4402,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"addressId\": \"{{ownerAddressId}}\",\n  \"name\": \"Restaurante Sem Token\",\n  \"officeHourStart\": \"08:00:00\",\n  \"officeHourEnd\": \"22:00:00\"\n}",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante Sem Token\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2298,7 +4412,7 @@
           }
         },
         {
-          "name": "58 Cliente comum tenta cadastrar restaurante",
+          "name": "108 Cliente comum tenta cadastrar restaurante",
           "event": [
             {
               "listen": "test",
@@ -2335,7 +4449,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"addressId\": \"{{ownerAddressId}}\",\n  \"name\": \"Restaurante Cliente\",\n  \"officeHourStart\": \"08:00:00\",\n  \"officeHourEnd\": \"22:00:00\"\n}",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante Cliente\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2345,7 +4459,7 @@
           }
         },
         {
-          "name": "59 Cadastro de restaurante com dono inexistente",
+          "name": "109 Cadastro de restaurante com dono inexistente",
           "event": [
             {
               "listen": "test",
@@ -2382,7 +4496,62 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000000\",\n  \"addressId\": \"{{ownerAddressId}}\",\n  \"name\": \"Restaurante Dono Inexistente\",\n  \"officeHourStart\": \"08:00:00\",\n  \"officeHourEnd\": \"22:00:00\"\n}",
+              "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000000\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante Dono Inexistente\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "110 Cadastro de restaurante para usuário sem perfil de dono",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail operacao-nao-permitida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:operacao-nao-permitida\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: O usuário informado não tem perfil de dono de restaurante\", () => pm.expect(pm.response.json().detail).to.eql(\"O usuário informado não tem perfil de dono de restaurante\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/restaurants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "restaurants"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"a0000000-0000-4000-8000-000000000002\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante de Quem Não É Dono\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2394,11 +4563,11 @@
       ]
     },
     {
-      "name": "12 Restaurantes — Consulta (GET /api/v1/restaurants/{id})",
+      "name": "13 Restaurantes — Consulta (GET /api/v1/restaurants/{id})",
       "description": "Consulta individual de restaurantes por ID.",
       "item": [
         {
-          "name": "60 Consulta pública de restaurante por ID",
+          "name": "111 Consulta pública de restaurante por ID",
           "event": [
             {
               "listen": "test",
@@ -2428,7 +4597,7 @@
           }
         },
         {
-          "name": "61 Consulta de restaurante inexistente",
+          "name": "112 Consulta de restaurante inexistente",
           "event": [
             {
               "listen": "test",
@@ -2460,11 +4629,11 @@
       ]
     },
     {
-      "name": "13 Restaurantes — Listagem (GET /api/v1/restaurants)",
+      "name": "14 Restaurantes — Listagem (GET /api/v1/restaurants)",
       "description": "Listagem pública com busca e paginação.",
       "item": [
         {
-          "name": "62 Listagem pública de restaurantes com busca e paginação",
+          "name": "113 Listagem pública de restaurantes com busca e paginação",
           "event": [
             {
               "listen": "test",
@@ -2509,22 +4678,53 @@
               ]
             }
           }
-        }
-      ]
-    },
-    {
-      "name": "14 Restaurantes — Atualização (PUT /api/v1/restaurants/{id})",
-      "description": "Atualização de restaurante existente.",
-      "item": [
+        },
         {
-          "name": "63 Atualização de restaurante pelo dono",
+          "name": "114 Listagem dos restaurantes de um dono",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));"
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Só restaurantes do dono pedido\", () => {",
+                  "    const lista = pm.response.json()._embedded.restaurantResponseList;",
+                  "    pm.expect(lista.length).to.be.above(0);",
+                  "    lista.forEach(r => pm.expect(r.userId).to.eql(pm.collectionVariables.get(\"outroDonoUserId\")));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/restaurants?ownerId={{outroDonoUserId}}&page=0&size=10"
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 Restaurantes — Atualização (PUT /api/v1/restaurants/{id})",
+      "description": "Atualização de restaurante existente.",
+      "item": [
+        {
+          "name": "115 Atualização de restaurante pelo dono",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.test(\"O endereço muda na mesma linha: id preservado\", () => {",
+                  "        pm.expect(corpo.address.street).to.eql(\"Avenida Paulista, Renovada\");",
+                  "        pm.expect(corpo.address.id).to.eql(pm.collectionVariables.get(\"restaurantAddressId\"));",
+                  "    });",
+                  "}"
                 ]
               }
             }
@@ -2555,7 +4755,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"addressId\": \"{{ownerAddressId}}\",\n  \"name\": \"Restaurante Sabor & Arte Renovado\",\n  \"officeHourStart\": \"09:00:00\",\n  \"officeHourEnd\": \"23:00:00\"\n}",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista, Renovada\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante Sabor & Arte Renovado\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"09:00:00\",\n      \"endTime\": \"23:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2565,7 +4765,7 @@
           }
         },
         {
-          "name": "64 Atualização de restaurante sem token",
+          "name": "116 Atualização de restaurante sem token",
           "event": [
             {
               "listen": "test",
@@ -2599,7 +4799,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"addressId\": \"{{ownerAddressId}}\",\n  \"name\": \"Restaurante Sabor\",\n  \"officeHourStart\": \"09:00:00\",\n  \"officeHourEnd\": \"23:00:00\"\n}",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante Sabor\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"09:00:00\",\n      \"endTime\": \"23:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2607,15 +4807,158 @@
               }
             }
           }
+        },
+        {
+          "name": "117 Administrador indica usuário sem perfil de dono na atualização",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail operacao-nao-permitida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:operacao-nao-permitida\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "    pm.expect(p).to.have.property(\"timestamp\");",
+                  "});",
+                  "pm.test(\"Mensagem: O usuário informado não tem perfil de dono de restaurante\", () => pm.expect(pm.response.json().detail).to.eql(\"O usuário informado não tem perfil de dono de restaurante\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "restaurants",
+                "{{restaurantId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"a0000000-0000-4000-8000-000000000002\",\n  \"address\": {\n    \"street\": \"Avenida Paulista, Renovada\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante Sabor & Arte Renovado\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"09:00:00\",\n      \"endTime\": \"23:00:00\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "118 Dono tenta alterar o restaurante de outro dono",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:acesso-negado\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{outroDonoRestaurantId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"address\": {\n    \"street\": \"Rua do Segundo Dono\",\n    \"number\": \"20\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001-000\"\n  },\n  \"name\": \"Invadido\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "119 Dono tenta passar o próprio restaurante para outro dono",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:acesso-negado\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{outroDonoUserId}}\",\n  \"address\": {\n    \"street\": \"Rua do Segundo Dono\",\n    \"number\": \"20\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001-000\"\n  },\n  \"name\": \"Transferido\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Trocar o dono é operação de administrador."
+          }
         }
       ]
     },
     {
-      "name": "15 Restaurantes — Exclusão (DELETE /api/v1/restaurants/{id})",
+      "name": "16 Restaurantes — Exclusão (DELETE /api/v1/restaurants/{id})",
       "description": "Exclusão de restaurante.",
       "item": [
         {
-          "name": "65 Exclusão de restaurante sem token",
+          "name": "120 Exclusão de restaurante sem token",
           "event": [
             {
               "listen": "test",
@@ -2645,7 +4988,37 @@
           }
         },
         {
-          "name": "66 Exclusão de restaurante pelo dono",
+          "name": "121 Dono tenta excluir o restaurante de outro dono",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p.type).to.eql(\"urn:restaurantes:problema:acesso-negado\");",
+                  "    pm.expect(p.status).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{outroDonoRestaurantId}}"
+          }
+        },
+        {
+          "name": "122 Exclusão de restaurante pelo dono",
           "event": [
             {
               "listen": "test",
@@ -2680,7 +5053,7 @@
           }
         },
         {
-          "name": "67 Consulta de restaurante após exclusão",
+          "name": "123 Consulta de restaurante após exclusão",
           "event": [
             {
               "listen": "test",
@@ -2707,6 +5080,50 @@
                 "{{restaurantId}}"
               ]
             }
+          }
+        },
+        {
+          "name": "124 Administrador exclui o segundo dono, e o restaurante dele sai junto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/{{outroDonoUserId}}",
+            "description": "Excluir o usuário exclui os restaurantes dele, com o endereço de cada um."
+          }
+        },
+        {
+          "name": "125 Restaurante do dono excluído não existe mais",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{outroDonoRestaurantId}}"
           }
         }
       ]
@@ -2760,6 +5177,76 @@
     {
       "key": "resetToken",
       "value": ""
+    },
+    {
+      "key": "userCpf",
+      "value": ""
+    },
+    {
+      "key": "donoUserId",
+      "value": ""
+    },
+    {
+      "key": "entregadorUserId",
+      "value": ""
+    },
+    {
+      "key": "donoRestaurantId",
+      "value": ""
+    },
+    {
+      "key": "outroDonoLogin",
+      "value": ""
+    },
+    {
+      "key": "outroDonoUserId",
+      "value": ""
+    },
+    {
+      "key": "outroDonoToken",
+      "value": ""
+    },
+    {
+      "key": "outroDonoRestaurantId",
+      "value": ""
+    },
+    {
+      "key": "ultimoAdminId",
+      "value": ""
+    },
+    {
+      "key": "ultimoAdminConfirmado",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// {{cpfGerado}}, {{cnpjGerado}} e {{cnhGerada}}: documentos válidos e novos a cada request. CPF, CNPJ e CNH são",
+          "// únicos no banco, e a coleção precisa poder rodar várias vezes contra o mesmo banco.",
+          "const aleatorios = n => {",
+          "    let d;",
+          "    do { d = Array.from({ length: n }, () => Math.floor(Math.random() * 10)); } while (new Set(d).size === 1);",
+          "    return d;",
+          "};",
+          "const verificador = (d, pesos) => {",
+          "    const resto = pesos.reduce((soma, peso, i) => soma + d[i] * peso, 0) % 11;",
+          "    return resto < 2 ? 0 : 11 - resto;",
+          "};",
+          "const cpf = aleatorios(9);",
+          "cpf.push(verificador(cpf, [10, 9, 8, 7, 6, 5, 4, 3, 2]));",
+          "cpf.push(verificador(cpf, [11, 10, 9, 8, 7, 6, 5, 4, 3, 2]));",
+          "const cnpj = aleatorios(12);",
+          "cnpj.push(verificador(cnpj, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]));",
+          "cnpj.push(verificador(cnpj, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]));",
+          "pm.variables.set(\"cpfGerado\", cpf.join(\"\"));",
+          "pm.variables.set(\"cnpjGerado\", cnpj.join(\"\"));",
+          "pm.variables.set(\"cnhGerada\", aleatorios(11).join(\"\"));"
+        ]
+      }
     }
   ]
 }

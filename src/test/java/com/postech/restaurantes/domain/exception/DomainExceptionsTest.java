@@ -19,7 +19,8 @@ class DomainExceptionsTest {
                 Arguments.of("InvalidPasswordException", (Function<String, DomainException>) InvalidPasswordException::new),
                 Arguments.of("ForbiddenOperationException", (Function<String, DomainException>) ForbiddenOperationException::new),
                 Arguments.of("InvalidOrExpiredTokenException", (Function<String, DomainException>) InvalidOrExpiredTokenException::new),
-                Arguments.of("InvalidCredentialsException", (Function<String, DomainException>) InvalidCredentialsException::new));
+                Arguments.of("InvalidCredentialsException", (Function<String, DomainException>) InvalidCredentialsException::new),
+                Arguments.of("ResourceInUseException", (Function<String, DomainException>) ResourceInUseException::new));
     }
 
     @ParameterizedTest(name = "{0}")

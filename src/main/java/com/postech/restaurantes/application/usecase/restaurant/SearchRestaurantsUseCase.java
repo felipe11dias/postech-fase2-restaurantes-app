@@ -7,9 +7,10 @@ import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.domain.Guard;
 import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
 import java.util.Set;
+import java.util.UUID;
 
 /**
- * Listagem paginada com busca parcial por nome de restaurante.
+ * Listagem paginada com busca parcial por nome de restaurante e, opcionalmente, só os de um dono.
  */
 public final class SearchRestaurantsUseCase {
 
@@ -27,9 +28,9 @@ public final class SearchRestaurantsUseCase {
         return new SearchRestaurantsUseCase(restaurantGateway);
     }
 
-    public PageResult<Restaurant> run(String name, PageRequest request) {
+    public PageResult<Restaurant> run(String name, UUID ownerId, PageRequest request) {
         Guard.requireNonNull(request, "Paginação inválida");
-        return restaurantGateway.search(Guard.trimToNull(name), sanitizeSort(request));
+        return restaurantGateway.search(Guard.trimToNull(name), ownerId, sanitizeSort(request));
     }
 
     private static PageRequest sanitizeSort(PageRequest request) {

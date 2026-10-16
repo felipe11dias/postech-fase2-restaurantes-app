@@ -20,6 +20,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * <p>Não decide nada: se o token não vale, a requisição segue <strong>anônima</strong> e quem
  * recusa é a configuração de autorização. Assim a regra de "o que exige autenticação" fica em
  * um lugar só, e não espalhada entre filtro e configuração.
+ *
+ * <p>Os papéis da autorização são os do cadastro no momento da requisição ({@link ICurrentRolesReader}),
+ * não os gravados no token: incluir ou remover perfil vale na hora.
  */
 @Component
 public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
@@ -27,9 +30,11 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
     static final String BEARER_PREFIX = "Bearer ";
 
     private final IAccessTokenReader tokenReader;
+    private final ICurrentRolesReader rolesReader;
 
-    public BearerTokenAuthenticationFilter(IAccessTokenReader tokenReader) {
+    public BearerTokenAuthenticationFilter(IAccessTokenReader tokenReader, ICurrentRolesReader rolesReader) {
         this.tokenReader = tokenReader;
+        this.rolesReader = rolesReader;
     }
 
     @Override
@@ -37,6 +42,7 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         extrairToken(request)
                 .flatMap(tokenReader::read)
+                .map(this::comPapeisAtuais)
                 .ifPresent(BearerTokenAuthenticationFilter::autenticar);
         chain.doFilter(request, response);
     }
@@ -47,6 +53,14 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
             return java.util.Optional.empty();
         }
         return java.util.Optional.of(header.substring(BEARER_PREFIX.length()));
+    }
+
+    /**
+     * O token prova quem é o portador; o que ele pode fazer vem do cadastro <em>agora</em>. Com os papéis do
+     * token, um perfil removido (o de administrador, por exemplo) continuaria autorizando até o token vencer.
+     */
+    private AuthenticatedUser comPapeisAtuais(AuthenticatedUser user) {
+        return new AuthenticatedUser(user.id(), user.login(), rolesReader.currentRoles(user.id()));
     }
 
     /** O principal é o próprio {@link AuthenticatedUser}: a regra de posse precisa do id. */

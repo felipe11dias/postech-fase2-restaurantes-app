@@ -1,16 +1,21 @@
 package com.postech.restaurantes.application.usecase.restaurant;
 
+import com.postech.restaurantes.application.dto.restaurant.OfficeHourDTO;
 import com.postech.restaurantes.application.dto.restaurant.UpdateRestaurantDTO;
 import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.application.gateway.IUserGateway;
 import com.postech.restaurantes.domain.Guard;
 import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
-import com.postech.restaurantes.domain.entity.user.RoleName;
+import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.entity.user.User;
 import com.postech.restaurantes.domain.exception.ForbiddenOperationException;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
 
-/** Atualização de dados de restaurante existente. */
+/**
+ * Atualização de dados de restaurante existente. Sem {@code userId} no pedido, o dono continua o mesmo;
+ * com ele, o indicado precisa existir e ter perfil de dono. Quem pode trocar o dono é decidido na entrada
+ * (só um administrador).
+ */
 public final class UpdateRestaurantUseCase {
 
     private final IRestaurantGateway restaurantGateway;
@@ -32,23 +37,17 @@ public final class UpdateRestaurantUseCase {
         Restaurant existing = restaurantGateway.findById(dto.id())
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurante não encontrado"));
 
-        User user = userGateway.findById(dto.userId())
-                .orElseThrow(() -> new ResourceNotFoundException("Dono do restaurante não encontrado"));
-
-        if (!user.hasRole(RoleName.ROLE_OWNER) && !user.hasRole(RoleName.ROLE_ADMIN)) {
-            throw new ForbiddenOperationException("O usuário informado não possui papel de dono de restaurante");
+        if (dto.userId() != null) {
+            User user = userGateway.findById(dto.userId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Dono do restaurante não encontrado"));
+            if (!user.hasRole(RoleName.ROLE_OWNER)) {
+                throw new ForbiddenOperationException("O usuário informado não tem perfil de dono de restaurante");
+            }
+            existing.setUserId(dto.userId());
         }
-
-        boolean addressBelongsToUser = user.getAddresses().stream()
-                .anyMatch(addr -> addr.getId().equals(dto.addressId()));
-        if (!addressBelongsToUser) {
-            throw new ResourceNotFoundException("Endereço não encontrado ou não pertence ao usuário");
-        }
-
-        existing.setUserId(dto.userId());
-        existing.setAddressId(dto.addressId());
+        existing.setAddress(Guard.requireNonNull(dto.address(), "Endereço do restaurante inválido").toEntity());
         existing.setName(dto.name());
-        existing.setOfficeHours(dto.officeHourStart(), dto.officeHourEnd());
+        existing.replaceOfficeHours(OfficeHourDTO.toEntities(dto.officeHours()));
 
         return restaurantGateway.update(existing);
     }

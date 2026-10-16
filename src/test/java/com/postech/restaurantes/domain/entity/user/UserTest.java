@@ -6,11 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.postech.restaurantes.domain.entity.admin.AdminProfile;
+import com.postech.restaurantes.domain.entity.client.ClientProfile;
+import com.postech.restaurantes.domain.entity.owner.OwnerProfile;
+import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.vo.Email;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -23,12 +25,14 @@ import com.postech.restaurantes.domain.entity.address.Address;
 
 class UserTest {
 
-    private static final Set<Role> CUSTOMER = Set.of(Role.create(RoleName.ROLE_CUSTOMER));
-    private static final Address ADDRESS =
-            Address.create("Rua das Flores", "100", null, "Centro", "São Paulo", "SP", "01001000");
+    private static final UserProfiles CLIENTE =
+            new UserProfiles(null, ClientProfile.restore("52998224725", "11912345678", null), null, null);
+    private static final UserAddress ADDRESS = UserAddress.create("Casa", true,
+            Address.create("Rua das Flores", "100", null, "Centro", "São Paulo", "SP", "01001000"));
+    private static final Address OUTRO_ENDERECO = Address.create("Av. B", null, null, null, "Rio", "RJ", "20000000");
 
     private static User valido() {
-        return User.create("João Silva", "Joao.Silva@Email.com", "joao.silva", "$2a$hash", CUSTOMER, List.of(ADDRESS));
+        return User.create("João Silva", "Joao.Silva@Email.com", "joao.silva", "$2a$hash", CLIENTE, List.of(ADDRESS));
     }
 
     @Test
@@ -43,7 +47,8 @@ class UserTest {
         assertEquals(Email.of("joao.silva@email.com"), user.getEmail());
         assertEquals("joao.silva", user.getLogin());
         assertEquals("$2a$hash", user.getPasswordHash());
-        assertEquals(CUSTOMER, user.getRoles());
+        assertEquals(Set.of(RoleName.ROLE_CLIENT), user.getRoles());
+        assertEquals(CLIENTE, user.getProfiles());
         assertEquals(List.of(ADDRESS), user.getAddresses());
     }
 
@@ -54,7 +59,7 @@ class UserTest {
         LocalDateTime criado = LocalDateTime.of(2026, 1, 1, 10, 0);
         LocalDateTime alterado = LocalDateTime.of(2026, 1, 2, 10, 0);
 
-        User user = User.restore(id, "Ana", "ana@x.com", "ana", "hash", CUSTOMER, List.of(), criado, alterado);
+        User user = User.restore(id, "Ana", "ana@x.com", "ana", "hash", CLIENTE, List.of(), criado, alterado);
 
         assertEquals(id, user.getId());
         assertEquals(criado, user.getCreatedAt());
@@ -66,7 +71,7 @@ class UserTest {
     @DisplayName("Recusa restauração sem id")
     void deveRecusarRestaurarQuandoIdNulo() {
         assertThrows(IllegalArgumentException.class,
-                () -> User.restore(null, "Ana", "ana@x.com", "ana", "hash", CUSTOMER, List.of(), null, null));
+                () -> User.restore(null, "Ana", "ana@x.com", "ana", "hash", CLIENTE, List.of(), null, null));
     }
 
     @ParameterizedTest
@@ -75,14 +80,14 @@ class UserTest {
     @DisplayName("Recusa nome em branco")
     void deveRecusarNomeEmBranco(String name) {
         assertThrows(IllegalArgumentException.class,
-                () -> User.create(name, "a@x.com", "login", "hash", CUSTOMER, List.of()));
+                () -> User.create(name, "a@x.com", "login", "hash", CLIENTE, List.of()));
     }
 
     @Test
     @DisplayName("Recusa e-mail inválido")
     void deveRecusarEmailInvalido() {
         assertThrows(IllegalArgumentException.class,
-                () -> User.create("Ana", "invalido", "login", "hash", CUSTOMER, List.of()));
+                () -> User.create("Ana", "invalido", "login", "hash", CLIENTE, List.of()));
     }
 
     @Test
@@ -99,7 +104,7 @@ class UserTest {
     @DisplayName("Recusa login em branco")
     void deveRecusarLoginEmBranco(String login) {
         assertThrows(IllegalArgumentException.class,
-                () -> User.create("Ana", "a@x.com", login, "hash", CUSTOMER, List.of()));
+                () -> User.create("Ana", "a@x.com", login, "hash", CLIENTE, List.of()));
     }
 
     @ParameterizedTest
@@ -108,7 +113,7 @@ class UserTest {
     @DisplayName("Recusa hash de senha em branco")
     void deveRecusarHashEmBranco(String hash) {
         assertThrows(IllegalArgumentException.class,
-                () -> User.create("Ana", "a@x.com", "login", hash, CUSTOMER, List.of()));
+                () -> User.create("Ana", "a@x.com", "login", hash, CLIENTE, List.of()));
     }
 
     @Test
@@ -119,60 +124,113 @@ class UserTest {
     }
 
     @Test
-    @DisplayName("Recusa usuário sem papéis (conjunto vazio)")
-    void deveRecusarPapeisVazios() {
+    @DisplayName("Recusa usuário sem o conjunto de perfis")
+    void deveRecusarPerfisNulos() {
         assertThrows(IllegalArgumentException.class,
-                () -> User.create("Ana", "a@x.com", "login", "hash", Set.of(), List.of()));
-    }
-
-    @Test
-    @DisplayName("Recusa papel nulo dentro do conjunto")
-    void deveRecusarPapelNuloNoConjunto() {
-        Set<Role> comNulo = new HashSet<>(Arrays.asList(Role.create(RoleName.ROLE_OWNER), null));
-
-        assertThrows(IllegalArgumentException.class,
-                () -> User.create("Ana", "a@x.com", "login", "hash", comNulo, List.of()));
+                () -> User.create("Ana", "a@x.com", "login", "hash", null, List.of()));
     }
 
     @Test
     @DisplayName("Recusa lista de endereços nula")
     void deveRecusarEnderecosNulos() {
         assertThrows(IllegalArgumentException.class,
-                () -> User.create("Ana", "a@x.com", "login", "hash", CUSTOMER, null));
+                () -> User.create("Ana", "a@x.com", "login", "hash", CLIENTE, null));
     }
 
     @Test
     @DisplayName("Recusa endereço nulo dentro da lista")
     void deveRecusarEnderecoNuloNaLista() {
-        List<Address> comNulo = new ArrayList<>();
+        List<UserAddress> comNulo = new ArrayList<>();
         comNulo.add(null);
 
         assertThrows(IllegalArgumentException.class,
-                () -> User.create("Ana", "a@x.com", "login", "hash", CUSTOMER, comNulo));
+                () -> User.create("Ana", "a@x.com", "login", "hash", CLIENTE, comNulo));
     }
 
     @Test
     @DisplayName("Substitui os endereços por completo")
     void deveSubstituirEnderecos() {
         User user = valido();
-        Address novo = Address.create("Av. B", null, null, null, "Rio", "RJ", "20000000");
+        UserAddress padrao = UserAddress.create("Trabalho", true, OUTRO_ENDERECO);
+        UserAddress outro = UserAddress.create(null, false, OUTRO_ENDERECO);
 
-        user.replaceAddresses(List.of(novo, novo));
+        user.replaceAddresses(List.of(padrao, outro));
 
-        assertEquals(List.of(novo, novo), user.getAddresses());
+        assertEquals(List.of(padrao, outro), user.getAddresses());
     }
 
     @Test
-    @DisplayName("Substitui os papéis por completo e responde hasRole/isAdmin")
-    void deveSubstituirPapeis() {
+    @DisplayName("Recusa endereços sem nenhum padrão, sem alterar os atuais")
+    void deveRecusarEnderecosSemPadrao() {
+        User user = valido();
+        List<UserAddress> semPadrao = List.of(UserAddress.create(null, false, OUTRO_ENDERECO));
+
+        assertThrows(IllegalArgumentException.class, () -> user.replaceAddresses(semPadrao));
+        assertEquals(List.of(ADDRESS), user.getAddresses());
+    }
+
+    @Test
+    @DisplayName("Endereço com id que o usuário já tem é mantido; sem id, entra como novo")
+    void deveManterEnderecoPeloId() {
+        UUID idDoEndereco = UUID.randomUUID();
+        User user = User.restore(UUID.randomUUID(), "Ana", "ana@x.com", "ana", "hash", CLIENTE,
+                List.of(UserAddress.restore(idDoEndereco, "Casa", true, OUTRO_ENDERECO)), null, null);
+        UserAddress mantido = UserAddress.restore(idDoEndereco, "Casa Nova", true, OUTRO_ENDERECO);
+        UserAddress novo = UserAddress.create("Trabalho", false, OUTRO_ENDERECO);
+
+        user.replaceAddresses(List.of(mantido, novo));
+
+        assertEquals(List.of(mantido, novo), user.getAddresses());
+    }
+
+    @Test
+    @DisplayName("Recusa id de endereço que não é do usuário — no cadastro e na troca —, sem alterar os atuais")
+    void deveRecusarEnderecoDeOutroUsuario() {
+        User user = valido();
+        List<UserAddress> alheio = List.of(UserAddress.restore(UUID.randomUUID(), "Casa", true, OUTRO_ENDERECO));
+
+        assertThrows(IllegalArgumentException.class, () -> user.replaceAddresses(alheio));
+        assertThrows(IllegalArgumentException.class,
+                () -> User.create("Ana", "a@x.com", "login", "hash", CLIENTE, alheio));
+        assertEquals(List.of(ADDRESS), user.getAddresses());
+    }
+
+    @Test
+    @DisplayName("Recusa o mesmo endereço do usuário duas vezes na lista")
+    void deveRecusarEnderecoRepetido() {
+        UUID idDoEndereco = UUID.randomUUID();
+        User user = User.restore(UUID.randomUUID(), "Ana", "ana@x.com", "ana", "hash", CLIENTE,
+                List.of(UserAddress.restore(idDoEndereco, "Casa", true, OUTRO_ENDERECO)), null, null);
+        List<UserAddress> repetido = List.of(UserAddress.restore(idDoEndereco, null, true, OUTRO_ENDERECO),
+                UserAddress.restore(idDoEndereco, null, false, OUTRO_ENDERECO));
+
+        assertThrows(IllegalArgumentException.class, () -> user.replaceAddresses(repetido));
+    }
+
+    @Test
+    @DisplayName("Recusa mais de um endereço padrão")
+    void deveRecusarDoisEnderecosPadrao() {
+        User user = valido();
+        List<UserAddress> doisPadroes = List.of(UserAddress.create(null, true, OUTRO_ENDERECO),
+                UserAddress.create(null, true, OUTRO_ENDERECO));
+
+        assertThrows(IllegalArgumentException.class, () -> user.replaceAddresses(doisPadroes));
+    }
+
+    @Test
+    @DisplayName("Substitui os perfis por completo, e os papéis acompanham: hasRole/isAdmin")
+    void deveSubstituirPerfis() {
         User user = valido();
         assertFalse(user.isAdmin());
 
-        user.replaceRoles(Set.of(Role.create(RoleName.ROLE_OWNER), Role.create(RoleName.ROLE_ADMIN)));
+        user.replaceProfiles(new UserProfiles(
+                OwnerProfile.create("11222333000181", "Sabor Ltda", "1131234567"), null, null,
+                AdminProfile.create("ADM-1", null, false)));
 
         assertTrue(user.hasRole(RoleName.ROLE_OWNER));
         assertTrue(user.isAdmin());
-        assertFalse(user.hasRole(RoleName.ROLE_CUSTOMER));
+        assertFalse(user.hasRole(RoleName.ROLE_CLIENT));
+        assertThrows(IllegalArgumentException.class, () -> user.replaceProfiles(null));
     }
 
     @Test

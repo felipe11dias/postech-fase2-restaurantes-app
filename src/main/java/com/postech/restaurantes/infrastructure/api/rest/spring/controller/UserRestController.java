@@ -7,14 +7,20 @@ import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.infrastructure.api.rest.spring.assembler.UserModelAssembler;
 import com.postech.restaurantes.infrastructure.api.rest.spring.doc.ApiDocumentation;
 import com.postech.restaurantes.infrastructure.api.rest.spring.doc.ErrorResponse;
+import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.AdminProfileRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.ChangePasswordRequest;
+import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.ClientProfileRequest;
+import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.CourierProfileRequest;
+import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.CourierStatusRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.NewUserRequest;
+import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.OwnerProfileRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.UpdateUserRequest;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.response.UserResponse;
 import com.postech.restaurantes.infrastructure.api.rest.spring.exception.ProblemType;
 import com.postech.restaurantes.infrastructure.api.rest.spring.route.ApiRoutes;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -74,7 +80,8 @@ public class UserRestController {
     }
 
     /**
-     * Autocadastro público. Pedir {@code ROLE_ADMIN} aqui é recusado pelo caso de uso.
+     * Autocadastro público, com os perfis de dono, cliente e entregador. O de administrador não existe
+     * no pedido: não se obtém por autocadastro.
      *
      * <p>O {@code @ResponseStatus} não muda o comportamento — quem define o 201 é o
      * {@code ResponseEntity.created} —, mas sem ele o springdoc documentaria 200.
@@ -82,12 +89,13 @@ public class UserRestController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Autocadastro",
-            description = "Cria um usuário. Público. Pode pedir ROLE_OWNER e/ou ROLE_CUSTOMER; "
-                    + "ROLE_ADMIN é recusado. A resposta traz o header Location do recurso criado.")
+            description = "Cria um usuário. Público. Traz ao menos um perfil — dono (owner), cliente (client), "
+                    + "entregador (courier) —; os papéis (ROLE_OWNER, ROLE_CLIENT, ROLE_COURIER) saem dos perfis. "
+                    + "O perfil de administrador não se obtém por aqui. A resposta traz o header Location do recurso criado.")
     @ApiResponse(responseCode = "201", description = "Usuário criado")
-    @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Campo inválido, papel inexistente ou endereço inconsistente")
-    @ErrorResponse(type = ProblemType.FORBIDDEN_OPERATION, description = "Autocadastro pediu ROLE_ADMIN")
-    @ErrorResponse(type = ProblemType.DATA_CONFLICT, description = "E-mail ou login já cadastrado")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST,
+            description = "Campo inválido, nenhum perfil, documento inválido ou endereço inconsistente")
+    @ErrorResponse(type = ProblemType.DATA_CONFLICT, description = "E-mail, login, CPF ou CNPJ já cadastrado")
     public ResponseEntity<EntityModel<UserResponse>> register(@Valid @RequestBody NewUserRequest request) {
         UserView criado = controller.register(request.toDTO());
         EntityModel<UserResponse> corpo = assembler.toModel(criado);
@@ -176,13 +184,126 @@ public class UserRestController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
     @Operation(summary = "Exclui um cadastro",
-            description = "Remove também endereços e tokens de redefinição. Só o próprio usuário ou um administrador.")
+            description = "Remove também perfis, endereços, tokens de redefinição e os restaurantes do usuário (com o "
+                    + "endereço de cada um). O último administrador não é excluído. Só o próprio usuário ou um "
+                    + "administrador.")
     @ApiResponse(responseCode = "204", description = "Cadastro excluído")
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
     @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Cadastro de outro usuário")
     @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Usuário não encontrado")
+    @ErrorResponse(type = ProblemType.RESOURCE_IN_USE, description = "Cadastro do último administrador")
     public void delete(@Parameter(description = "Id do usuário") @PathVariable UUID id) {
         controller.delete(id);
+    }
+
+    // --- Perfis do cadastro -------------------------------------------------------------------
+    // A autorização usa os papéis do cadastro a cada requisição (BearerTokenAuthenticationFilter):
+    // incluir ou remover perfil vale na hora, com o mesmo token.
+
+    @PutMapping("/{id}/profiles/owner")
+    @PreAuthorize(DONO_OU_ADMIN)
+    @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
+    @Operation(summary = "Inclui ou altera o perfil de dono",
+            description = "Dá ao cadastro o papel ROLE_OWNER (vale já na próxima requisição). Só o próprio usuário ou um administrador.")
+    @ApiResponse(responseCode = "200", description = "Cadastro com o perfil de dono")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Campo ausente ou CNPJ inválido")
+    @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
+    @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Cadastro de outro usuário")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Usuário não encontrado")
+    @ErrorResponse(type = ProblemType.DATA_CONFLICT, description = "CNPJ de outro cadastro")
+    public EntityModel<UserResponse> saveOwnerProfile(@Parameter(description = "Id do usuário") @PathVariable UUID id,
+                                                      @Valid @RequestBody OwnerProfileRequest request) {
+        return assembler.toModel(controller.saveProfile(id, request.toDTO()));
+    }
+
+    @PutMapping("/{id}/profiles/client")
+    @PreAuthorize(DONO_OU_ADMIN)
+    @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
+    @Operation(summary = "Inclui ou altera o perfil de cliente",
+            description = "Dá ao cadastro o papel ROLE_CLIENT (vale já na próxima requisição). O CPF é o mesmo do perfil de "
+                    + "entregador, se houver. Só o próprio usuário ou um administrador.")
+    @ApiResponse(responseCode = "200", description = "Cadastro com o perfil de cliente")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST,
+            description = "Campo ausente, CPF inválido ou diferente do de entregador, nascimento futuro")
+    @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
+    @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Cadastro de outro usuário")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Usuário não encontrado")
+    @ErrorResponse(type = ProblemType.DATA_CONFLICT, description = "CPF de outro cadastro")
+    public EntityModel<UserResponse> saveClientProfile(@Parameter(description = "Id do usuário") @PathVariable UUID id,
+                                                       @Valid @RequestBody ClientProfileRequest request) {
+        return assembler.toModel(controller.saveProfile(id, request.toDTO()));
+    }
+
+    @PutMapping("/{id}/profiles/courier")
+    @PreAuthorize(DONO_OU_ADMIN)
+    @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
+    @Operation(summary = "Inclui ou altera o perfil de entregador",
+            description = "Dá ao cadastro o papel ROLE_COURIER (vale já na próxima requisição). Alterar não muda o status; o "
+                    + "entregador novo começa OFFLINE. Só o próprio usuário ou um administrador.")
+    @ApiResponse(responseCode = "200", description = "Cadastro com o perfil de entregador")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST,
+            description = "Campo ausente, CPF inválido ou diferente do de cliente, veículo desconhecido, CNH ou placa "
+                    + "que não combinam com o veículo")
+    @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
+    @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Cadastro de outro usuário")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Usuário não encontrado")
+    @ErrorResponse(type = ProblemType.DATA_CONFLICT, description = "CPF ou CNH de outro cadastro")
+    public EntityModel<UserResponse> saveCourierProfile(@Parameter(description = "Id do usuário") @PathVariable UUID id,
+                                                        @Valid @RequestBody CourierProfileRequest request) {
+        return assembler.toModel(controller.saveProfile(id, request.toDTO()));
+    }
+
+    @PutMapping("/{id}/profiles/admin")
+    @PreAuthorize(SO_ADMIN)
+    @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
+    @Operation(summary = "Inclui ou altera o perfil de administrador",
+            description = "Dá ao cadastro o papel ROLE_ADMIN (vale já na próxima requisição). Só administrador — nem o próprio "
+                    + "usuário se torna administrador.")
+    @ApiResponse(responseCode = "200", description = "Cadastro com o perfil de administrador")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Código de funcionário ausente")
+    @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
+    @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Usuário não é administrador")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Usuário não encontrado")
+    @ErrorResponse(type = ProblemType.DATA_CONFLICT, description = "Código de funcionário de outro cadastro")
+    public EntityModel<UserResponse> saveAdminProfile(@Parameter(description = "Id do usuário") @PathVariable UUID id,
+                                                      @Valid @RequestBody AdminProfileRequest request) {
+        return assembler.toModel(controller.saveProfile(id, request.toDTO()));
+    }
+
+    @DeleteMapping("/{id}/profiles/{type}")
+    @PreAuthorize(DONO_OU_ADMIN)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
+    @Operation(summary = "Remove um perfil",
+            description = "O último perfil não sai, nem o de dono enquanto houver restaurante do usuário, nem o de "
+                    + "administrador do último administrador. Só o próprio usuário ou um administrador.")
+    @ApiResponse(responseCode = "204", description = "Perfil removido")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Tipo de perfil desconhecido ou último perfil")
+    @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
+    @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Cadastro de outro usuário")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Usuário não encontrado ou sem esse perfil")
+    @ErrorResponse(type = ProblemType.RESOURCE_IN_USE,
+            description = "Perfil de dono de quem tem restaurante, ou de administrador do último administrador")
+    public void removeProfile(@Parameter(description = "Id do usuário") @PathVariable UUID id,
+                              @Parameter(description = "Tipo de perfil",
+                                      schema = @Schema(allowableValues = {"owner", "client", "courier", "admin"}))
+                              @PathVariable String type) {
+        controller.removeProfile(id, type);
+    }
+
+    @PatchMapping("/{id}/profiles/courier/status")
+    @PreAuthorize(DONO_OU_ADMIN)
+    @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
+    @Operation(summary = "Troca o status do entregador",
+            description = "OFFLINE, AVAILABLE ou BUSY. Só o próprio usuário ou um administrador.")
+    @ApiResponse(responseCode = "200", description = "Cadastro com o status novo")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Status ausente ou desconhecido")
+    @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
+    @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Cadastro de outro usuário")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Usuário não encontrado ou sem perfil de entregador")
+    public EntityModel<UserResponse> changeCourierStatus(@Parameter(description = "Id do usuário") @PathVariable UUID id,
+                                                         @Valid @RequestBody CourierStatusRequest request) {
+        return assembler.toModel(controller.changeCourierStatus(id, request.status()));
     }
 
     static PageRequest paginacao(int page, int size, String sort) {

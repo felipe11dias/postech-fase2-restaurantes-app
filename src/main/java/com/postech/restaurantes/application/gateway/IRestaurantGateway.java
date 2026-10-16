@@ -11,8 +11,11 @@ public interface IRestaurantGateway {
 
     Optional<Restaurant> findById(UUID id);
 
-    /** Busca por nome (sem diferenciar maiúsculas); nome nulo lista todos. */
-    PageResult<Restaurant> search(String name, PageRequest request);
+    /**
+     * Busca por nome (sem diferenciar maiúsculas) e, se informado, só os restaurantes de um dono. Nome nulo
+     * não filtra por nome; dono nulo não filtra por dono.
+     */
+    PageResult<Restaurant> search(String name, UUID ownerId, PageRequest request);
 
     /** Persiste um restaurante novo e devolve a instância com id e auditoria. */
     Restaurant insert(Restaurant restaurant);
@@ -20,5 +23,11 @@ public interface IRestaurantGateway {
     /** Persiste alterações de um restaurante existente e devolve a instância atualizada. */
     Restaurant update(Restaurant restaurant);
 
+    /** Se o usuário é dono de algum restaurante — o perfil de dono não sai enquanto for. */
+    boolean existsByUserId(UUID userId);
+
     void delete(UUID id);
+
+    /** Remove todos os restaurantes do usuário (com o endereço de cada um), quando o usuário sai. */
+    void deleteByUserId(UUID userId);
 }

@@ -1,11 +1,13 @@
 package com.postech.restaurantes.application.dto.user;
 
-import com.postech.restaurantes.domain.entity.user.RoleName;
 import java.util.List;
-import java.util.Set;
-import com.postech.restaurantes.application.dto.common.AddressDTO;
 
-/** Entrada do autocadastro. A senha chega em claro e é transformada em hash pelo caso de uso. */
+/**
+ * Entrada do autocadastro. A senha chega em claro e é transformada em hash pelo caso de uso. Os
+ * perfis são opcionais um a um — ao menos um precisa vir — e não há perfil de administrador: ele não
+ * se obtém por autocadastro.
+ */
 public record NewUserDTO(String name, String email, String login, String password,
-                         Set<RoleName> roles, List<AddressDTO> addresses) {
+                         OwnerProfileDTO owner, ClientProfileDTO client, CourierProfileDTO courier,
+                         List<UserAddressDTO> addresses) {
 }

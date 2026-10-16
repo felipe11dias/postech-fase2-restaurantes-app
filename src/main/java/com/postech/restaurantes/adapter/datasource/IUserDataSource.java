@@ -19,6 +19,14 @@ public interface IUserDataSource {
     /** O e-mail chega já normalizado (minúsculas) pelo VO do domínio. */
     Optional<UserData> findByEmail(String email);
 
+    /** Usuário cujo perfil de cliente ou de entregador tem este CPF (só dígitos). */
+    Optional<UserData> findByCpf(String cpf);
+
+    /** Usuário cujo perfil de dono tem este CNPJ (sem máscara, maiúsculas). */
+    Optional<UserData> findByCnpj(String cnpj);
+
+    long countAdmins();
+
     /**
      * Busca parcial por nome sem diferenciar maiúsculas; nome nulo lista todos. A
      * propriedade de ordenação já vem validada pelo caso de uso; cabe à implementação

@@ -1,7 +1,11 @@
 package com.postech.restaurantes.adapter.gateway;
 
+import static com.postech.restaurantes.adapter.AdapterFixtures.OFFICE_HOURS;
+import static com.postech.restaurantes.adapter.AdapterFixtures.OFFICE_HOURS_DATA;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -10,18 +14,20 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.postech.restaurantes.adapter.datasource.IRestaurantDataSource;
+import com.postech.restaurantes.adapter.datasource.data.AddressData;
 import com.postech.restaurantes.adapter.datasource.data.RestaurantData;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
+import com.postech.restaurantes.domain.entity.address.Address;
 import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class RestaurantGatewayTest {
 
@@ -30,7 +36,7 @@ class RestaurantGatewayTest {
 
     private UUID id;
     private UUID userId;
-    private UUID addressId;
+    private AddressData addressData;
     private RestaurantData data;
 
     @BeforeEach
@@ -40,8 +46,8 @@ class RestaurantGatewayTest {
 
         id = UUID.randomUUID();
         userId = UUID.randomUUID();
-        addressId = UUID.randomUUID();
-        data = new RestaurantData(id, userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0),
+        addressData = new AddressData(UUID.randomUUID(), "Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
+        data = new RestaurantData(id, userId, addressData, "Sabor", OFFICE_HOURS_DATA,
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
@@ -54,6 +60,8 @@ class RestaurantGatewayTest {
 
         assertTrue(result.isPresent());
         assertEquals("Sabor", result.get().getName());
+        assertEquals(addressData.id(), result.get().getAddress().getId());
+        assertEquals("Rua A", result.get().getAddress().getStreet());
     }
 
     @Test
@@ -61,26 +69,52 @@ class RestaurantGatewayTest {
     void deveBuscarPaginado() {
         PageRequest req = PageRequest.of(0, 10);
         PageResult<RestaurantData> page = new PageResult<>(List.of(data), 0, 10, 1);
-        when(dataSource.search("sabor", req)).thenReturn(page);
+        UUID dono = UUID.randomUUID();
+        when(dataSource.search("sabor", dono, req)).thenReturn(page);
 
-        PageResult<Restaurant> result = gateway.search("sabor", req);
+        PageResult<Restaurant> result = gateway.search("sabor", dono, req);
 
         assertEquals(1, result.totalElements());
     }
 
     @Test
-    @DisplayName("Inserção e atualização")
+    @DisplayName("Inserção e atualização traduzem o endereço normalizado pelo domínio")
     void deveInserirEAtualizar() {
         when(dataSource.insert(any())).thenReturn(data);
         when(dataSource.update(any())).thenReturn(data);
-
-        Restaurant r = Restaurant.restore(id, userId, addressId, "Sabor", LocalTime.of(8, 0), LocalTime.of(22, 0), null, null);
+        Address endereco = Address.create("Rua A", "10", null, "Bairro", "Cidade", "sp", "01000-000");
+        Restaurant r = Restaurant.restore(id, userId, endereco, "Sabor", OFFICE_HOURS, null, null);
 
         Restaurant inserted = gateway.insert(r);
         Restaurant updated = gateway.update(r);
 
         assertNotNull(inserted);
         assertNotNull(updated);
+        ArgumentCaptor<RestaurantData> captor = ArgumentCaptor.forClass(RestaurantData.class);
+        verify(dataSource).insert(captor.capture());
+        assertNull(captor.getValue().address().id());
+        assertEquals("SP", captor.getValue().address().state());
+        assertEquals("01000000", captor.getValue().address().zipCode());
+    }
+
+    @Test
+    @DisplayName("Pergunta à origem de dados se o usuário tem restaurante")
+    void deveDelegarSeOUsuarioTemRestaurante() {
+        UUID dono = UUID.randomUUID();
+        when(dataSource.existsByUserId(dono)).thenReturn(true);
+
+        assertTrue(gateway.existsByUserId(dono));
+        assertFalse(gateway.existsByUserId(UUID.randomUUID()));
+    }
+
+    @Test
+    @DisplayName("Exclusão dos restaurantes de um usuário delega à origem")
+    void deveExcluirOsRestaurantesDoUsuario() {
+        UUID dono = UUID.randomUUID();
+
+        gateway.deleteByUserId(dono);
+
+        verify(dataSource).deleteByUserId(dono);
     }
 
     @Test

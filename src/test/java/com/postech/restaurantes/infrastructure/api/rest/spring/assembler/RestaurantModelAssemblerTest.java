@@ -1,6 +1,9 @@
 package com.postech.restaurantes.infrastructure.api.rest.spring.assembler;
 
+import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.OFFICE_HOURS_VIEW;
+import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.ADDRESS_VIEW;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -8,7 +11,6 @@ import com.postech.restaurantes.adapter.presenter.view.RestaurantView;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.response.RestaurantResponse;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,8 +33,7 @@ class RestaurantModelAssemblerTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
-        view = new RestaurantView(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "Sabor",
-                LocalTime.of(8, 0), LocalTime.of(22, 0), LocalDateTime.now(), LocalDateTime.now());
+        view = new RestaurantView(UUID.randomUUID(), UUID.randomUUID(), ADDRESS_VIEW, "Sabor", OFFICE_HOURS_VIEW, LocalDateTime.now(), LocalDateTime.now());
     }
 
     @Test
@@ -50,7 +51,9 @@ class RestaurantModelAssemblerTest {
     void deveConverterParaPagedModel() {
         PageResult<RestaurantView> page = new PageResult<>(List.of(view), 1, 10, 25);
 
-        PagedModel<EntityModel<RestaurantResponse>> pagedModel = assembler.toPagedModel(page, "sabor", "name,asc");
+        UUID dono = UUID.fromString("44444444-4444-4444-4444-444444444444");
+
+        PagedModel<EntityModel<RestaurantResponse>> pagedModel = assembler.toPagedModel(page, "sabor", dono, "name,asc");
 
         assertNotNull(pagedModel.getContent());
         assertTrue(pagedModel.hasLink("self"));
@@ -58,5 +61,8 @@ class RestaurantModelAssemblerTest {
         assertTrue(pagedModel.hasLink("prev"));
         assertTrue(pagedModel.hasLink("next"));
         assertTrue(pagedModel.hasLink("last"));
+        assertTrue(pagedModel.getRequiredLink("next").getHref().contains("ownerId=" + dono),
+                "a navegação repete o filtro por dono");
+        assertFalse(assembler.toPagedModel(page, null, null, null).getRequiredLink("self").getHref().contains("ownerId"));
     }
 }

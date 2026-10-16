@@ -23,6 +23,7 @@ public enum ProblemType {
     ACCESS_DENIED("acesso-negado", "Acesso negado", HttpStatus.FORBIDDEN),
     RESOURCE_NOT_FOUND("recurso-nao-encontrado", "Recurso não encontrado", HttpStatus.NOT_FOUND),
     DATA_CONFLICT("conflito-de-dados", "Conflito de dados", HttpStatus.CONFLICT),
+    RESOURCE_IN_USE("recurso-em-uso", "Recurso em uso", HttpStatus.CONFLICT),
     UNEXPECTED_ERROR("erro-inesperado", "Erro inesperado", HttpStatus.INTERNAL_SERVER_ERROR);
 
     static final String URN_PREFIX = "urn:restaurantes:problema:";

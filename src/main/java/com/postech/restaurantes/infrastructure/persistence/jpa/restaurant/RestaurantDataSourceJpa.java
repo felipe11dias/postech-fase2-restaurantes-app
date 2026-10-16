@@ -1,14 +1,19 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa.restaurant;
 
 import com.postech.restaurantes.adapter.datasource.IRestaurantDataSource;
+import com.postech.restaurantes.adapter.datasource.data.OfficeHourData;
 import com.postech.restaurantes.adapter.datasource.data.RestaurantData;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
+import com.postech.restaurantes.infrastructure.persistence.jpa.address.AddressJpaMapping;
+import com.postech.restaurantes.infrastructure.persistence.jpa.restaurant.officehour.OfficeHourJpaEntity;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -41,10 +46,13 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResult<RestaurantData> search(String name, PageRequest request) {
+    public PageResult<RestaurantData> search(String name, UUID ownerId, PageRequest request) {
         Sort sort = toSort(request);
         Pageable pageable = org.springframework.data.domain.PageRequest.of(request.page(), request.size(), sort);
-        Page<UUID> ids = restaurants.findIdsByName(name == null ? "" : name, pageable);
+        String nome = name == null ? "" : name;
+        Page<UUID> ids = ownerId == null
+                ? restaurants.findIdsByName(nome, pageable)
+                : restaurants.findIdsByNameAndUserId(nome, ownerId, pageable);
         List<RestaurantData> content = ids.isEmpty()
                 ? List.of()
                 : restaurants.findByIdIn(ids.getContent(), sort).stream().map(RestaurantDataSourceJpa::toData).toList();
@@ -69,27 +77,77 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public boolean existsByUserId(UUID userId) {
+        return restaurants.existsByUserId(userId);
+    }
+
+    @Override
     @Transactional
     public void delete(UUID id) {
         restaurants.deleteById(id);
     }
 
+    /**
+     * Pela entidade, e não por um {@code DELETE} em massa: a remoção passa pela cascata da JPA, que leva o
+     * endereço de cada restaurante junto.
+     */
+    @Override
+    @Transactional
+    public void deleteByUserId(UUID userId) {
+        restaurants.deleteAll(restaurants.findByUserId(userId));
+    }
+
+    /**
+     * Copia o registro para a entidade gerenciada. O endereço do restaurante existente é
+     * atualizado na mesma linha (o id não muda); só o restaurante novo ganha uma linha nova.
+     */
     private void apply(RestaurantJpaEntity entity, RestaurantData data) {
         entity.setUserId(data.userId());
-        entity.setAddressId(data.addressId());
+        if (entity.getAddress() == null) {
+            entity.setAddress(AddressJpaMapping.toEntity(data.address()));
+        } else {
+            AddressJpaMapping.copy(data.address(), entity.getAddress());
+        }
         entity.setName(data.name());
-        entity.setOfficeHourStart(data.officeHourStart());
-        entity.setOfficeHourEnd(data.officeHourEnd());
+        entity.replaceOfficeHours(reconcile(entity.getOfficeHours(), data.officeHours()));
+    }
+
+    /**
+     * O horário que continua (mesmo dia e mesma abertura) fica na mesma linha, com o fechamento do registro;
+     * o novo ganha linha nova; o que não vier sai pelo {@code orphanRemoval}. Assim a unicidade
+     * {@code (restaurant_id, day_of_week, start_time)} não é violada no meio da descarga — o Hibernate
+     * insere os novos antes de apagar os antigos, e um horário regravado com a mesma chave seria um conflito.
+     */
+    private static List<OfficeHourJpaEntity> reconcile(List<OfficeHourJpaEntity> current,
+                                                       List<OfficeHourData> wanted) {
+        Map<String, OfficeHourJpaEntity> byKey = current.stream()
+                .collect(Collectors.toMap(RestaurantDataSourceJpa::key, Function.identity()));
+        return wanted.stream().map(data -> {
+            OfficeHourJpaEntity entity = byKey.get(data.dayOfWeek() + "@" + data.startTime());
+            if (entity == null) {
+                entity = new OfficeHourJpaEntity();
+            }
+            entity.setDayOfWeek(data.dayOfWeek());
+            entity.setStartTime(data.startTime());
+            entity.setEndTime(data.endTime());
+            return entity;
+        }).toList();
+    }
+
+    private static String key(OfficeHourJpaEntity entity) {
+        return entity.getDayOfWeek() + "@" + entity.getStartTime();
     }
 
     static RestaurantData toData(RestaurantJpaEntity entity) {
         return new RestaurantData(
                 entity.getId(),
                 entity.getUserId(),
-                entity.getAddressId(),
+                AddressJpaMapping.toData(entity.getAddress()),
                 entity.getName(),
-                entity.getOfficeHourStart(),
-                entity.getOfficeHourEnd(),
+                entity.getOfficeHours().stream()
+                        .map(hour -> new OfficeHourData(hour.getDayOfWeek(), hour.getStartTime(), hour.getEndTime()))
+                        .toList(),
                 entity.getCreatedAt(),
                 entity.getLastUpdatedAt()
         );

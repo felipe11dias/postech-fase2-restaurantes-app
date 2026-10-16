@@ -39,7 +39,7 @@ objetivos da arquitetura.
 | Casos de uso | `src/test/.../application` | Mockito nas portas `I*Gateway`, `Clock.fixed` para o tempo | parte dos unitários |
 | Adaptadores | `src/test/.../adapter` | mocks de `I*DataSource` e de `adapter/service`; controllers com casos de uso, gateways e presenters **reais** | parte dos unitários |
 | Infraestrutura com lógica | `src/test/.../infrastructure` | classes instanciadas direto, com `JpaRepository`, `SecurityContext`, `MailSender` mockados | parte dos unitários |
-| Arquitetura e convenções | `ArchitectureTest`, `InfrastructureModulesTest`, `TestConventionsTest` | ArchUnit | 44 regras |
+| Arquitetura e convenções | `ArchitectureTest`, `InfrastructureModulesTest`, `TestConventionsTest` | ArchUnit | 48 regras |
 | Integração | `*IT` | `@SpringBootTest`, PostgreSQL real (Testcontainers), Flyway, JWT ativo, HTTP de verdade; só o SMTP é substituído | 91 |
 | Aceitação manual/automatizada | `postman/` | coleção com um request por caso de cada endpoint, rodada com Newman | 52 requests |
 
@@ -94,5 +94,5 @@ void deveGravarOAutorDeCadaAlteracao() {
 ## 6. Como o build verifica
 
 `mvn verify` falha se: algum teste falhar; a cobertura unitária de linhas ou ramos ficar abaixo de
-100%; qualquer uma das 44 regras ArchUnit for violada. `mvn test` roda só os unitários e as regras,
+100%; qualquer uma das 48 regras ArchUnit for violada. `mvn test` roda só os unitários e as regras,
 em segundos, sem Docker.

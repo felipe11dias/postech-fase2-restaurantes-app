@@ -42,7 +42,7 @@ fecha lembrando que separação de responsabilidades e inversão de dependência
 | **ISP** — interfaces pequenas, do ponto de vista do cliente | `IAccessTokenReader` (só `read`) separada de `ITokenEncoder` (só `encode`); `IMailSender` com um método | — |
 | **DIP** — depender de abstração declarada pelo consumidor | portas em `application/gateway`; `I*DataSource` e `adapter/service` no adaptador; `IAccessTokenReader` na web | `ArchitectureTest`: regra de dependência inteira |
 | **REP / CCP / CRP** — o que muda junto fica junto | emitir e ler o JWT no mesmo módulo; texto do e-mail com o gateway de e-mail | `InfrastructureModulesTest`: cada biblioteca no seu módulo |
-| **ADP** — sem ciclos | o endereço JPA no pacote do agregado de usuário (antes formava ciclo) | `InfrastructureModulesTest`: `nenhum_ciclo_entre_pacotes` no projeto inteiro |
+| **ADP** — sem ciclos | as partes do agregado de usuário em subpacotes (`persistence/jpa/user/{address,password,owner,client,courier,admin}`, `persistence/jpa/restaurant/officehour`), e nem o endereço, nem os perfis, nem os horários JPA referenciam a raiz (associação unidirecional) para os pacotes não formarem ciclo | `InfrastructureModulesTest`: `nenhum_ciclo_entre_pacotes` no projeto inteiro |
 | **SDP / SAP** — depender do estável; o estável é abstrato | `domain` e `application` só têm regras e interfaces e não dependem de nada; a infraestrutura, instável, depende deles | regra de dependência |
 | Independência de framework e de banco (Aula 06) | nenhum import de Spring/JPA fora de `infrastructure`; entidades JPA separadas | `ArchitectureTest`: frameworks só em `infrastructure` |
 | Testabilidade (Aula 06) | núcleo testado sem Spring nem banco; gate de 100% só dos unitários | JaCoCo `check` + `TestConventionsTest` |
@@ -68,9 +68,10 @@ se ele rompe a integridade entre a arquitetura aplicada e os conceitos; se rompe
 
 ## 6. Como o build verifica
 
-Os princípios não ficam só no texto: **44 regras ArchUnit** os fazem quebrar o build quando
-violados — 14 no `ArchitectureTest` (regra de dependência e nomenclatura), 23 no
-`InfrastructureModulesTest` (módulos, ciclos, bibliotecas, portas técnicas, transporte sem domínio,
+Os princípios não ficam só no texto: **48 regras ArchUnit** os fazem quebrar o build quando
+violados — 17 no `ArchitectureTest` (regra de dependência, nomenclatura, registros sem tipo do domínio,
+políticas de aplicação), 24 no
+`InfrastructureModulesTest` (módulos, ciclos, bibliotecas, portas técnicas, domínio só pelas exceções,
 organização MVC da API) e 7 no
 `TestConventionsTest` (convenções da suíte). Cada regra foi conferida ao contrário, com uma violação
 proposital, na etapa em que foi criada.

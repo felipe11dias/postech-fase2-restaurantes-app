@@ -5,6 +5,7 @@ import com.postech.restaurantes.adapter.service.data.TokenClaimsData;
 import com.postech.restaurantes.application.dto.auth.IssuedToken;
 import com.postech.restaurantes.application.gateway.ITokenIssuer;
 import com.postech.restaurantes.domain.Guard;
+import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.entity.user.User;
 import java.util.stream.Collectors;
 
@@ -27,6 +28,6 @@ public final class TokenGateway implements ITokenIssuer {
     @Override
     public IssuedToken issue(User user) {
         return encoder.encode(new TokenClaimsData(user.getId(), user.getLogin(),
-                user.getRoles().stream().map(role -> role.getName().name()).collect(Collectors.toSet())));
+                user.getRoles().stream().map(RoleName::name).collect(Collectors.toSet())));
     }
 }

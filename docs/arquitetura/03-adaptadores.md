@@ -52,11 +52,13 @@
 ```
 adapter/
   controller/   UserController, AuthController              — o maestro
-  gateway/      UserGateway, RoleGateway, PasswordResetTokenGateway   — tradutores de dados
+  gateway/      UserGateway, PasswordResetTokenGateway,
+                RestaurantGateway                                     — tradutores de dados
+  gateway/mapping/  AddressMapping                                 — tradução compartilhada (endereço)
                 PasswordResetMailGateway, TokenGateway                 — tradutores de serviços
-  datasource/   IUserDataSource, IRoleDataSource, IPasswordResetTokenDataSource  (+ data/ *Data)
+  datasource/   IUserDataSource, IPasswordResetTokenDataSource, IRestaurantDataSource  (+ data/ *Data)
   service/      IMailSender, ITokenEncoder                                        (+ data/ *Data)
-  presenter/    UserPresenter, AuthPresenter                 (+ view/ *View)
+  presenter/    UserPresenter, AuthPresenter, RestaurantPresenter, AddressPresenter (+ view/ *View)
 ```
 
 ### Controllers — [`adapter/controller`](../../src/main/java/com/postech/restaurantes/adapter/controller)
@@ -66,7 +68,7 @@ Exatamente o formato da Aula 05, com a unidade de trabalho em volta de cada `run
 ```java
 public UserView register(NewUserDTO dto) {
     var useCase = RegisterUserUseCase.create(UserGateway.create(userDataSource),
-            RoleGateway.create(roleDataSource), passwordEncoder);          // gateways criados aqui
+            passwordEncoder, clock);                                       // gateway criado aqui
     return UserPresenter.toView(unitOfWork.execute(() -> useCase.run(dto))); // presenter no fim
 }
 ```
@@ -75,15 +77,28 @@ O `AuthController` faz o mesmo com os **serviços**: recebe `IMailSender` e `ITo
 `PasswordResetMailGateway` e `TokenGateway` a cada operação. Os controllers de adaptação são objetos
 comuns, criados pela fábrica estática na composição (`CompositionConfig`) — nunca `@Component`.
 
+Quando um caso de uso precisa de outro agregado, o controller recebe a origem de dados dele e cria o
+gateway correspondente: remover o perfil de dono (Etapa 22) pergunta se o usuário tem restaurante, então
+o `UserController` recebe `IRestaurantDataSource` e entrega um `RestaurantGateway` ao
+`RemoveUserProfileUseCase` — o caso de uso só conhece a porta `IRestaurantGateway`.
+
 ### Gateways — [`adapter/gateway`](../../src/main/java/com/postech/restaurantes/adapter/gateway)
 
 | Gateway | Porta do núcleo | Consome | Tradução que faz |
 |---|---|---|---|
-| `UserGateway` | `IUserGateway` | `IUserDataSource` | `User` ↔ `UserData` (e-mail normalizado, CEP sem máscara, papéis pelo nome); reconstrói com `User.restore`, que **revalida** |
-| `RoleGateway` | `IRoleGateway` | `IRoleDataSource` | `RoleName` ↔ nome textual |
+| `UserGateway` | `IUserGateway` | `IUserDataSource` | `User` ↔ `UserData` (e-mail normalizado, CEP sem máscara, cada perfil como `OwnerData`/`ClientData`/`CourierData`/`AdminData` — documentos sem máscara, tipo de veículo e status pelo nome, convertidos de volta por `CourierVehicleType.from`/`CourierStatus.from` —, endereços como `UserAddressData` com rótulo e padrão); reconstrói com `User.restore`, que **revalida** |
+| `RestaurantGateway` | `IRestaurantGateway` | `IRestaurantDataSource` | `Restaurant` ↔ `RestaurantData`, com o endereço do restaurante aninhado |
 | `PasswordResetTokenGateway` | `IPasswordResetTokenGateway` | `IPasswordResetTokenDataSource` | `PasswordResetToken` ↔ `PasswordResetTokenData` |
 | [`PasswordResetMailGateway`](../../src/main/java/com/postech/restaurantes/adapter/gateway/PasswordResetMailGateway.java) | `IMailGateway` | `IMailSender` | pedido "token + validade" → **assunto e corpo** da mensagem em português |
-| [`TokenGateway`](../../src/main/java/com/postech/restaurantes/adapter/gateway/TokenGateway.java) | `ITokenIssuer` | `ITokenEncoder` | `User` → `TokenClaimsData` (id, login, nomes dos papéis) |
+| [`TokenGateway`](../../src/main/java/com/postech/restaurantes/adapter/gateway/TokenGateway.java) | `ITokenIssuer` | `ITokenEncoder` | `User` → `TokenClaimsData` (id, login, nomes dos papéis derivados dos perfis) |
+
+**Tradução compartilhada — [`adapter/gateway/mapping`](../../src/main/java/com/postech/restaurantes/adapter/gateway/mapping).**
+O endereço é parte de dois agregados (usuário, por `UserAddress`, e restaurante). A tradução
+`Address` ↔ `AddressData` é uma só — se o endereço mudar, muda para os dois (duplicação verdadeira,
+Martin cap. 16) —, então mora em `AddressMapping`, usado por `UserGateway` e `RestaurantGateway`.
+Fica num subpacote porque não é gateway: não implementa porta do núcleo, e a regra
+`gateways_do_adapter_implementam_uma_porta_do_nucleo` vale para `adapter.gateway`. Na saída, o
+mesmo papel é do `AddressPresenter`.
 
 ### Interfaces consumidas pelos gateways
 
@@ -150,11 +165,13 @@ Outros pontos em relação ao código das aulas:
 - `ArchitectureTest`: `adapter` não depende de `infrastructure`; toda classe em `adapter.gateway`
   implementa uma interface de `application.gateway`; `adapter.datasource` e `adapter.service` só
   têm interfaces com prefixo `I`; seus subpacotes `data` só têm records com sufixo `Data`; views
-  são records com sufixo `View`.
+  são records com sufixo `View`; registros e views não carregam tipo do domínio — o enum atravessa pelo
+  nome (`registros_e_views_nao_carregam_tipos_do_dominio`, Etapa 25).
 - `InfrastructureModulesTest`: **a infraestrutura só conhece as portas técnicas** do núcleo — qualquer
   outra porta implementada (ou referenciada, como uma lambda num `@Bean`) fora de `adapter.gateway`
-  quebra o build; e os módulos de e-mail e token não conhecem o `domain`.
-- Testes: `UserGatewayTest`, `RoleAndTokenGatewaysTest`, `ServiceGatewaysTest` (tradução com os
+  quebra o build; os módulos de e-mail e token não conhecem o `domain`; e o resto da infraestrutura só
+  conhece dele as exceções (`infraestrutura_so_conhece_do_dominio_as_excecoes`, Etapa 25).
+- Testes: `UserGatewayTest`, `PasswordResetTokenGatewayTest`, `ServiceGatewaysTest` (tradução com os
   serviços mockados), `PresentersTest`, e `UserControllerTest`/`AuthControllerTest` (inclusive: e-mail só depois do commit, e nenhum se
   o commit falha), que testam o
   controller "de ponta a ponta dentro do núcleo" — origens de dados e serviços mockados, casos de

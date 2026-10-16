@@ -6,6 +6,7 @@ import com.postech.restaurantes.infrastructure.api.rest.spring.dto.response.Rest
 import com.postech.restaurantes.infrastructure.api.rest.spring.route.ApiRoutes;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.IanaLinkRelations;
 import org.springframework.hateoas.Link;
@@ -25,20 +26,21 @@ public class RestaurantModelAssembler {
         return EntityModel.of(RestaurantResponse.from(view), selfLink(view), restaurantsLink());
     }
 
-    public PagedModel<EntityModel<RestaurantResponse>> toPagedModel(PageResult<RestaurantView> page, String name, String sort) {
+    public PagedModel<EntityModel<RestaurantResponse>> toPagedModel(PageResult<RestaurantView> page, String name,
+                                                                    UUID ownerId, String sort) {
         List<EntityModel<RestaurantResponse>> conteudo = page.content().stream().map(this::toModel).toList();
         PagedModel.PageMetadata metadados = new PagedModel.PageMetadata(
                 page.size(), page.page(), page.totalElements(), page.totalPages());
         PagedModel<EntityModel<RestaurantResponse>> model = PagedModel.of(conteudo, metadados);
-        model.add(pageLink(page, page.page(), name, sort, IanaLinkRelations.SELF));
-        model.add(pageLink(page, 0, name, sort, IanaLinkRelations.FIRST));
+        model.add(pageLink(page, page.page(), name, ownerId, sort, IanaLinkRelations.SELF));
+        model.add(pageLink(page, 0, name, ownerId, sort, IanaLinkRelations.FIRST));
         if (page.hasPrevious()) {
-            model.add(pageLink(page, page.page() - 1, name, sort, IanaLinkRelations.PREV));
+            model.add(pageLink(page, page.page() - 1, name, ownerId, sort, IanaLinkRelations.PREV));
         }
         if (page.hasNext()) {
-            model.add(pageLink(page, page.page() + 1, name, sort, IanaLinkRelations.NEXT));
+            model.add(pageLink(page, page.page() + 1, name, ownerId, sort, IanaLinkRelations.NEXT));
         }
-        model.add(pageLink(page, Math.max(page.totalPages() - 1, 0), name, sort, IanaLinkRelations.LAST));
+        model.add(pageLink(page, Math.max(page.totalPages() - 1, 0), name, ownerId, sort, IanaLinkRelations.LAST));
         model.add(restaurantsLink());
         return model;
     }
@@ -47,9 +49,11 @@ public class RestaurantModelAssembler {
         return restaurants().slash(view.id()).withSelfRel();
     }
 
-    private static Link pageLink(PageResult<?> page, int number, String name, String sort, LinkRelation rel) {
+    private static Link pageLink(PageResult<?> page, int number, String name, UUID ownerId, String sort,
+                                 LinkRelation rel) {
         String href = UriComponentsBuilder.fromUri(restaurants().toUri())
                 .queryParamIfPresent("name", Optional.ofNullable(name))
+                .queryParamIfPresent("ownerId", Optional.ofNullable(ownerId))
                 .queryParam("page", number)
                 .queryParam("size", page.size())
                 .queryParamIfPresent("sort", Optional.ofNullable(sort))

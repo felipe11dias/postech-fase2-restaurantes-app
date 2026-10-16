@@ -11,14 +11,30 @@ desenvolvimento, está em [`relatorios/`](relatorios/).
 
 ## Estado da entrega
 
-| Funcionalidade | Estado |
+Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo é a da branch
+`etapa-25-revisao-modelo-v2`, última das 25 etapas do relatório técnico.
+
+| Requisito do enunciado | Estado |
 | --- | --- |
-| Cadastro de usuários (autocadastro, consulta, listagem, atualização, exclusão, troca de senha) | ✅ Implementado |
+| Usuários: cadastro, consulta, listagem, atualização, exclusão, troca de senha | ✅ Implementado |
 | Autenticação JWT, autorização por posse e papel de administrador | ✅ Implementado |
 | Recuperação de senha por e-mail (token de uso único com validade) | ✅ Implementado |
-| Tipos de usuário | 🔄 Parcial — catálogo fixo (dono de restaurante, cliente e administrador), escolhido no cadastro. Pendentes: o CRUD do catálogo e a troca do tipo de um usuário já cadastrado |
-| Cadastro de restaurantes | ⏳ Pendente |
-| Cadastro de itens de cardápio | ⏳ Pendente |
+| Tipo de usuário: distinguir "Dono de Restaurante" e "Cliente" | ✅ Perfis `owner`, `client`, `courier` e `admin`, em tabelas próprias; o papel é derivado do perfil |
+| Tipo de usuário: associar o tipo a usuários **existentes** | ✅ Incluir, alterar e remover perfil em `/api/v1/users/{id}/profiles/…`, valendo na hora |
+| Tipo de usuário: **CRUD de tipos de usuário** (campo "Nome do Tipo") | ⏳ Pendente — os perfis são fixos no modelo de dados v2 e não há catálogo editável; a forma de atender o requisito ainda será decidida |
+| Cadastro de restaurante: CRUD com nome, endereço, horário de funcionamento e dono | ✅ Implementado — endereço próprio, horário por dia da semana, dono com perfil de dono e regra de posse |
+| Cadastro de restaurante: **tipo de cozinha** | ⏳ Pendente — o modelo v2 prevê `cuisines` e `restaurant_cuisines`, ainda sem implementação |
+| Cadastro de itens de cardápio (nome, descrição, preço, só no local, caminho da foto) | ⏳ Pendente — nenhuma entidade, tabela ou endpoint |
+
+| Entregável da avaliação | Estado |
+| --- | --- |
+| Clean Architecture em camadas | ✅ Quatro camadas, verificadas no build (ArchUnit, 48 regras) |
+| Testes: unitários com 80% e de integração | ✅ 775 unitários com **100%** de linhas e ramos; 138 de integração com PostgreSQL real |
+| Documentação (arquitetura, endpoints, execução) | ✅ Este README, o relatório técnico, o Swagger, `docs/arquitetura/` e `docs/modelo-dados/` |
+| Coleção Postman | ✅ 125 requests, com um print por request; cobre usuários, perfis e restaurantes (cozinha e cardápio entram com as funcionalidades) |
+| Docker Compose (aplicação e banco) | ✅ Aplicação, PostgreSQL e Mailpit |
+| Repositório aberto | ✅ Público; a `main` ainda não recebeu as Etapas 17 a 25 (estão nas branches `etapa-NN-*`) |
+| Vídeo de apresentação (cerca de 5 minutos) | ⏳ Pendente — depende das funcionalidades acima |
 
 ## Arquitetura
 
@@ -40,13 +56,13 @@ flowchart TB
 
 Dentro de cada camada o código é agrupado por agregado (`user`, `auth`, `address`…), para que a
 estrutura revele o domínio. A regra de dependência é **verificada no build** pelo ArchUnit
-(14 regras): nenhum tipo fora de `infrastructure` importa Spring, JPA, Hibernate, jjwt ou
+(17 regras): nenhum tipo fora de `infrastructure` importa Spring, JPA, Hibernate, jjwt ou
 Bean Validation.
 
 A infraestrutura, por sua vez, é um conjunto de **módulos substituíveis**: o pacote diz o papel e
 o subpacote a tecnologia (`persistence/jpa`, `token/jwt`, `mail/smtp`). Nenhum módulo conhece
 outro; só `main` (a composição) liga as pontas. Trocar uma tecnologia é apagar um subpacote e
-criar outro ao lado — outras 23 regras ArchUnit provam que nada mais dependia dele, que não há
+criar outro ao lado — outras 24 regras ArchUnit provam que nada mais dependia dele, que não há
 ciclos entre pacotes, que cada biblioteca só aparece no módulo que a encapsula e que a
 infraestrutura só implementa diretamente as portas técnicas (hash de senha, token aleatório,
 unidade de trabalho) — o resto passa por um gateway do adaptador; e, dentro da API, que cada
@@ -169,14 +185,14 @@ Na IDE, configure as mesmas variáveis na configuração de execução (ou use u
 
 ## Usuários de demonstração
 
-Criados pela migration `V2`. O administrador só existe por aqui: o autocadastro recusa
-`ROLE_ADMIN`.
+Criados pelas migrations `V2` (usuários) e `V6` (perfis). O administrador só existe por aqui: o
+autocadastro não tem perfil de administrador.
 
-| Login | Senha | Papel |
-|---|---|---|
-| `admin.demo` | `admin12345` | `ROLE_ADMIN` |
-| `dono.restaurante` | `dono12345` | `ROLE_OWNER` |
-| `cliente.demo` | `cliente12345` | `ROLE_CUSTOMER` |
+| Login | Senha | Perfil | Papel (derivado) |
+|---|---|---|---|
+| `admin.demo` | `admin12345` | administrador (`ADM-0001`) | `ROLE_ADMIN` |
+| `dono.restaurante` | `dono12345` | dono (CNPJ `04.252.011/0001-10`) | `ROLE_OWNER` |
+| `cliente.demo` | `cliente12345` | cliente (CPF `529.982.247-25`) | `ROLE_CLIENT` |
 
 ## Autenticação e autorização
 
@@ -186,7 +202,18 @@ Criados pela migration `V2`. O administrador só existe por aqui: o autocadastro
 3. Regras de acesso:
    - Cada usuário lê, altera e exclui **apenas o próprio cadastro**. O administrador acessa qualquer um.
    - A **listagem** de cadastros é exclusiva do administrador, porque expõe dados pessoais de todos.
-   - O autocadastro é público, mas não concede `ROLE_ADMIN`.
+   - O autocadastro é público e traz um ou mais perfis — `owner` (CNPJ), `client` (CPF) e `courier`
+     (CPF; CNH e placa para moto e carro) —, nunca o de administrador. O papel de cada um é derivado
+     do perfil: `ROLE_OWNER`, `ROLE_CLIENT`, `ROLE_COURIER`.
+   - Restaurante só pode ter como dono um usuário com perfil de dono. O dono cadastra, altera e exclui
+     **só os próprios restaurantes** (sem `userId` no cadastro, o dono é quem está autenticado); indicar
+     ou trocar o dono é do administrador. Excluir um usuário exclui os restaurantes dele.
+   - O restaurante tem horários por dia da semana (`officeHours`: dia, abertura, fechamento), ao menos
+     um e sem sobreposição; fechamento antes da abertura é expediente que vira a meia-noite.
+   - Perfis de um cadastro existente se incluem, alteram e removem em `/api/v1/users/{id}/profiles/…`
+     (o próprio usuário ou um administrador; o perfil de administrador, só um administrador). A
+     autorização lê os perfis do cadastro a cada requisição: incluir ou remover perfil vale na hora,
+     com o mesmo token. O último administrador não perde o perfil de administrador nem é excluído.
 4. **Recuperação de senha:** `POST /api/v1/auth/forgot-password` responde `202` sempre, exista ou
    não o e-mail, e no mesmo tempo: o pedido é processado em segundo plano, então a API não revela
    quais e-mails têm conta nem pela resposta nem pela demora. O token chega **só por e-mail**, em
@@ -206,7 +233,16 @@ Criados pela migration `V2`. O administrador só existe por aqui: o autocadastro
 | `GET` | `/api/v1/users/{id}` | dono ou administrador | `200` |
 | `PUT` | `/api/v1/users/{id}` | dono ou administrador | `200` |
 | `PATCH` | `/api/v1/users/{id}/password` | dono ou administrador | `204` |
-| `DELETE` | `/api/v1/users/{id}` | dono ou administrador | `204` |
+| `DELETE` | `/api/v1/users/{id}` | dono ou administrador | `204` (com os restaurantes do usuário; não o último administrador) |
+| `PUT` | `/api/v1/users/{id}/profiles/{owner,client,courier}` | dono ou administrador | `200` (inclui ou altera o perfil) |
+| `PUT` | `/api/v1/users/{id}/profiles/admin` | administrador | `200` |
+| `DELETE` | `/api/v1/users/{id}/profiles/{tipo}` | dono ou administrador | `204` (não o último perfil; não o de dono com restaurante; não o do último administrador) |
+| `PATCH` | `/api/v1/users/{id}/profiles/courier/status` | dono ou administrador | `200` |
+| `POST` | `/api/v1/restaurants` | dono (para si) ou administrador (para qualquer dono) | `201` + `Location` |
+| `GET` | `/api/v1/restaurants?name=&ownerId=&page=&size=&sort=` | público | `200` página com links de navegação |
+| `GET` | `/api/v1/restaurants/{id}` | público | `200` |
+| `PUT` | `/api/v1/restaurants/{id}` | dono do restaurante (sem trocar de dono) ou administrador | `200` |
+| `DELETE` | `/api/v1/restaurants/{id}` | dono do restaurante ou administrador | `204` |
 
 **Erros** seguem o `ProblemDetail` da RFC 9457 (`application/problem+json`), com `type`, `title`,
 `status`, `detail`, `instance` e `timestamp`. O `type` identifica a categoria e é estável — é nele
@@ -214,15 +250,16 @@ que o cliente deve se apoiar:
 
 | `type` (`urn:restaurantes:problema:…`) | Status | Quando |
 |---|---|---|
-| `requisicao-invalida` | 400 | Campo inválido (com o mapa `errors` por campo), JSON malformado, id que não é UUID |
+| `requisicao-invalida` | 400 | Campo inválido (com o mapa `errors` por campo), JSON malformado, id que não é UUID, nenhum perfil, CPF/CNPJ inválido |
 | `senha-invalida` | 400 | Senha atual incorreta ou confirmação divergente |
 | `token-invalido` | 400 | Token de redefinição desconhecido, vencido ou já usado |
 | `falha-na-autenticacao` | 401 | Login ou senha incorretos (mesma resposta para os dois) |
 | `nao-autenticado` | 401 | Sem token ou token inválido/expirado |
-| `operacao-nao-permitida` | 403 | Autocadastro pedindo `ROLE_ADMIN` |
-| `acesso-negado` | 403 | Cadastro de outro usuário; listagem por não administrador |
-| `recurso-nao-encontrado` | 404 | Usuário inexistente |
-| `conflito-de-dados` | 409 | E-mail ou login já cadastrado |
+| `operacao-nao-permitida` | 403 | Restaurante indicado para usuário sem perfil de dono |
+| `acesso-negado` | 403 | Cadastro de outro usuário; listagem por não administrador; restaurante de outro dono |
+| `recurso-nao-encontrado` | 404 | Usuário inexistente; perfil que o usuário não tem |
+| `conflito-de-dados` | 409 | E-mail, login, CPF ou CNPJ já cadastrado |
+| `recurso-em-uso` | 409 | Perfil de dono de quem tem restaurante; perfil de administrador ou cadastro do último administrador |
 | `erro-inesperado` | 500 | Falha não prevista (detalhe genérico; a causa vai para o log) |
 
 A documentação completa, com exemplos de cada resposta, está no Swagger UI.
@@ -230,16 +267,20 @@ A documentação completa, com exemplos de cada resposta, está no Swagger UI.
 ## Coleção Postman
 
 [`postman/Restaurantes.postman_collection.json`](postman/Restaurantes.postman_collection.json)
-(formato v2.1) tem **52 requests em 9 pastas**: um por caso de cada endpoint — o sucesso e cada
+(formato v2.1) tem **125 requests em 16 pastas** (usuários e restaurantes): um por caso de cada endpoint — o sucesso e cada
 erro previsto —, na ordem em que rodam de cima a baixo. Os scripts de teste conferem o status e
 o `type` de cada erro e guardam `{{adminToken}}`, `{{token}}` e `{{userId}}` para as requisições
 seguintes; se um login ou cadastro essencial falhar, a execução para ali, com o motivo, em vez de
 seguir falhando em cascata. A pasta de recuperação de senha lê o token **na caixa do Mailpit**,
 pela API dele, como o usuário faria.
 
-A coleção cria os próprios usuários — um cliente e um segundo cadastro descartável, alvo dos
-casos de acesso negado — e os exclui ao fim. **Ela nunca altera os usuários da seed**: se a regra
-de posse regredir, o estrago fica no cadastro descartável. Por isso pode rodar quantas vezes
+A coleção cria os próprios usuários — um cliente, um segundo cadastro descartável (alvo dos
+casos de acesso negado), um dono e um entregador — e os exclui ao fim. CPF, CNPJ e CNH são únicos
+no banco: o pré-request da coleção gera documentos válidos e novos a cada request
+(`{{cpfGerado}}`, `{{cnpjGerado}}`, `{{cnhGerada}}`). **Ela nunca altera os usuários da seed**: se a regra
+de posse regredir, o estrago fica no cadastro descartável. O único caso que mira a seed — excluir o
+administrador dela, o último, e receber `409` — só mira depois que a listagem confirma que ele é o único
+administrador; senão vai para um id inexistente e falha sem apagar nada. Por isso pode rodar quantas vezes
 quiser contra o mesmo banco.
 
 - **No Postman:** *Import* → escolha o arquivo → *Run collection*. As variáveis `baseUrl`
@@ -283,8 +324,8 @@ mvn verify    # + testes de integração (Testcontainers) + gate de 100% de cobe
 - **Cobertura:** o build **falha** abaixo de 100% de linhas e ramos **dos testes unitários**. A
   integração é medida à parte, só para informação. Relatórios: `target/site/jacoco/index.html`
   (unitários) e `target/site/jacoco-it/index.html` (integração).
-- **Arquitetura e convenções:** o ArchUnit verifica a regra de dependência (14 regras), os módulos
-  da infraestrutura (23 regras) e as
+- **Arquitetura e convenções:** o ArchUnit verifica a regra de dependência (17 regras), os módulos
+  da infraestrutura (24 regras) e as
   convenções da própria suíte (7 regras: `@DisplayName` em todo teste, nome `deve…`, unitário
   sem contexto Spring, integração sem dublê de bean da aplicação…).
 

@@ -6,15 +6,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.postech.restaurantes.Documentos;
 import com.postech.restaurantes.IntegrationTestSupport;
 import com.postech.restaurantes.adapter.datasource.IPasswordResetTokenDataSource;
-import com.postech.restaurantes.adapter.datasource.IRoleDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
+import com.postech.restaurantes.adapter.datasource.data.ClientData;
 import com.postech.restaurantes.adapter.datasource.data.PasswordResetTokenData;
 import com.postech.restaurantes.adapter.datasource.data.UserData;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,9 +29,6 @@ class PasswordResetTokenPersistenceIT extends IntegrationTestSupport {
 
     @Autowired
     private IUserDataSource userDataSource;
-
-    @Autowired
-    private IRoleDataSource roleDataSource;
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -61,7 +58,7 @@ class PasswordResetTokenPersistenceIT extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Consumir o token grava o uso, e só ele")
+    @DisplayName("Consumir o token grava o uso, mantendo hash e validade")
     void deveGravarOConsumo() {
         UserData dono = inserirUsuario();
         String hash = "hash-" + UUID.randomUUID();
@@ -77,15 +74,46 @@ class PasswordResetTokenPersistenceIT extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("O mesmo hash não pode ser gravado duas vezes")
+    @DisplayName("O mesmo hash não pode ser gravado duas vezes, nem para usuários diferentes")
     void deveRecusarHashDuplicado() {
-        UserData dono = inserirUsuario();
         String hash = "hash-" + UUID.randomUUID();
-        tokenDataSource.insert(new PasswordResetTokenData(null, dono.id(), hash,
+        tokenDataSource.insert(new PasswordResetTokenData(null, inserirUsuario().id(), hash,
                 LocalDateTime.now().plusMinutes(30), false));
+        UUID outroDono = inserirUsuario().id();
 
         assertThrows(DataIntegrityViolationException.class, () -> tokenDataSource.insert(
-                new PasswordResetTokenData(null, dono.id(), hash, LocalDateTime.now().plusMinutes(30), false)));
+                new PasswordResetTokenData(null, outroDono, hash, LocalDateTime.now().plusMinutes(30), false)));
+    }
+
+    @Test
+    @DisplayName("Um usuário tem um token só: o banco recusa o segundo (V5)")
+    void deveRecusarSegundoTokenDoMesmoUsuario() {
+        UserData dono = inserirUsuario();
+        tokenDataSource.insert(new PasswordResetTokenData(null, dono.id(), "hash-" + UUID.randomUUID(),
+                LocalDateTime.now().plusMinutes(30), false));
+
+        assertThrows(DataIntegrityViolationException.class, () -> tokenDataSource.insert(new PasswordResetTokenData(
+                null, dono.id(), "hash-" + UUID.randomUUID(), LocalDateTime.now().plusMinutes(30), false)));
+    }
+
+    @Test
+    @DisplayName("Reemitir grava hash, validade e uso novos na mesma linha; o hash antigo deixa de achar o token")
+    void deveReemitirNaMesmaLinha() {
+        UserData dono = inserirUsuario();
+        String hashAntigo = "hash-" + UUID.randomUUID();
+        String hashNovo = "hash-" + UUID.randomUUID();
+        LocalDateTime novaValidade = LocalDateTime.now().withNano(0).plusHours(1);
+        PasswordResetTokenData gravado = tokenDataSource.insert(new PasswordResetTokenData(null, dono.id(),
+                hashAntigo, LocalDateTime.now().plusMinutes(30), true));
+
+        tokenDataSource.update(new PasswordResetTokenData(gravado.id(), dono.id(), hashNovo, novaValidade, false));
+
+        PasswordResetTokenData lido = tokenDataSource.findByUserId(dono.id()).orElseThrow();
+        assertEquals(gravado.id(), lido.id());
+        assertEquals(hashNovo, lido.tokenHash());
+        assertEquals(novaValidade, lido.expiresAt());
+        assertFalse(lido.used());
+        assertTrue(tokenDataSource.findByTokenHash(hashAntigo).isEmpty());
     }
 
     @Test
@@ -108,6 +136,6 @@ class PasswordResetTokenPersistenceIT extends IntegrationTestSupport {
         LocalDateTime agora = LocalDateTime.now().withNano(0);
         return userDataSource.insert(new UserData(null, "Dono do Token", "token." + sufixo + "@email.com",
                 "token." + sufixo, "$2a$10$hashDeIntegracaoComTamanhoSuficiente",
-                roleDataSource.findByNames(Set.of("ROLE_CUSTOMER")), List.of(), agora, agora));
+                null, new ClientData(Documentos.cpf(), "11912345678", null), null, null, List.of(), agora, agora));
     }
 }

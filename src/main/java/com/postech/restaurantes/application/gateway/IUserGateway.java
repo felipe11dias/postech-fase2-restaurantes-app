@@ -3,6 +3,8 @@ package com.postech.restaurantes.application.gateway;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.domain.entity.user.User;
+import com.postech.restaurantes.domain.vo.Cnpj;
+import com.postech.restaurantes.domain.vo.Cpf;
 import com.postech.restaurantes.domain.vo.Email;
 import java.util.Optional;
 import java.util.UUID;
@@ -15,6 +17,15 @@ public interface IUserGateway {
     Optional<User> findByLogin(String login);
 
     Optional<User> findByEmail(Email email);
+
+    /** Usuário cujo perfil de cliente ou de entregador tem este CPF. */
+    Optional<User> findByCpf(Cpf cpf);
+
+    /** Usuário cujo perfil de dono tem este CNPJ. */
+    Optional<User> findByCnpj(Cnpj cnpj);
+
+    /** Quantos usuários têm o perfil de administrador — o último não pode deixar de ser. */
+    long countAdmins();
 
     /** Busca parcial por nome (sem diferenciar maiúsculas); nome nulo lista todos. */
     PageResult<User> search(String name, PageRequest request);

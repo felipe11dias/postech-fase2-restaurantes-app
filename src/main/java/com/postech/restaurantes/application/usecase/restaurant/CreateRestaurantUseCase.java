@@ -1,11 +1,12 @@
 package com.postech.restaurantes.application.usecase.restaurant;
 
 import com.postech.restaurantes.application.dto.restaurant.CreateRestaurantDTO;
+import com.postech.restaurantes.application.dto.restaurant.OfficeHourDTO;
 import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.application.gateway.IUserGateway;
 import com.postech.restaurantes.domain.Guard;
 import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
-import com.postech.restaurantes.domain.entity.user.RoleName;
+import com.postech.restaurantes.domain.entity.role.RoleName;
 import com.postech.restaurantes.domain.entity.user.User;
 import com.postech.restaurantes.domain.exception.ForbiddenOperationException;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
@@ -13,8 +14,9 @@ import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
 /**
  * Caso de uso de criação de restaurante.
  *
- * <p>Regras de aplicação: o dono deve existir, possuir papel de dono de restaurante
- * ({@code ROLE_OWNER}) ou admin ({@code ROLE_ADMIN}), e o endereço associado deve pertencer ao usuário.
+ * <p>Regras de aplicação: o dono deve existir e ter perfil de dono de restaurante
+ * ({@code ROLE_OWNER}) — um administrador sem esse perfil não é dono. O endereço chega no pedido e é do
+ * restaurante — não é escolhido entre os endereços do dono.
  */
 public final class CreateRestaurantUseCase {
 
@@ -35,22 +37,15 @@ public final class CreateRestaurantUseCase {
         User user = userGateway.findById(dto.userId())
                 .orElseThrow(() -> new ResourceNotFoundException("Dono do restaurante não encontrado"));
 
-        if (!user.hasRole(RoleName.ROLE_OWNER) && !user.hasRole(RoleName.ROLE_ADMIN)) {
-            throw new ForbiddenOperationException("O usuário informado não possui papel de dono de restaurante");
-        }
-
-        boolean addressBelongsToUser = user.getAddresses().stream()
-                .anyMatch(addr -> addr.getId().equals(dto.addressId()));
-        if (!addressBelongsToUser) {
-            throw new ResourceNotFoundException("Endereço não encontrado ou não pertence ao usuário");
+        if (!user.hasRole(RoleName.ROLE_OWNER)) {
+            throw new ForbiddenOperationException("O usuário informado não tem perfil de dono de restaurante");
         }
 
         Restaurant restaurant = Restaurant.create(
                 dto.userId(),
-                dto.addressId(),
+                Guard.requireNonNull(dto.address(), "Endereço do restaurante inválido").toEntity(),
                 dto.name(),
-                dto.officeHourStart(),
-                dto.officeHourEnd()
+                OfficeHourDTO.toEntities(dto.officeHours())
         );
 
         return restaurantGateway.insert(restaurant);

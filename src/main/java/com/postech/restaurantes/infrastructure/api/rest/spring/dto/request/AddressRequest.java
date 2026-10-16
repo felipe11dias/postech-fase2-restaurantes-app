@@ -4,7 +4,6 @@ import com.postech.restaurantes.application.dto.common.AddressDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -32,10 +31,6 @@ public record AddressRequest(
     }
 
     public AddressDTO toDTO() {
-        return new AddressDTO(cityId, street, number, complement, neighborhood, city, state, zipCode);
-    }
-
-    public static List<AddressDTO> toDTOs(List<AddressRequest> requests) {
-        return requests == null ? null : requests.stream().map(AddressRequest::toDTO).toList();
+        return new AddressDTO(street, number, complement, neighborhood, city, state, zipCode);
     }
 }

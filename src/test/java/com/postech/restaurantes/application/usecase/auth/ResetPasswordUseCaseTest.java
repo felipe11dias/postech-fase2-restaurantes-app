@@ -21,7 +21,7 @@ import com.postech.restaurantes.application.gateway.IPasswordEncoder;
 import com.postech.restaurantes.application.gateway.IPasswordResetTokenGateway;
 import com.postech.restaurantes.application.gateway.ISecureTokenGenerator;
 import com.postech.restaurantes.application.gateway.IUserGateway;
-import com.postech.restaurantes.domain.entity.user.PasswordResetToken;
+import com.postech.restaurantes.domain.entity.password.PasswordResetToken;
 import com.postech.restaurantes.domain.entity.user.User;
 import com.postech.restaurantes.domain.exception.InvalidOrExpiredTokenException;
 import com.postech.restaurantes.domain.exception.InvalidPasswordException;

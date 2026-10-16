@@ -5,7 +5,7 @@ import com.postech.restaurantes.application.gateway.IPasswordResetTokenGateway;
 import com.postech.restaurantes.application.gateway.ISecureTokenGenerator;
 import com.postech.restaurantes.application.gateway.IUserGateway;
 import com.postech.restaurantes.domain.Guard;
-import com.postech.restaurantes.domain.entity.user.PasswordResetToken;
+import com.postech.restaurantes.domain.entity.password.PasswordResetToken;
 import com.postech.restaurantes.domain.entity.user.User;
 import com.postech.restaurantes.domain.vo.Email;
 import java.time.Clock;
@@ -15,7 +15,8 @@ import java.util.Optional;
 
 /**
  * "Esqueci minha senha". Se o e-mail existir, gera um token de uso único, persiste apenas o
- * hash e envia o valor em claro por e-mail. Se não existir, não faz nada — e não avisa: a
+ * hash e envia o valor em claro por e-mail. Se o usuário já tinha um token, ele é reemitido — o
+ * pedido novo invalida o anterior, e o usuário continua com um token só. Se não existir, não faz nada — e não avisa: a
  * resposta é idêntica nos dois casos, para não revelar quais e-mails estão cadastrados.
  */
 public final class ForgotPasswordUseCase {
@@ -55,9 +56,15 @@ public final class ForgotPasswordUseCase {
         }
         String rawToken = tokenGenerator.generate();
         LocalDateTime now = LocalDateTime.now(clock);
-        PasswordResetToken token = PasswordResetToken.create(
-                user.get().getId(), tokenGenerator.hash(rawToken), now.plus(tokenValidity), now);
-        tokenGateway.insert(token);
+        String tokenHash = tokenGenerator.hash(rawToken);
+        LocalDateTime expiresAt = now.plus(tokenValidity);
+        Optional<PasswordResetToken> existing = tokenGateway.findByUserId(user.get().getId());
+        if (existing.isPresent()) {
+            existing.get().reissue(tokenHash, expiresAt, now);
+            tokenGateway.update(existing.get());
+        } else {
+            tokenGateway.insert(PasswordResetToken.create(user.get().getId(), tokenHash, expiresAt, now));
+        }
         mailGateway.sendPasswordReset(email, rawToken, tokenValidity);
     }
 }

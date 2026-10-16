@@ -2,10 +2,16 @@ package com.postech.restaurantes.domain.entity.restaurant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.postech.restaurantes.domain.entity.address.Address;
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,23 +22,23 @@ import org.junit.jupiter.params.provider.ValueSource;
 class RestaurantTest {
 
     private static final UUID USER_ID = UUID.randomUUID();
-    private static final UUID ADDRESS_ID = UUID.randomUUID();
-    private static final LocalTime START = LocalTime.of(8, 0);
-    private static final LocalTime END = LocalTime.of(22, 0);
+    private static final Address ADDRESS =
+            Address.create("Rua das Flores", "100", null, "Centro", "São Paulo", "SP", "01001000");
+    private static final OfficeHour SEGUNDA = new OfficeHour(DayOfWeek.MONDAY, LocalTime.of(8, 0), LocalTime.of(22, 0));
+    private static final List<OfficeHour> HORARIOS = List.of(SEGUNDA);
 
     @Test
     @DisplayName("Cria restaurante válido sem id nem auditoria")
     void deveCriarQuandoValido() {
-        Restaurant restaurant = Restaurant.create(USER_ID, ADDRESS_ID, "Sabor & Arte", START, END);
+        Restaurant restaurant = Restaurant.create(USER_ID, ADDRESS, "Sabor & Arte", HORARIOS);
 
         assertNull(restaurant.getId());
         assertNull(restaurant.getCreatedAt());
         assertNull(restaurant.getLastUpdatedAt());
         assertEquals(USER_ID, restaurant.getUserId());
-        assertEquals(ADDRESS_ID, restaurant.getAddressId());
+        assertSame(ADDRESS, restaurant.getAddress());
         assertEquals("Sabor & Arte", restaurant.getName());
-        assertEquals(START, restaurant.getOfficeHourStart());
-        assertEquals(END, restaurant.getOfficeHourEnd());
+        assertEquals(HORARIOS, restaurant.getOfficeHours());
     }
 
     @Test
@@ -42,7 +48,7 @@ class RestaurantTest {
         LocalDateTime criado = LocalDateTime.of(2026, 1, 1, 10, 0);
         LocalDateTime alterado = LocalDateTime.of(2026, 1, 2, 10, 0);
 
-        Restaurant restaurant = Restaurant.restore(id, USER_ID, ADDRESS_ID, "Sabor & Arte", START, END, criado, alterado);
+        Restaurant restaurant = Restaurant.restore(id, USER_ID, ADDRESS, "Sabor & Arte", HORARIOS, criado, alterado);
 
         assertEquals(id, restaurant.getId());
         assertEquals(criado, restaurant.getCreatedAt());
@@ -53,21 +59,19 @@ class RestaurantTest {
     @DisplayName("Recusa restauração com id nulo")
     void deveRecusarRestaurarQuandoIdNulo() {
         assertThrows(IllegalArgumentException.class,
-                () -> Restaurant.restore(null, USER_ID, ADDRESS_ID, "Sabor", START, END, null, null));
+                () -> Restaurant.restore(null, USER_ID, ADDRESS, "Sabor", HORARIOS, null, null));
     }
 
     @Test
     @DisplayName("Recusa dono nulo")
     void deveRecusarDonoNulo() {
-        assertThrows(IllegalArgumentException.class,
-                () -> Restaurant.create(null, ADDRESS_ID, "Sabor", START, END));
+        assertThrows(IllegalArgumentException.class, () -> Restaurant.create(null, ADDRESS, "Sabor", HORARIOS));
     }
 
     @Test
     @DisplayName("Recusa endereço nulo")
     void deveRecusarEnderecoNulo() {
-        assertThrows(IllegalArgumentException.class,
-                () -> Restaurant.create(USER_ID, null, "Sabor", START, END));
+        assertThrows(IllegalArgumentException.class, () -> Restaurant.create(USER_ID, null, "Sabor", HORARIOS));
     }
 
     @ParameterizedTest
@@ -75,47 +79,68 @@ class RestaurantTest {
     @ValueSource(strings = {"  "})
     @DisplayName("Recusa nome em branco")
     void deveRecusarNomeEmBranco(String name) {
-        assertThrows(IllegalArgumentException.class,
-                () -> Restaurant.create(USER_ID, ADDRESS_ID, name, START, END));
+        assertThrows(IllegalArgumentException.class, () -> Restaurant.create(USER_ID, ADDRESS, name, HORARIOS));
     }
 
     @Test
-    @DisplayName("Recusa horário de abertura nulo")
-    void deveRecusarHorarioAberturaNulo() {
-        assertThrows(IllegalArgumentException.class,
-                () -> Restaurant.create(USER_ID, ADDRESS_ID, "Sabor", null, END));
+    @DisplayName("Recusa lista de horários nula, vazia ou com horário nulo")
+    void deveRecusarHorariosAusentes() {
+        List<OfficeHour> comNulo = new ArrayList<>(Arrays.asList(SEGUNDA, null));
+
+        assertThrows(IllegalArgumentException.class, () -> Restaurant.create(USER_ID, ADDRESS, "Sabor", null));
+        IllegalArgumentException vazia =
+                assertThrows(IllegalArgumentException.class, () -> Restaurant.create(USER_ID, ADDRESS, "Sabor", List.of()));
+        assertThrows(IllegalArgumentException.class, () -> Restaurant.create(USER_ID, ADDRESS, "Sabor", comNulo));
+        assertEquals("Restaurante deve ter ao menos um horário de funcionamento", vazia.getMessage());
     }
 
     @Test
-    @DisplayName("Recusa horário de fechamento nulo")
-    void deveRecusarHorarioFechamentoNulo() {
+    @DisplayName("Recusa horários sobrepostos, inclusive o que vira a meia-noite e invade o dia seguinte")
+    void deveRecusarHorariosSobrepostos() {
+        OfficeHour segundaAteMadrugada = new OfficeHour(DayOfWeek.MONDAY, LocalTime.of(22, 0), LocalTime.of(2, 0));
+        OfficeHour tercaCedo = new OfficeHour(DayOfWeek.TUESDAY, LocalTime.of(1, 0), LocalTime.of(10, 0));
+        OfficeHour segundaTarde = new OfficeHour(DayOfWeek.MONDAY, LocalTime.of(12, 0), LocalTime.of(23, 0));
+
+        IllegalArgumentException madrugada = assertThrows(IllegalArgumentException.class,
+                () -> Restaurant.create(USER_ID, ADDRESS, "Sabor", List.of(segundaAteMadrugada, tercaCedo)));
         assertThrows(IllegalArgumentException.class,
-                () -> Restaurant.create(USER_ID, ADDRESS_ID, "Sabor", START, null));
+                () -> Restaurant.create(USER_ID, ADDRESS, "Sabor", List.of(SEGUNDA, segundaTarde)));
+        assertThrows(IllegalArgumentException.class,
+                () -> Restaurant.create(USER_ID, ADDRESS, "Sabor", List.of(SEGUNDA, SEGUNDA)));
+        assertEquals("Os horários de funcionamento não podem se sobrepor", madrugada.getMessage());
     }
 
     @Test
-    @DisplayName("Recusa horários iguais")
-    void deveRecusarHorariosIguais() {
-        assertThrows(IllegalArgumentException.class,
-                () -> Restaurant.create(USER_ID, ADDRESS_ID, "Sabor", START, START));
+    @DisplayName("Aceita vários intervalos no mesmo dia e os guarda na ordem da semana")
+    void deveOrdenarOsHorarios() {
+        OfficeHour domingo = new OfficeHour(DayOfWeek.SUNDAY, LocalTime.of(10, 0), LocalTime.of(15, 0));
+        OfficeHour segundaJantar = new OfficeHour(DayOfWeek.MONDAY, LocalTime.of(18, 0), LocalTime.of(23, 0));
+        OfficeHour segundaAlmoco = new OfficeHour(DayOfWeek.MONDAY, LocalTime.of(11, 0), LocalTime.of(15, 0));
+
+        Restaurant restaurant = Restaurant.create(USER_ID, ADDRESS, "Sabor", List.of(domingo, segundaJantar, segundaAlmoco));
+
+        assertEquals(List.of(segundaAlmoco, segundaJantar, domingo), restaurant.getOfficeHours());
+        assertThrows(UnsupportedOperationException.class, () -> restaurant.getOfficeHours().clear());
     }
 
     @Test
-    @DisplayName("Revalida nos setters")
+    @DisplayName("Revalida nos setters e na troca dos horários")
     void deveRevalidarNosSetters() {
-        Restaurant restaurant = Restaurant.create(USER_ID, ADDRESS_ID, "Sabor", START, END);
+        Restaurant restaurant = Restaurant.create(USER_ID, ADDRESS, "Sabor", HORARIOS);
         UUID novoUser = UUID.randomUUID();
-        UUID novoAddr = UUID.randomUUID();
+        Address novoEndereco = Address.create("Av. B", null, null, null, "Rio", "RJ", "20000000");
+        List<OfficeHour> novos = List.of(new OfficeHour(DayOfWeek.FRIDAY, LocalTime.of(18, 0), LocalTime.of(2, 0)));
 
         restaurant.setUserId(novoUser);
-        restaurant.setAddressId(novoAddr);
+        restaurant.setAddress(novoEndereco);
         restaurant.setName("Novo Nome");
-        restaurant.setOfficeHours(LocalTime.of(9, 0), LocalTime.of(23, 0));
+        restaurant.replaceOfficeHours(novos);
 
         assertEquals(novoUser, restaurant.getUserId());
-        assertEquals(novoAddr, restaurant.getAddressId());
+        assertSame(novoEndereco, restaurant.getAddress());
         assertEquals("Novo Nome", restaurant.getName());
-        assertEquals(LocalTime.of(9, 0), restaurant.getOfficeHourStart());
-        assertEquals(LocalTime.of(23, 0), restaurant.getOfficeHourEnd());
+        assertEquals(novos, restaurant.getOfficeHours());
+        assertThrows(IllegalArgumentException.class, () -> restaurant.replaceOfficeHours(List.of()));
+        assertEquals(novos, restaurant.getOfficeHours(), "troca recusada não muda os horários");
     }
 }
