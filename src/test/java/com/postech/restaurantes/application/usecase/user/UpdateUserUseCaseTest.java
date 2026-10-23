@@ -1,5 +1,7 @@
 package com.postech.restaurantes.application.usecase.user;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.HASH;
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.USER_ID;
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.existingUser;
@@ -32,7 +34,7 @@ class UpdateUserUseCaseTest {
 
     private static final UpdateUserDTO DTO = new UpdateUserDTO("João Atualizado", "Novo@Email.com", "joao.novo",
             List.of(new UserAddressDTO(null, null, null,
-                    new AddressDTO("Av. B", null, null, null, "Rio", "RJ", "20000000"))));
+                    new AddressDTO(LocationFixtures.cityId("Rio", "RJ"), "Av. B", null, null, null, "20000000"))));
 
     private IUserGateway userGateway;
     private UpdateUserUseCase useCase;
@@ -58,7 +60,7 @@ class UpdateUserUseCaseTest {
         assertEquals("João Atualizado", user.getName());
         assertEquals("novo@email.com", user.getEmail().value());
         assertEquals("joao.novo", user.getLogin());
-        assertEquals("RJ", user.getAddresses().get(0).getAddress().getState());
+        assertEquals(LocationFixtures.RIO_CITY_ID, user.getAddresses().get(0).getAddress().getCityId());
         assertEquals(HASH, user.getPasswordHash());
     }
 

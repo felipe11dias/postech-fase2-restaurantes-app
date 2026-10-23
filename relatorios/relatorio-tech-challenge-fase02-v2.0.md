@@ -60,13 +60,14 @@
 | 23  | Restaurante alinhado ao modelo v2 e à regra de posse (`restaurants`) | ✅ |
 | 24  | Horário de funcionamento por dia (`restaurant_office_hours`) | ✅ |
 | 25  | Revisão de conformidade do modelo de dados v2      | ✅     |
+| 26  | Correção do merge de endereços e catálogo geográfico | ✅ |
 
-**Progresso:** 25 de 25 etapas concluídas. As Etapas 17 a 24 adequaram o projeto ao Modelo de
+**Progresso:** 26 de 26 etapas concluídas. As Etapas 17 a 24 adequaram o projeto ao Modelo de
 Dados v2 (seção "Modelo de Dados v2 — adequação"), e a 25 conferiu o resultado contra o modelo e
 as referências.
 
-**Atenção ao ler "25 de 25":** são as etapas planejadas para a adequação ao Modelo de Dados v2, e
-todas estão concluídas. Isso **não** significa que o escopo do enunciado da Fase 2 esteja completo:
+**Atenção ao ler "26 de 26":** são as etapas de implementação e integração registradas neste relatório;
+as primeiras 25 cobrem a adequação ao Modelo de Dados v2 e a 26 integra os endereços. Todas estão concluídas. Isso **não** significa que o escopo do enunciado da Fase 2 esteja completo:
 faltam o cardápio, o tipo de cozinha do restaurante, o CRUD de tipos de usuário e o vídeo. A seção
 "Escopo do Tech Challenge Fase 2 e estado" e a subseção "Conformidade com o enunciado" dizem onde
 o projeto está e o que resta.
@@ -113,9 +114,9 @@ enunciado da Fase 2 (ver "Conformidade com o enunciado", ao fim desta seção):
 | --- | --- | --- |
 | Clean Architecture em camadas | ✅ quatro camadas, regra de dependência verificada no build | Visão Geral, Etapas 11, 13 e 14 |
 | Testes unitários com 80% de cobertura | ✅ **100%** de linhas e ramos, com o build falhando abaixo disso | Etapa 11 |
-| Testes de integração dos componentes | ✅ 138 testes com PostgreSQL real e HTTP de ponta a ponta | Etapas 11 e 25 |
+| Testes de integração dos componentes | ✅ 142 testes com PostgreSQL real e HTTP de ponta a ponta | Etapas 11 e 25 |
 | Documentação do projeto (arquitetura, endpoints, execução) | ✅ README, este relatório, Swagger, `docs/arquitetura/` e `docs/modelo-dados/` | Etapas 9, 12, 14 e 25 |
-| Coleção Postman | ✅ 125 requests, com um print por request | Etapas 12, 16 e 18 a 25 |
+| Coleção Postman | ✅ 130 requests; 125 prints anteriores preservados | Etapas 12, 16 e 18 a 25 |
 | Docker Compose com aplicação e banco | ✅ aplicação, PostgreSQL e Mailpit | Etapa 10 |
 | Repositório aberto | ✅ público no GitHub (`felipe11dias/postech-fase2-restaurantes-app`), uma branch por etapa. **A `main` está na Etapa 16**: as Etapas 17 a 25 estão só nas branches `etapa-NN-*` e ainda precisam ser mescladas | — |
 | Vídeo de apresentação (cerca de 5 minutos) | ⏳ pendente — depende das features | — |
@@ -129,11 +130,11 @@ Os nove fatores de avaliação do enunciado, conferidos contra o estado atual:
 | 1 | Funcionalidade (tipo de usuário, restaurante, item do cardápio) | **Parcial** | Restaurante quase completo (falta o tipo de cozinha); tipo de usuário sem o CRUD do catálogo; cardápio inexistente |
 | 2 | Qualidade do código (práticas do Spring Boot, código organizado e documentado) | ✅ | Bean Validation, ProblemDetail, HATEOAS, Actuator, JWT; Javadoc e `package-info` por pacote; 48 regras do ArchUnit |
 | 3 | Documentação (arquitetura, endpoints, configuração e execução) | ✅ | README, este relatório, Swagger, `docs/arquitetura/`, `docs/modelo-dados/` |
-| 4 | Collections para teste | ✅ | 125 requests e 260 asserções, um print por request; cobre usuários, perfis e restaurantes |
+| 4 | Collections para teste | ✅ | 130 requests; inclui catálogo geográfico e validação de cidade; os 125 prints anteriores foram preservados |
 | 5 | Docker Compose (aplicação e banco) | ✅ | Aplicação, PostgreSQL e Mailpit; o professor cria o `.env` e gera o segredo JWT (passo a passo no README) |
 | 6 | Repositório aberto | ✅, com risco | Público; a `main` está defasada em relação às Etapas 17 a 25 |
 | 7 | Clean Architecture | ✅ | Quatro camadas e módulos de infraestrutura substituíveis, verificados no build |
-| 8 | Cobertura de teste (80% unitários; integração) | ✅ | 775 unitários com 100% de linhas e ramos; 138 de integração com PostgreSQL real |
+| 8 | Cobertura de teste (80% unitários; integração) | ✅ | 734 unitários com 100% de linhas e ramos; 142 de integração com PostgreSQL real |
 | 9 | Vídeo de cerca de 5 minutos | ⏳ | Não gravado |
 
 **Lacunas, por prioridade.** (1) O cardápio, o maior vazio: um dos três cadastros do enunciado. (2) O
@@ -3136,6 +3137,52 @@ Antes de fechar, o diff da etapa passou por uma revisão focada em falhas reais.
 | Postman (`npx newman@6`) | **125 requests (126 execuções, com a nova tentativa do Mailpit), 260 asserções, 0 falhas**, em duas execuções seguidas contra o mesmo banco de uma pilha descartável do Compose. A trava do caso 92 foi conferida à parte: com um segundo administrador no banco, o pedido foi para o id inexistente, as asserções ficaram puladas, e o administrador da seed continuou lá. Prints regenerados (125) |
 | Corrida entre dois administradores | Num PostgreSQL com V1 a V10 e só dois administradores, duas transações simultâneas excluindo um cada: a segunda esperou a trava da primeira e foi recusada ("O último administrador não pode deixar de existir"); sobrou um administrador |
 | Documentação | `docs/arquitetura/` 01 a 06 com as regras novas e a contagem (48 regras ArchUnit: 17 + 24 + 7); `package-info` da política atualizado |
+
+---
+
+## Etapa 26 — Correção do merge de endereços e catálogo geográfico
+
+**Objetivo.** Integrar a normalização de endereços com os perfis e vínculos da main, garantindo
+cidade obrigatória e catálogo de localidades mantido por migrations.
+
+### O que foi entregue nesta etapa
+
+- Corrigidas referências a papéis removidos, assinatura de `UserAddress`, imports JPA e
+  conversões que perdiam `cityId`. A reconciliação mantém os ids dos vínculos e dos endereços.
+- `Address`, `AddressDTO`, `AddressData` e `AddressRequest` recusam cidade sem id. `AddressView`
+  exige `CityView` válida. Apenas o id e os campos próprios do endereço entram na requisição.
+- A resposta segue `AddressView -> CityView -> StateView`, com id/nome da cidade e
+  id/nome/sigla do estado. Domain, registros, views e respostas HTTP têm traduções explícitas.
+- `CityReferenceResolver` é compartilhado pelos dois agregados e só consulta o catálogo.
+  Não há criação implícita de cidade/estado nem endpoints de escrita; referências desconhecidas
+  recebem 404. A FK `addresses.city_id NOT NULL` protege a integridade no PostgreSQL.
+- V1–V10 preservadas; V11 normaliza os endereços legados; V12 inclui as 27 unidades federativas,
+  as capitais e Campinas. A carga não representa todos os municípios brasileiros; novas cidades
+  entram por novas migrations. Bancos na V10 atualizam sem apagar endereços ou seus vínculos.
+- `FindStatesUseCase` e `SearchCitiesUseCase`, montados pela composição padrão, expõem consultas
+  públicas `GET /api/v1/states` e `GET /api/v1/cities`; a busca de cidades tem filtros, paginação
+  e links HATEOAS. Os repositórios de localidades declaram apenas métodos de leitura.
+- Código novo usa nomes em inglês. A convenção de testes aceita `should…` e preserva os testes
+  legados. Coleção Postman atualizada ao novo contrato, incluindo consultas do catálogo.
+
+**Conceitos atendidos.** A regra de dependência (Martin) mantém frameworks na infraestrutura;
+a separação entre casos de uso e persistência segue as portas já adotadas; as views traduzem a
+saída sem expor entidades; a normalização e a FK preservam a integridade referencial (Date/Machado).
+Um catálogo mantido por migrations tem uma única origem para os nomes de cidades e estados.
+
+### Verificação
+
+- `mvn verify`: **734 testes unitários e 142 de integração**, sem falhas; regras ArchUnit aprovadas.
+- Cobertura unitária JaCoCo: **2174/2174 linhas e 558/558 ramos (100%)**.
+- Após reforçar a seed para reconhecer nomes legados sem diferenciar maiúsculas/minúsculas,
+  `mvn verify -Dit.test=SchemaMigrationIT`: **734 unitários e 17 testes de migração**, sem falhas,
+  com o gate de cobertura aprovado. Verifica tanto banco novo quanto atualização desde a V10,
+  preservando ids e evitando duplicações do catálogo.
+- Testes HTTP verificam consulta pública, ausência de operações de escrita, cidade nula/ausente
+  (400), cidade inexistente (404), resposta aninhada e preservação dos ids ao atualizar endereços.
+- Coleção Postman com **130 requests em 17 pastas**; JSON e corpos de endereço validados.
+A coleção Postman foi atualizada; nenhuma nova execução Newman ou regeneração de prints é
+incluída nesta verificação.
 
 ---
 

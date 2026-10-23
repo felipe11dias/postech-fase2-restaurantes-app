@@ -1,5 +1,7 @@
 package com.postech.restaurantes.adapter.controller;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import static com.postech.restaurantes.adapter.AdapterFixtures.CLIENT_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.COURIER_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.HASH;
@@ -93,7 +95,7 @@ class UserControllerTest {
         when(userDataSource.insert(any())).thenReturn(USER_DATA);
         NewUserDTO dto = new NewUserDTO("João Silva", "joao.silva@email.com", "joao.silva", "senha123",
                 null, CLIENT, null, List.of(new UserAddressDTO(null, "Casa", true,
-                        new AddressDTO("Rua das Flores", "100", "Apto 21", "Centro", "São Paulo", "SP", "01001-000"))));
+                        new AddressDTO(LocationFixtures.cityId("São Paulo", "SP"), "Rua das Flores", "100", "Apto 21", "Centro", "01001-000"))));
 
         UserView view = controller.register(dto);
 

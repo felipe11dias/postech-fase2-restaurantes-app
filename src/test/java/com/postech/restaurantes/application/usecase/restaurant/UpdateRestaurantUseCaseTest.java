@@ -1,5 +1,7 @@
 package com.postech.restaurantes.application.usecase.restaurant;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.OFFICE_HOURS;
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.OFFICE_HOURS_DTO;
 import static com.postech.restaurantes.application.usecase.UseCaseFixtures.ADMIN;
@@ -48,7 +50,7 @@ class UpdateRestaurantUseCaseTest {
 
         restaurantId = UUID.randomUUID();
         userId = UUID.randomUUID();
-        endereco = new AddressDTO("Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
+        endereco = new AddressDTO(LocationFixtures.cityId("Cidade", "SP"), "Rua A", "10", null, "Bairro", "01000000");
         owner = User.restore(userId, "Dono", "dono@x.com", "dono", "hash",
                 OWNER, List.of(), null, null);
         restaurant = Restaurant.restore(restaurantId, userId, endereco.toEntity(), "Antigo", OFFICE_HOURS, null, null);

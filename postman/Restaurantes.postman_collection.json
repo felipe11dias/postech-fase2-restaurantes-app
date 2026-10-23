@@ -207,7 +207,7 @@
             "url": "{{baseUrl}}/api/v1/users",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"client\": {\n    \"cpf\": \"{{cpfGerado}}\",\n    \"phone\": \"(11) 91234-5678\",\n    \"birthDate\": \"1990-05-20\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"client\": {\n    \"cpf\": \"{{cpfGerado}}\",\n    \"phone\": \"(11) 91234-5678\",\n    \"birthDate\": \"1990-05-20\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"zipCode\": \"01001-000\",\n        \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -486,7 +486,7 @@
             "url": "{{baseUrl}}/api/v1/users",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"cpf.{{userEmail}}\",\n  \"login\": \"cpf.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"client\": {\n    \"cpf\": \"529.982.247-26\",\n    \"phone\": \"(11) 91234-5678\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"cpf.{{userEmail}}\",\n  \"login\": \"cpf.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"client\": {\n    \"cpf\": \"529.982.247-26\",\n    \"phone\": \"(11) 91234-5678\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"zipCode\": \"01001-000\",\n        \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -527,7 +527,7 @@
             "url": "{{baseUrl}}/api/v1/users",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"semperfil.{{userEmail}}\",\n  \"login\": \"semperfil.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"semperfil.{{userEmail}}\",\n  \"login\": \"semperfil.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"zipCode\": \"01001-000\",\n        \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -568,7 +568,7 @@
             "url": "{{baseUrl}}/api/v1/users",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"moto.{{userEmail}}\",\n  \"login\": \"moto.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"courier\": {\n    \"cpf\": \"{{cpfGerado}}\",\n    \"phone\": \"(11) 91234-5678\",\n    \"vehicleType\": \"MOTORCYCLE\",\n    \"vehiclePlate\": \"ABC1D23\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"moto.{{userEmail}}\",\n  \"login\": \"moto.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"courier\": {\n    \"cpf\": \"{{cpfGerado}}\",\n    \"phone\": \"(11) 91234-5678\",\n    \"vehicleType\": \"MOTORCYCLE\",\n    \"vehiclePlate\": \"ABC1D23\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"zipCode\": \"01001-000\",\n        \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -609,7 +609,7 @@
             "url": "{{baseUrl}}/api/v1/users",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"outro.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"client\": {\n    \"cpf\": \"{{cpfGerado}}\",\n    \"phone\": \"(11) 91234-5678\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"outro.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"client\": {\n    \"cpf\": \"{{cpfGerado}}\",\n    \"phone\": \"(11) 91234-5678\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"zipCode\": \"01001-000\",\n        \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -650,7 +650,7 @@
             "url": "{{baseUrl}}/api/v1/users",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"cpfdup.{{userEmail}}\",\n  \"login\": \"cpfdup.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"client\": {\n    \"cpf\": \"{{userCpf}}\",\n    \"phone\": \"(11) 91234-5678\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"cpfdup.{{userEmail}}\",\n  \"login\": \"cpfdup.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"client\": {\n    \"cpf\": \"{{userCpf}}\",\n    \"phone\": \"(11) 91234-5678\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"zipCode\": \"01001-000\",\n        \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -691,7 +691,7 @@
             "url": "{{baseUrl}}/api/v1/users",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"cnpjdup.{{userEmail}}\",\n  \"login\": \"cnpjdup.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"owner\": {\n    \"cnpj\": \"04.252.011/0001-10\",\n    \"legalName\": \"Outra Razão Social Ltda\",\n    \"businessPhone\": \"(11) 3123-4567\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman\",\n  \"email\": \"cnpjdup.{{userEmail}}\",\n  \"login\": \"cnpjdup.{{userLogin}}\",\n  \"password\": \"{{userPassword}}\",\n  \"owner\": {\n    \"cnpj\": \"04.252.011/0001-10\",\n    \"legalName\": \"Outra Razão Social Ltda\",\n    \"businessPhone\": \"(11) 3123-4567\"\n  },\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Rua das Flores\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"zipCode\": \"01001-000\",\n        \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1028,7 +1028,7 @@
             "url": "{{baseUrl}}/api/v1/users/{{userId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Trabalho\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Avenida Paulista\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Trabalho\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Avenida Paulista\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"zipCode\": \"01001-000\",\n        \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1117,7 +1117,7 @@
             "url": "{{baseUrl}}/api/v1/users/{{userId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Avenida Paulista\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Avenida Paulista\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"zipCode\": \"01001-000\",\n        \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1161,7 +1161,7 @@
             "url": "{{baseUrl}}/api/v1/users/{{outroUserId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Avenida Paulista\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Avenida Paulista\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"zipCode\": \"01001-000\",\n        \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1205,7 +1205,7 @@
             "url": "{{baseUrl}}/api/v1/users/00000000-0000-4000-8000-000000000000",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"ninguem.{{userEmail}}\",\n  \"login\": \"ninguem.{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Avenida Paulista\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"ninguem.{{userEmail}}\",\n  \"login\": \"ninguem.{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Avenida Paulista\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"zipCode\": \"01001-000\",\n        \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1249,7 +1249,7 @@
             "url": "{{baseUrl}}/api/v1/users/{{userId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"cliente.demo@email.com\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Avenida Paulista\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"city\": \"São Paulo\",\n        \"state\": \"SP\",\n        \"zipCode\": \"01001-000\"\n      }\n    }\n  ]\n}",
+              "raw": "{\n  \"name\": \"Cliente Postman Atualizado\",\n  \"email\": \"cliente.demo@email.com\",\n  \"login\": \"{{userLogin}}\",\n  \"addresses\": [\n    {\n      \"label\": \"Casa\",\n      \"isDefault\": true,\n      \"address\": {\n        \"street\": \"Avenida Paulista\",\n        \"number\": \"100\",\n        \"complement\": \"Apto 21\",\n        \"neighborhood\": \"Centro\",\n        \"zipCode\": \"01001-000\",\n        \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n      }\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3457,7 +3457,7 @@
             "url": "{{baseUrl}}/api/v1/restaurants",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{donoUserId}}\",\n  \"address\": {\n    \"street\": \"Rua do Dono Postman\",\n    \"number\": \"10\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001-000\"\n  },\n  \"name\": \"Restaurante do Dono Postman\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"{{donoUserId}}\",\n  \"address\": {\n    \"street\": \"Rua do Dono Postman\",\n    \"number\": \"10\",\n    \"neighborhood\": \"Centro\",\n    \"zipCode\": \"01001-000\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante do Dono Postman\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4168,7 +4168,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante Sabor & Arte\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"11:00:00\",\n      \"endTime\": \"15:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"18:00:00\",\n      \"endTime\": \"23:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"FRIDAY\",\n      \"startTime\": \"18:00:00\",\n      \"endTime\": \"02:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"SUNDAY\",\n      \"startTime\": \"10:00:00\",\n      \"endTime\": \"16:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Sabor & Arte\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"11:00:00\",\n      \"endTime\": \"15:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"18:00:00\",\n      \"endTime\": \"23:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"FRIDAY\",\n      \"startTime\": \"18:00:00\",\n      \"endTime\": \"02:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"SUNDAY\",\n      \"startTime\": \"10:00:00\",\n      \"endTime\": \"16:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4214,7 +4214,7 @@
             "url": "{{baseUrl}}/api/v1/restaurants",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"address\": {\n    \"street\": \"Rua do Segundo Dono\",\n    \"number\": \"20\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001-000\"\n  },\n  \"name\": \"Restaurante do Segundo Dono\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"address\": {\n    \"street\": \"Rua do Segundo Dono\",\n    \"number\": \"20\",\n    \"neighborhood\": \"Centro\",\n    \"zipCode\": \"01001-000\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante do Segundo Dono\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4257,7 +4257,7 @@
             "url": "{{baseUrl}}/api/v1/restaurants",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{outroDonoUserId}}\",\n  \"address\": {\n    \"street\": \"Rua do Segundo Dono\",\n    \"number\": \"20\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001-000\"\n  },\n  \"name\": \"Restaurante Alheio\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"{{outroDonoUserId}}\",\n  \"address\": {\n    \"street\": \"Rua do Segundo Dono\",\n    \"number\": \"20\",\n    \"neighborhood\": \"Centro\",\n    \"zipCode\": \"01001-000\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Alheio\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4305,7 +4305,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"08:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"08:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4358,7 +4358,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante Sobreposto\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"FRIDAY\",\n      \"startTime\": \"18:00:00\",\n      \"endTime\": \"02:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"SATURDAY\",\n      \"startTime\": \"01:00:00\",\n      \"endTime\": \"10:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Sobreposto\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"FRIDAY\",\n      \"startTime\": \"18:00:00\",\n      \"endTime\": \"02:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"SATURDAY\",\n      \"startTime\": \"01:00:00\",\n      \"endTime\": \"10:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4402,7 +4402,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante Sem Token\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Sem Token\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4449,7 +4449,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante Cliente\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Cliente\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4496,7 +4496,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000000\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante Dono Inexistente\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000000\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Dono Inexistente\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4551,7 +4551,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"a0000000-0000-4000-8000-000000000002\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante de Quem Não É Dono\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"a0000000-0000-4000-8000-000000000002\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante de Quem Não É Dono\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4755,7 +4755,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista, Renovada\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante Sabor & Arte Renovado\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"09:00:00\",\n      \"endTime\": \"23:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista, Renovada\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Sabor & Arte Renovado\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"09:00:00\",\n      \"endTime\": \"23:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4799,7 +4799,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante Sabor\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"09:00:00\",\n      \"endTime\": \"23:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Sabor\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"09:00:00\",\n      \"endTime\": \"23:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4855,7 +4855,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"a0000000-0000-4000-8000-000000000002\",\n  \"address\": {\n    \"street\": \"Avenida Paulista, Renovada\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01310-100\"\n  },\n  \"name\": \"Restaurante Sabor & Arte Renovado\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"09:00:00\",\n      \"endTime\": \"23:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"a0000000-0000-4000-8000-000000000002\",\n  \"address\": {\n    \"street\": \"Avenida Paulista, Renovada\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Sabor & Arte Renovado\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"09:00:00\",\n      \"endTime\": \"23:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4898,7 +4898,7 @@
             "url": "{{baseUrl}}/api/v1/restaurants/{{outroDonoRestaurantId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"address\": {\n    \"street\": \"Rua do Segundo Dono\",\n    \"number\": \"20\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001-000\"\n  },\n  \"name\": \"Invadido\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"address\": {\n    \"street\": \"Rua do Segundo Dono\",\n    \"number\": \"20\",\n    \"neighborhood\": \"Centro\",\n    \"zipCode\": \"01001-000\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Invadido\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4941,7 +4941,7 @@
             "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{outroDonoUserId}}\",\n  \"address\": {\n    \"street\": \"Rua do Segundo Dono\",\n    \"number\": \"20\",\n    \"neighborhood\": \"Centro\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01001-000\"\n  },\n  \"name\": \"Transferido\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"{{outroDonoUserId}}\",\n  \"address\": {\n    \"street\": \"Rua do Segundo Dono\",\n    \"number\": \"20\",\n    \"neighborhood\": \"Centro\",\n    \"zipCode\": \"01001-000\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Transferido\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -5124,6 +5124,157 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/v1/restaurants/{{outroDonoRestaurantId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 Location catalog (read only)",
+      "item": [
+        {
+          "name": "126 List seeded states",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"State catalog\", () => { const states = pm.response.json()._embedded.states; pm.expect(states).to.have.lengthOf(27); pm.expect(states.find(state => state.acronym === \"SP\")).to.have.property(\"id\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/states"
+          }
+        },
+        {
+          "name": "127 Search seeded cities",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nested city and state\", () => { const body = pm.response.json(); pm.expect(body.page.totalElements).to.eql(1); pm.expect(body._embedded.cities[0].state.acronym).to.eql(\"SP\"); pm.expect(body._links).to.have.property(\"self\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/cities?name=Campinas&page=0&size=20"
+          }
+        },
+        {
+          "name": "128 Reject invalid catalog pagination",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Invalid request problem\", () => pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/cities?size=101"
+          }
+        },
+        {
+          "name": "129 Reject address without city",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"addressValidationLogin\", \"address\" + pm.variables.replaceIn(\"{{$randomUUID}}\").replace(/-/g, \"\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Problem type\", () => pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Address validation\",\n  \"login\": \"{{addressValidationLogin}}\",\n  \"email\": \"{{addressValidationLogin}}@example.com\",\n  \"password\": \"password123\",\n  \"client\": {\n    \"cpf\": \"{{cpfGerado}}\",\n    \"phone\": \"11912345678\"\n  },\n  \"addresses\": [\n    {\n      \"address\": {\n        \"street\": \"Rua A\",\n        \"number\": \"10\",\n        \"neighborhood\": \"Centro\",\n        \"zipCode\": \"01001000\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "130 Reject address with unknown city",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"addressValidationLogin\", \"address\" + pm.variables.replaceIn(\"{{$randomUUID}}\").replace(/-/g, \"\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Problem type\", () => pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Address validation\",\n  \"login\": \"{{addressValidationLogin}}\",\n  \"email\": \"{{addressValidationLogin}}@example.com\",\n  \"password\": \"password123\",\n  \"client\": {\n    \"cpf\": \"{{cpfGerado}}\",\n    \"phone\": \"11912345678\"\n  },\n  \"addresses\": [\n    {\n      \"address\": {\n        \"street\": \"Rua A\",\n        \"number\": \"10\",\n        \"neighborhood\": \"Centro\",\n        \"zipCode\": \"01001000\",\n        \"cityId\": \"ffffffff-ffff-4fff-8fff-ffffffffffff\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           }
         }
       ]
