@@ -41,7 +41,7 @@ tecnologia. Trocar uma tecnologia é apagar um subpacote e criar outro ao lado.
 |---|---|---|---|
 | [`main`](../../src/main/java/com/postech/restaurantes/infrastructure/main) | a composição (Main, cap. 26): `CompositionConfig`, `PasswordResetProperties` | Spring (`@Configuration`) | — é o único que conhece todos |
 | [`api/rest/spring`](../../src/main/java/com/postech/restaurantes/infrastructure/api/rest/spring) | entrega HTTP, organizada como MVC: `controller` (`@RestController`), `dto/request` e `dto/response`, `assembler` (HATEOAS), `route` (caminhos), `config`, `exception` (ProblemDetail), `doc` (OpenAPI), `validation`, `security` | Spring MVC, Spring Security, Spring HATEOAS, springdoc, Bean Validation | `api/rest/<outra>` ou outro canal (`api/graphql/...`) chamando os mesmos controllers de adaptação |
-| [`persistence/jpa`](../../src/main/java/com/postech/restaurantes/infrastructure/persistence/jpa) | `I*DataSource` (`UserDataSourceJpa`, …) e `IUnitOfWork` (`TransactionalUnitOfWork`); `audit` (colunas de auditoria); um subpacote por agregado (`user`, `restaurant`), as partes do agregado de usuário em `user/{address,role,password}` (`user/address` é o vínculo `user_addresses`) e o endereço, compartilhado pelos dois agregados, em `address` — espelhando o domínio | JPA/Hibernate, Spring Data, PostgreSQL | `persistence/jdbc` com as mesmas interfaces; o schema continua do Flyway |
+| [`persistence/jpa`](../../src/main/java/com/postech/restaurantes/infrastructure/persistence/jpa) | `I*DataSource` (`UserDataSourceJpa`, …) e `IUnitOfWork` (`TransactionalUnitOfWork`); `audit` (colunas de auditoria); um subpacote por agregado (`user`, `restaurant`, `product`), as partes do agregado de usuário em `user/{address,role,password}` (`user/address` é o vínculo `user_addresses`) e o endereço, compartilhado pelos dois agregados, em `address` — espelhando o domínio | JPA/Hibernate, Spring Data, PostgreSQL | `persistence/jdbc` com as mesmas interfaces; o schema continua do Flyway |
 | [`token/jwt`](../../src/main/java/com/postech/restaurantes/infrastructure/token/jwt) | `ITokenEncoder` e `IAccessTokenReader` (`JwtTokenEncoder`, HS256 fixo) | jjwt | `token/<outro>` implementando as duas interfaces |
 | [`crypto`](../../src/main/java/com/postech/restaurantes/infrastructure/crypto) | `IPasswordEncoder` (`BCryptPasswordAdapter`), `ISecureTokenGenerator` (`SecureRandomTokenGenerator`) | spring-security-crypto, JDK | nova classe (ex.: Argon2) implementando a porta |
 | [`mail/smtp`](../../src/main/java/com/postech/restaurantes/infrastructure/mail/smtp) | `IMailSender` (`SmtpMailSender`) — **só transporte**, com timeouts de 5 s | Spring Mail | `mail/<provedor>` implementando `IMailSender`; o texto do e-mail está no adaptador e não muda |
@@ -112,6 +112,15 @@ exigem administrador ou `@restaurantSecurity.isOwner(#id, authentication)`. Como
 composição ao `RestaurantController.ownerOf`. No cadastro, sem `userId`, o dono é o autenticado; indicar ou trocar o
 dono é do administrador. A V8 deu `ON DELETE CASCADE` a `restaurants.user_id → users`, mas quem apaga os
 restaurantes de um usuário excluído é a aplicação, pelas entidades — só assim o endereço de cada um sai junto.
+
+**Produtos e opções (Etapa 26, V11).** O produto é raiz do agregado; referências de imagem, grupos
+e valores são partes removidas junto com ele (`cascade`/`orphanRemoval`). A tarefa especifica que a
+foto não será enviada ou usada nesta etapa; por isso `images.content` guarda o caminho/URL como
+`varchar(2048)`, e a API recebe/devolve `imagePaths` como texto. `products.price` é
+`double precision`, como no modelo, e `additional_price` permanece `numeric(10,2)`.
+`GET /restaurants/{restaurantId}/products` pagina primeiro os ids e depois carrega as coleções,
+evitando paginação sobre `EntityGraph` de múltiplas coleções. `POST`, `PUT` e `DELETE` exigem
+administrador ou o dono do restaurante; o `PUT` substitui por completo as imagens e opções.
 
 **Execução.** Docker Compose sobe a aplicação, o PostgreSQL e o Mailpit (SMTP de testes), com
 imagens de versão fixa e portas só em `127.0.0.1`.

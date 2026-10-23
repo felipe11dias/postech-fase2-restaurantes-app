@@ -11,8 +11,8 @@ desenvolvimento, está em [`relatorios/`](relatorios/).
 
 ## Estado da entrega
 
-Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo é a da branch
-`etapa-25-revisao-modelo-v2`, última das 25 etapas do relatório técnico.
+Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo inclui a implementação da
+Etapa 26 no worktree atual.
 
 | Requisito do enunciado | Estado |
 | --- | --- |
@@ -24,16 +24,16 @@ Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo é a da
 | Tipo de usuário: **CRUD de tipos de usuário** (campo "Nome do Tipo") | ⏳ Pendente — os perfis são fixos no modelo de dados v2 e não há catálogo editável; a forma de atender o requisito ainda será decidida |
 | Cadastro de restaurante: CRUD com nome, endereço, horário de funcionamento e dono | ✅ Implementado — endereço próprio, horário por dia da semana, dono com perfil de dono e regra de posse |
 | Cadastro de restaurante: **tipo de cozinha** | ⏳ Pendente — o modelo v2 prevê `cuisines` e `restaurant_cuisines`, ainda sem implementação |
-| Cadastro de itens de cardápio (nome, descrição, preço, só no local, caminho da foto) | ⏳ Pendente — nenhuma entidade, tabela ou endpoint |
+| Cadastro de itens do cardápio (nome, descrição, preço, só no local e imagem) | ✅ Produtos com caminho/URL da imagem, grupos/valores de opção; CRUD aninhado ao restaurante |
 
 | Entregável da avaliação | Estado |
 | --- | --- |
 | Clean Architecture em camadas | ✅ Quatro camadas, verificadas no build (ArchUnit, 48 regras) |
-| Testes: unitários com 80% e de integração | ✅ 775 unitários com **100%** de linhas e ramos; 138 de integração com PostgreSQL real |
+| Testes: unitários com 80% e de integração | ✅ `mvn verify`: 821 unitários e 140 integrações; JaCoCo com **100%** de linhas e ramos |
 | Documentação (arquitetura, endpoints, execução) | ✅ Este README, o relatório técnico, o Swagger, `docs/arquitetura/` e `docs/modelo-dados/` |
-| Coleção Postman | ✅ 125 requests, com um print por request; cobre usuários, perfis e restaurantes (cozinha e cardápio entram com as funcionalidades) |
+| Coleção Postman | ⚠️ 145 requests em 17 pastas; os 20 requests de produtos aguardam execução Newman e geração dos prints contra Docker |
 | Docker Compose (aplicação e banco) | ✅ Aplicação, PostgreSQL e Mailpit |
-| Repositório aberto | ✅ Público; a `main` ainda não recebeu as Etapas 17 a 25 (estão nas branches `etapa-NN-*`) |
+| Repositório aberto | ✅ Público; a Etapa 26 está no worktree e ainda precisa ser publicada |
 | Vídeo de apresentação (cerca de 5 minutos) | ⏳ Pendente — depende das funcionalidades acima |
 
 ## Arquitetura
@@ -267,12 +267,20 @@ A documentação completa, com exemplos de cada resposta, está no Swagger UI.
 ## Coleção Postman
 
 [`postman/Restaurantes.postman_collection.json`](postman/Restaurantes.postman_collection.json)
-(formato v2.1) tem **125 requests em 16 pastas** (usuários e restaurantes): um por caso de cada endpoint — o sucesso e cada
+(formato v2.1) tem **145 requests em 17 pastas** (usuários, restaurantes e produtos): um por caso de cada endpoint — o sucesso e cada
 erro previsto —, na ordem em que rodam de cima a baixo. Os scripts de teste conferem o status e
 o `type` de cada erro e guardam `{{adminToken}}`, `{{token}}` e `{{userId}}` para as requisições
 seguintes; se um login ou cadastro essencial falhar, a execução para ali, com o motivo, em vez de
 seguir falhando em cascata. A pasta de recuperação de senha lê o token **na caixa do Mailpit**,
 pela API dele, como o usuário faria.
+
+A pasta de produtos cobre o catálogo: criação, consulta, listagem paginada, substituição e
+exclusão, incluindo os status documentados para validação, autenticação, posse e recurso inexistente.
+Os 20 requests novos estão no JSON, mas ainda não foram executados pelo Newman nem têm prints
+gerados, pois a validação depende de Docker.
+Nos requests de criação e atualização, `imagePaths` é uma lista de caminhos ou URLs de imagem
+(por exemplo, `/images/pizza.jpg`). Nenhum arquivo é enviado ou armazenado; cada referência é
+persistida como texto na coluna `images.content`.
 
 A coleção cria os próprios usuários — um cliente, um segundo cadastro descartável (alvo dos
 casos de acesso negado), um dono e um entregador — e os exclui ao fim. CPF, CNPJ e CNH são únicos

@@ -20,6 +20,8 @@ public final class ApiRoutes {
 
     public static final String RESTAURANTS = V1 + "/restaurants";
 
+    public static final String PRODUCTS = RESTAURANTS + "/{restaurantId}/products";
+
     private ApiRoutes() {
     }
 }

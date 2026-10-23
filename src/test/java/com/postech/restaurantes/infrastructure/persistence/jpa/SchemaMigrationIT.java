@@ -38,24 +38,55 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     private PlatformTransactionManager transactionManager;
 
     @Test
-    @DisplayName("As dez migrations foram aplicadas com sucesso e ficaram registradas no histórico")
+    @DisplayName("As onze migrations foram aplicadas com sucesso e ficaram registradas no histórico")
     void deveAplicarAsMigrations() {
         List<String> versoes = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = true AND version IS NOT NULL "
                         + "ORDER BY installed_rank", String.class);
 
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"), versoes);
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"), versoes);
     }
 
     @Test
-    @DisplayName("O schema tem as tabelas do modelo v2: perfis no lugar do catálogo de papéis")
+    @DisplayName("O schema tem as tabelas do modelo v2, incluindo o catálogo de produtos")
     void deveCriarAsTabelas() {
         List<String> tabelas = jdbc.queryForList(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' "
                         + "AND table_name <> 'flyway_schema_history' ORDER BY table_name", String.class);
 
-        assertEquals(List.of("addresses", "admins", "clients", "couriers", "owners", "password_reset_tokens",
+        assertEquals(List.of("addresses", "admins", "clients", "couriers", "images", "owners",
+                "password_reset_tokens", "product_option_groups", "product_option_values", "products",
                 "restaurant_office_hours", "restaurants", "user_addresses", "users"), tabelas);
+    }
+
+    @Test
+    @DisplayName("Produtos e caminhos de imagem usam os tipos e colunas definidos pela implementação")
+    void deveMapearOsTiposDeProdutoDoModelo() {
+        assertEquals("double precision", tipoDaColuna("products", "price"));
+        assertEquals("character varying", tipoDaColuna("images", "content"));
+        assertEquals(2048, comprimentoDaColuna("images", "content"));
+        assertEquals(List.of("id", "product_id", "content"), colunas("images"));
+        assertEquals(List.of("id", "option_group_id", "name", "additional_price",
+                        "created_at", "last_updated_at", "created_by", "last_updated_by"),
+                colunas("product_option_values"));
+    }
+
+    private String tipoDaColuna(String tabela, String coluna) {
+        return jdbc.queryForObject("SELECT data_type FROM information_schema.columns "
+                + "WHERE table_schema = 'public' AND table_name = ? AND column_name = ?",
+                String.class, tabela, coluna);
+    }
+
+    private Integer comprimentoDaColuna(String tabela, String coluna) {
+        return jdbc.queryForObject("SELECT character_maximum_length FROM information_schema.columns "
+                + "WHERE table_schema = 'public' AND table_name = ? AND column_name = ?",
+                Integer.class, tabela, coluna);
+    }
+
+    private List<String> colunas(String tabela) {
+        return jdbc.queryForList("SELECT column_name FROM information_schema.columns "
+                + "WHERE table_schema = 'public' AND table_name = ? ORDER BY ordinal_position",
+                String.class, tabela);
     }
 
     @ParameterizedTest(name = "{0}")

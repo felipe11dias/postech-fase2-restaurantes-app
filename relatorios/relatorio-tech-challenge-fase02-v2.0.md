@@ -9,12 +9,13 @@
 **Curso:** Pós-Tech — Arquitetura e Desenvolvimento Java
 **Stack:** Java 21 · Spring Boot 3.5.x · Spring Data JPA · PostgreSQL · Docker
 **Arquitetura:** Clean Architecture
-**Versão do relatório:** 2.0
+**Versão do relatório:** 2.1
 
 | Versão | Conteúdo |
 | --- | --- |
 | 1.0 | Etapas 1 a 16: base do sistema (arquitetura, usuário, autenticação, persistência, erros, documentação, testes, execução) e módulo de restaurantes |
 | 2.0 | **Modelo de Dados v2**: documentos do novo modelo no projeto, enums, divergências modelo → schema e as Etapas 17 a 25, que adequam `users`, `password_reset_tokens`, `owners`, `clients`, `couriers`, `admins`, `restaurants` e `restaurant_office_hours` ao modelo |
+| 2.1 | Etapa 26: catálogo de produtos, referências de imagens por caminho/URL e grupos/valores de opções; CRUD aninhado ao restaurante |
 
 > Documento vivo, organizado pelas etapas de desenvolvimento. Cada etapa do Sumário de
 > Progresso abaixo corresponde a uma seção homônima neste relatório.
@@ -60,14 +61,16 @@
 | 23  | Restaurante alinhado ao modelo v2 e à regra de posse (`restaurants`) | ✅ |
 | 24  | Horário de funcionamento por dia (`restaurant_office_hours`) | ✅ |
 | 25  | Revisão de conformidade do modelo de dados v2      | ✅     |
+| 26  | Produtos, imagens e grupos/valores de opções       | 🔄     |
 
-**Progresso:** 25 de 25 etapas concluídas. As Etapas 17 a 24 adequaram o projeto ao Modelo de
-Dados v2 (seção "Modelo de Dados v2 — adequação"), e a 25 conferiu o resultado contra o modelo e
-as referências.
+**Progresso:** 25 de 26 etapas concluídas. A Etapa 26 implementa o catálogo de produtos; a
+verificação de integração e a execução da coleção Postman aguardam um ambiente Docker funcional.
+As Etapas 17 a 24 adequaram o projeto ao Modelo de Dados v2, e a 25 conferiu o resultado.
 
-**Atenção ao ler "25 de 25":** são as etapas planejadas para a adequação ao Modelo de Dados v2, e
-todas estão concluídas. Isso **não** significa que o escopo do enunciado da Fase 2 esteja completo:
-faltam o cardápio, o tipo de cozinha do restaurante, o CRUD de tipos de usuário e o vídeo. A seção
+**Atenção ao ler "25 de 26":** as 25 etapas da adequação inicial ao Modelo de Dados v2 foram
+concluídas; a Etapa 26 está implementada e validada com `mvn verify`. Isso **não**
+significa que o escopo do enunciado da Fase 2 esteja completo: faltam o tipo de cozinha do
+restaurante, o CRUD de tipos de usuário e o vídeo. A seção
 "Escopo do Tech Challenge Fase 2 e estado" e a subseção "Conformidade com o enunciado" dizem onde
 o projeto está e o que resta.
 
@@ -80,12 +83,12 @@ o projeto está e o que resta.
 | Entregável obrigatório                    | Onde encontrar               |
 | ----------------------------------------- | ---------------------------- |
 | Descrição detalhada da arquitetura        | Visão Geral da Arquitetura   |
-| Modelagem das entidades e relacionamentos | Etapas 2, 5, 16 e 18 a 24    |
-| Estrutura do banco de dados (tabelas)     | Etapas 5, 6 e 16; schema atual no quadro "Modelo v2 × schema real" da Etapa 25 |
+| Modelagem das entidades e relacionamentos | Etapas 2, 5, 16 e 18 a 26    |
+| Estrutura do banco de dados (tabelas)     | Etapas 5, 6, 16 e 26; schema V1 a V11 |
 | Modelo de dados v2 (documento de referência) | "Modelo de Dados v2 — adequação" e [`docs/modelo-dados/`](../docs/modelo-dados/README.md) |
-| Descrição dos endpoints (com exemplos)    | Etapas 7, 16 e 18 a 24       |
+| Descrição dos endpoints (com exemplos)    | Etapas 7, 16 e 18 a 26       |
 | Documentação Swagger                      | Etapa 9                      |
-| Coleção Postman                           | Etapas 12, 16 e 18 a 25      |
+| Coleção Postman                           | Etapas 12, 16 e 18 a 26      |
 | Passo a passo com Docker Compose          | Etapa 10                     |
 | Correlação aulas × autores × código       | Etapa 14 e [`docs/arquitetura/`](../docs/arquitetura/README.md) |
 
@@ -94,10 +97,11 @@ o projeto está e o que resta.
 ## Escopo do Tech Challenge Fase 2 e estado
 
 As Etapas 1 a 15 deste relatório constroem a **base** do sistema — arquitetura, agregado de usuário,
-autenticação, persistência, erros, documentação, testes e execução. A 16 trouxe o restaurante, e as
-17 a 25 adequaram usuário e restaurante ao Modelo de Dados v2. O escopo funcional do enunciado
-ainda não está completo — a situação abaixo é a da branch `etapa-25-revisao-modelo-v2`, conferida contra o
-enunciado da Fase 2 (ver "Conformidade com o enunciado", ao fim desta seção):
+autenticação, persistência, erros, documentação, testes e execução. A 16 trouxe o restaurante, as
+17 a 25 adequaram usuário e restaurante ao Modelo de Dados v2, e a 26 acrescentou produtos e opções.
+O escopo funcional do enunciado ainda não está completo — a situação abaixo considera a Etapa 26
+no worktree, cuja validação de integração depende do Docker (ver "Conformidade com o enunciado",
+ao fim desta seção):
 
 | Requisito funcional do enunciado | Estado | Onde |
 | --- | --- | --- |
@@ -106,18 +110,18 @@ enunciado da Fase 2 (ver "Conformidade com o enunciado", ao fim desta seção):
 | Tipo de usuário: associar o tipo a usuários **existentes** | ✅ incluir, alterar e remover perfil de cadastro existente (`/api/v1/users/{id}/profiles/...`), valendo na hora para a autorização | Etapa 22 |
 | Tipo de usuário: **CRUD do catálogo** (campo "nome do tipo"; o enunciado diz "incluindo um CRUD para gerenciar tipos de usuário") | ⏳ pendente — **ponto de atenção:** o modelo v2 fixa os tipos no schema (uma tabela por perfil) e não tem catálogo editável; a forma de atender a este requisito precisa ser decidida pelo autor | — |
 | Cadastro de restaurante: CRUD com nome, endereço, horário de funcionamento e dono | ✅ endereço próprio, dono com perfil de dono e regra de posse, horário por dia da semana | Etapas 16, 18, 21, 23 e 24 |
-| Cadastro de restaurante: **tipo de cozinha** | ⏳ pendente — o enunciado o lista entre os campos obrigatórios; o modelo v2 prevê `cuisines` e `restaurant_cuisines`, que ficaram fora do escopo das Etapas 17 a 25 | — |
-| Cadastro de itens do cardápio (nome, descrição, preço, só no local, caminho da foto) | ⏳ pendente — nenhuma entidade, tabela ou endpoint. O modelo v2 tem `products` e `images`, mas `images.content` é `blob` e o enunciado pede apenas o **caminho** da foto: o trecho precisa de adaptação | — |
+| Cadastro de restaurante: **tipo de cozinha** | ⏳ pendente — o modelo v2 prevê `cuisines` e `restaurant_cuisines` | — |
+| Cadastro de itens do cardápio (nome, descrição, preço, só no local, caminho da foto) | ✅ CRUD aninhado ao restaurante, caminho/URL persistido em `images.content`, grupos e valores de opção | Etapa 26 |
 
 | Requisito técnico e de entrega | Estado | Onde |
 | --- | --- | --- |
 | Clean Architecture em camadas | ✅ quatro camadas, regra de dependência verificada no build | Visão Geral, Etapas 11, 13 e 14 |
 | Testes unitários com 80% de cobertura | ✅ **100%** de linhas e ramos, com o build falhando abaixo disso | Etapa 11 |
-| Testes de integração dos componentes | ✅ 138 testes com PostgreSQL real e HTTP de ponta a ponta | Etapas 11 e 25 |
+| Testes de integração dos componentes | ✅ 140 testes com PostgreSQL real e HTTP; `ProductCatalogIT` validou o catálogo e a migração V11 | Etapas 11, 25 e 26 |
 | Documentação do projeto (arquitetura, endpoints, execução) | ✅ README, este relatório, Swagger, `docs/arquitetura/` e `docs/modelo-dados/` | Etapas 9, 12, 14 e 25 |
-| Coleção Postman | ✅ 125 requests, com um print por request | Etapas 12, 16 e 18 a 25 |
+| Coleção Postman | ⚠️ 145 requests em 17 pastas; os 20 requests de produto aguardam validação Newman e geração de prints com Docker | Etapa 26 |
 | Docker Compose com aplicação e banco | ✅ aplicação, PostgreSQL e Mailpit | Etapa 10 |
-| Repositório aberto | ✅ público no GitHub (`felipe11dias/postech-fase2-restaurantes-app`), uma branch por etapa. **A `main` está na Etapa 16**: as Etapas 17 a 25 estão só nas branches `etapa-NN-*` e ainda precisam ser mescladas | — |
+| Repositório aberto | ✅ público no GitHub (`felipe11dias/postech-fase2-restaurantes-app`); a Etapa 26 está no worktree atual e ainda não foi publicada | — |
 | Vídeo de apresentação (cerca de 5 minutos) | ⏳ pendente — depende das features | — |
 
 ### Conformidade com o enunciado
@@ -126,21 +130,21 @@ Os nove fatores de avaliação do enunciado, conferidos contra o estado atual:
 
 | # | Fator | Situação | Observação |
 | --- | --- | --- | --- |
-| 1 | Funcionalidade (tipo de usuário, restaurante, item do cardápio) | **Parcial** | Restaurante quase completo (falta o tipo de cozinha); tipo de usuário sem o CRUD do catálogo; cardápio inexistente |
+| 1 | Funcionalidade (tipo de usuário, restaurante, item do cardápio) | **Parcial** | Produtos e opções implementados; restaurante ainda sem tipo de cozinha e tipo de usuário sem CRUD do catálogo |
 | 2 | Qualidade do código (práticas do Spring Boot, código organizado e documentado) | ✅ | Bean Validation, ProblemDetail, HATEOAS, Actuator, JWT; Javadoc e `package-info` por pacote; 48 regras do ArchUnit |
 | 3 | Documentação (arquitetura, endpoints, configuração e execução) | ✅ | README, este relatório, Swagger, `docs/arquitetura/`, `docs/modelo-dados/` |
-| 4 | Collections para teste | ✅ | 125 requests e 260 asserções, um print por request; cobre usuários, perfis e restaurantes |
+| 4 | Collections para teste | ⚠️ | Coleção com 145 requests; os 20 requests de produtos aguardam Newman/prints |
 | 5 | Docker Compose (aplicação e banco) | ✅ | Aplicação, PostgreSQL e Mailpit; o professor cria o `.env` e gera o segredo JWT (passo a passo no README) |
 | 6 | Repositório aberto | ✅, com risco | Público; a `main` está defasada em relação às Etapas 17 a 25 |
 | 7 | Clean Architecture | ✅ | Quatro camadas e módulos de infraestrutura substituíveis, verificados no build |
-| 8 | Cobertura de teste (80% unitários; integração) | ✅ | 775 unitários com 100% de linhas e ramos; 138 de integração com PostgreSQL real |
+| 8 | Cobertura de teste (80% unitários; integração) | ✅ | 821 unitários e 140 integrações; 100% de linhas e ramos no gate unitário |
 | 9 | Vídeo de cerca de 5 minutos | ⏳ | Não gravado |
 
-**Lacunas, por prioridade.** (1) O cardápio, o maior vazio: um dos três cadastros do enunciado. (2) O
+**Lacunas, por prioridade.** (1) Validar a Etapa 26 com Docker, PostgreSQL e Newman. (2) O
 tipo de cozinha, campo obrigatório do restaurante. (3) O CRUD de tipos de usuário — depende de decisão
 do autor sobre como conciliar o requisito com o modelo v2 (uma tabela de tipos editável, que contraria
 o modelo; ou um recurso de catálogo derivado dos perfis fixos, com a justificativa no relatório). (4)
-Mesclar as Etapas 17 a 25 na `main`. (5) Gravar o vídeo, depois de 1 a 3.
+Publicar as etapas ainda não integradas à `main`. (5) Gravar o vídeo, depois de 1 a 4.
 
 As features pendentes seguem as mesmas regras já verificadas no build: cada uma ganha o próprio
 subpacote em cada camada (*screaming architecture*), com entidade que valida seus invariantes,
@@ -2305,9 +2309,10 @@ PostgreSQL não aceita como pretendido. Cada decisão abaixo preserva a intenç�
 | `cpf` único em `clients` e em `couriers`, separadamente | Se o mesmo usuário é cliente e entregador, o CPF dos dois perfis é o mesmo — invariante do agregado `User` | Uma pessoa, um CPF: a regra que cruza dois perfis do mesmo usuário mora na raiz do agregado |
 | `addresses` referenciada, não referenciadora | O `CASCADE` de `users`/`restaurants` apaga `user_addresses`/`restaurants`, mas não alcança `addresses`: quem remove o endereço é a aplicação, pela cascata JPA da parte do agregado | Endereço é parte do agregado (não existe sem dono); sem a remoção explícita, sobraria linha órfã |
 
-Fora do escopo, registrados para as etapas de cardápio: `products.price double` (no PostgreSQL,
-`double precision`; valor monetário pede `numeric(10,2)`, como `additional_price`),
-`images.content blob` (no PostgreSQL, `bytea`) e `products`/`images` sem colunas de auditoria.
+Na revisão da Etapa 25, essas tabelas ficaram fora do escopo daquela etapa: `products.price double`
+(no PostgreSQL, `double precision`), `images.content blob` e `products`/
+`images` sem colunas de auditoria. A Etapa 26 implementa as quatro tabelas e registra as decisões
+de preço, imagem e auditoria na comparação com o modelo.
 
 ### Política de migração
 
@@ -3137,6 +3142,84 @@ Antes de fechar, o diff da etapa passou por uma revisão focada em falhas reais.
 | Corrida entre dois administradores | Num PostgreSQL com V1 a V10 e só dois administradores, duas transações simultâneas excluindo um cada: a segunda esperou a trava da primeira e foi recusada ("O último administrador não pode deixar de existir"); sobrou um administrador |
 | Documentação | `docs/arquitetura/` 01 a 06 com as regras novas e a contagem (48 regras ArchUnit: 17 + 24 + 7); `package-info` da política atualizado |
 
+## Etapa 26 — Catálogo de produtos, imagens e opções
+
+**Objetivo.** Disponibilizar produtos do restaurante com descrição, preço, indicador de consumo
+exclusivo no local, referências de imagens e grupos/valores de opções. A implementação segue o
+agregado `Product` e a Clean Architecture já aplicada aos usuários e restaurantes.
+
+**Imagens conforme a descrição da tarefa.** Embora o modelo lógico declare `content blob`, a
+descrição da Fase 2 informa que a foto não será enviada nem utilizada e pede apenas o caminho onde
+ela estaria. Assim, `images` mantém `id`, `product_id` e `content`, mas a coluna é `varchar(2048)`
+no PostgreSQL. A API recebe e devolve referências textuais pelo campo `imagePaths`; não transfere
+nem armazena bytes de imagem.
+
+### Conferência com o modelo de dados fornecido
+
+O diagrama PDF informado pelo autor, o DDL exportado em `docs/modelo-dados/` e a descrição da
+tarefa foram comparados com a V11. A implementação preserva as quatro tabelas, seus identificadores
+e as relações do modelo. Para imagens, prevalece o requisito explícito da tarefa de persistir a
+referência do arquivo, não seus bytes:
+
+| Tabela/atributo | Modelo fornecido | V11 / domínio / JPA | Resultado |
+| --- | --- | --- | --- |
+| `products` | `id`, `restaurant_id`, `name`, `description`, `price double`, `is_dine_in_only` | Mesmas colunas; `price double precision` / `double`; FK com cascata | Conforme o modelo |
+| `images` | `id`, `product_id`, `content blob` | Mesmas colunas; `content varchar(2048)` / `String` | Desvio intencional: a descrição da tarefa define persistir caminho/URL; API usa `imagePaths` |
+| `product_option_groups` | Identificador, produto, nome, obrigatório, limites e auditoria | Mesmas colunas e relação; timestamps de auditoria `NOT NULL` | Estrutura mantida; nulabilidade adequada ao listener obrigatório do projeto |
+| `product_option_values` | Identificador, grupo, nome, adicional `numeric(10,2)` e auditoria | Mesmas colunas, relação e precisão monetária; timestamps `NOT NULL` | Estrutura mantida |
+| Relações | produto → restaurante; grupos/imagens → produto; valores → grupo; exclusão em cascata | Mesmas FKs e `ON DELETE CASCADE` | Conforme |
+| Tipos e restrições | `varchar` sem comprimento; sem `CHECK` para preços/limites | Comprimentos explícitos, `CHECK` de valores não negativos e limites, índice por restaurante | Complementos físicos, sem alterar os tipos ou relações do modelo |
+
+O tipo `blob` do modelo lógico não é materializado no schema nesta etapa: a descrição funcional
+determina que a foto não será utilizada e que somente seu caminho deve ser salvo. Por isso a coluna
+`content` é texto com limite de 2048 caracteres. Os demais campos `varchar` e timestamps têm
+limites físicos explícitos, e há `CHECK`s adicionais para reforçar as invariantes.
+
+| Camada | Entrega |
+| --- | --- |
+| domain | `Product` como raiz; caminhos de imagem e grupos/valores como partes; validação de nome, preço finito/não negativo, caminho não vazio e limite de 2048 caracteres, e limites de seleção |
+| application | `ProductDTO`, `IProductGateway` e casos de uso de criação, consulta, busca paginada, atualização e exclusão |
+| adapter | `ProductController`, porta de dados, records de tradução, `ProductGateway`, `ProductPresenter` e `ProductView` |
+| infrastructure | REST sob `/api/v1/restaurants/{restaurantId}/products`; leitura pública, escrita para administrador ou dono; HATEOAS, Bean Validation e OpenAPI |
+| persistence | `ProductJpaEntity`, caminhos de imagem, grupos e valores como partes JPA; busca paginada por ids e carga posterior do grafo |
+| database | V11 cria `products`, `images`, `product_option_groups` e `product_option_values`, com cascata de exclusão das partes do produto |
+
+**Contrato HTTP.** `POST` cria (201), `GET` lista paginado ou consulta por id (200), `PUT` substitui
+o estado do produto e todas as suas coleções (200), `DELETE` exclui produto e partes (204). A
+coleção do `PUT` é substituição integral, não atualização parcial. Apenas o administrador ou o dono
+do restaurante pode alterar o catálogo; a listagem e a consulta são públicas.
+
+### O que foi entregue nesta etapa
+
+| Decisão | Conceito que a sustenta |
+| --- | --- |
+| **Produto como raiz do agregado; imagens, grupos e valores são partes** | Invariantes e consistência são responsabilidade da raiz (Martin, cap. 11); grupos e imagens não têm ciclo de vida independente do produto |
+| **Caminho/URL em `images.content` e `imagePaths` no contrato JSON** | A descrição da tarefa informa que a foto não será utilizada e orienta salvar somente o caminho; isso evita transporte e armazenamento de binários sem suporte de upload/serviço de arquivos |
+| **Rotas aninhadas ao restaurante, leitura pública e escrita por dono/admin** | A posse deve ser verificada no recurso pai (Etapa 23); aninhar preserva o limite do agregado e reutiliza `RestaurantSecurity` |
+| **`PUT` substitui todas as partes enviadas** | Contrato explícito e determinístico para a reconciliação JPA; evita semântica ambígua de merge de listas sem identificadores públicos |
+| **Paginação busca primeiro ids e depois o grafo** | Evita o recorte em memória do Hibernate quando a consulta carrega coleções (decisão de persistência documentada na Etapa 5) |
+| **Grupos e valores JPA em subpacotes do produto** | Screaming architecture e ADP: a parte depende do agregado, sem referência de volta; cada módulo mantém sua tecnologia fora do domínio |
+| **Testes unitários da feature e IT do ciclo HTTP** | Cada fronteira tem sua responsabilidade conferida no nível correspondente (Etapa 11); o IT é escrito contra PostgreSQL/Testcontainers e a API real |
+
+### Testes novos
+
+| Teste | O que prova |
+| --- | --- |
+| `ProductTest` | invariantes do produto, imagens, grupos, valores e limites de seleção |
+| `ProductMappingTest`, `ProductUseCasesTest` | tradução do DTO e comportamentos de criação, consulta, paginação, atualização e exclusão |
+| `ProductGatewayTest`, `ProductPresenterTest`, `ProductControllerTest` | tradução entre núcleo e origem de dados, views e transação no controlador de adaptação |
+| `ProductDataSourceJpaTest`, `ProductModelAssemblerTest`, `ProductRestControllerTest` | persistência simulada, links, contrato REST, respostas e autorização |
+| `ProductCatalogIT` | ciclo HTTP com banco real: cadastro, consulta, lista, substituição integral e exclusão das partes |
+| `OpenApiDocumentationIT` | parâmetros de caminho, operações e exemplos adicionados ao catálogo |
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `mvn verify` | BUILD SUCCESS; **821 testes unitários e 140 de integração**, JaCoCo unitário **2367/2367 linhas, 576/576 ramos e 1003/1003 métodos** |
+| PostgreSQL / Testcontainers | V11 aplicada; `SchemaMigrationIT` conferiu `products.price` como `double precision` e `images.content` como `varchar(2048)`; `ProductCatalogIT` confirmou escrita e leitura de caminhos de ponta a ponta |
+| Newman e prints | Pasta de produtos adicionada com 20 requests (total 145); os casos rodam antes da limpeza do segundo dono descartável. Os seis requests de limpeza foram renumerados para manter a ordem 120–145. Newman e os 20 prints aguardam Docker/serviços Compose |
+
 ---
 
 ## Decisões Técnicas (registro consolidado)
@@ -3147,6 +3230,8 @@ Antes de fechar, o diff da etapa passou por uma revisão focada em falhas reais.
   justificada; regras de build novas para o que as Etapas 17 a 24 decidiram (a infraestrutura só
   conhece do domínio as exceções; registros e views sem tipo do domínio; políticas de aplicação;
   objetos de valor como `record`). Etapa 25.
+- **Catálogo de produtos** como agregado, com imagens por caminho externo e opções compostas por
+  grupos/valores; CRUD aninhado ao restaurante e acesso de escrita por posse. Etapa 26.
 - **O sistema não fica sem administrador:** nem remover o perfil nem excluir o cadastro do último
   administrador — uma regra só (`LastAdminPolicy`). Etapas 22 e 25.
 - **Tipo de usuário por especialização:** perfis em `owners`, `clients`, `couriers` e `admins`
