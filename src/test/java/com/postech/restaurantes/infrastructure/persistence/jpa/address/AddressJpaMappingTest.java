@@ -1,5 +1,7 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa.address;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ADDRESS_DATA;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ADDRESS_ID;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.addressEntity;
@@ -16,7 +18,7 @@ class AddressJpaMappingTest {
     @Test
     @DisplayName("Registro vira linha nova, sem id: o id é emitido pelo Hibernate")
     void deveMontarLinhaNovaSemId() {
-        AddressJpaEntity entity = AddressJpaMapping.toEntity(ADDRESS_DATA);
+        AddressJpaEntity entity = AddressJpaMapping.toEntity(ADDRESS_DATA, com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.cityEntity());
 
         assertNull(entity.getId());
         assertEquals("Rua das Flores", entity.getStreet());
@@ -28,14 +30,14 @@ class AddressJpaMappingTest {
     @DisplayName("Copiar para uma linha existente troca os campos e mantém o id dela")
     void deveCopiarMantendoOId() {
         AddressJpaEntity existente = addressEntity();
-        AddressData novo = new AddressData(UUID.randomUUID(), "Av. B", null, null, null, "Rio", "RJ", "20000000");
+        AddressData novo = new AddressData(UUID.randomUUID(), LocationFixtures.cityId("Rio", "RJ"), "Av. B", null, null, null, "20000000", LocationFixtures.cityData("Rio", "RJ"));
 
-        AddressJpaMapping.copy(novo, existente);
+        AddressJpaMapping.copy(novo, existente, com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.cityEntity());
 
         assertEquals(ADDRESS_ID, existente.getId());
         assertEquals("Av. B", existente.getStreet());
         assertNull(existente.getNumber());
-        assertEquals("RJ", existente.getState());
+        assertEquals(LocationFixtures.CITY_ID, existente.getCity().getId());
     }
 
     @Test

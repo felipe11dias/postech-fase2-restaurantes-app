@@ -29,12 +29,35 @@ Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo é a da
 | Entregável da avaliação | Estado |
 | --- | --- |
 | Clean Architecture em camadas | ✅ Quatro camadas, verificadas no build (ArchUnit, 48 regras) |
-| Testes: unitários com 80% e de integração | ✅ 775 unitários com **100%** de linhas e ramos; 138 de integração com PostgreSQL real |
+| Testes: unitários com 80% e de integração | ✅ 734 unitários com **100%** de linhas e ramos; 142 de integração com PostgreSQL real |
 | Documentação (arquitetura, endpoints, execução) | ✅ Este README, o relatório técnico, o Swagger, `docs/arquitetura/` e `docs/modelo-dados/` |
-| Coleção Postman | ✅ 125 requests, com um print por request; cobre usuários, perfis e restaurantes (cozinha e cardápio entram com as funcionalidades) |
+| Coleção Postman | ✅ 130 requests; inclui catálogo geográfico e validação de cidade. Os 125 prints anteriores foram preservados; os cinco casos novos ainda não têm prints |
 | Docker Compose (aplicação e banco) | ✅ Aplicação, PostgreSQL e Mailpit |
 | Repositório aberto | ✅ Público; a `main` ainda não recebeu as Etapas 17 a 25 (estão nas branches `etapa-NN-*`) |
 | Vídeo de apresentação (cerca de 5 minutos) | ⏳ Pendente — depende das funcionalidades acima |
+
+## Endereços e catálogo de localidades
+
+Endereços de usuários e restaurantes exigem `cityId` de uma cidade já cadastrada. Consulte
+`GET /api/v1/states` e `GET /api/v1/cities?stateId=<id>&name=<nome>&page=0&size=20` para obter os ids.
+As consultas são públicas. Cidades e estados só são adicionados por migrations; não há endpoints
+de cadastro. A seed inicial contém as 27 unidades federativas, as capitais e Campinas.
+
+```json
+{
+  "cityId": "c0000000-0000-4000-8000-000000000001",
+  "street": "Rua das Flores",
+  "number": "100",
+  "complement": "Apto 21",
+  "neighborhood": "Centro",
+  "zipCode": "01001-000"
+}
+```
+
+A resposta traz `address.city: {id, name, state: {id, name, acronym}}` e o CEP sem máscara.
+Cidade ausente ou nula resulta em 400; id de cidade inexistente, em 404. Atualize os clientes que enviavam apenas
+`city`/`state`: esses nomes não substituem o id obrigatório. As migrations V11 e V12 preservam
+os endereços e vínculos já existentes em um banco na V10; o Flyway as aplica na inicialização.
 
 ## Arquitetura
 
@@ -267,7 +290,7 @@ A documentação completa, com exemplos de cada resposta, está no Swagger UI.
 ## Coleção Postman
 
 [`postman/Restaurantes.postman_collection.json`](postman/Restaurantes.postman_collection.json)
-(formato v2.1) tem **125 requests em 16 pastas** (usuários e restaurantes): um por caso de cada endpoint — o sucesso e cada
+(formato v2.1) tem **130 requests em 17 pastas** (usuários, restaurantes e catálogo geográfico): um por caso de cada endpoint — o sucesso e cada
 erro previsto —, na ordem em que rodam de cima a baixo. Os scripts de teste conferem o status e
 o `type` de cada erro e guardam `{{adminToken}}`, `{{token}}` e `{{userId}}` para as requisições
 seguintes; se um login ou cadastro essencial falhar, a execução para ali, com o motivo, em vez de

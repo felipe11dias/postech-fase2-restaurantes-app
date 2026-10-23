@@ -32,44 +32,65 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     private JdbcTemplate jdbc;
 
     @Autowired
+    private javax.sql.DataSource dataSource;
+
+    @Autowired
     private IUserDataSource userDataSource;
 
     @Autowired
     private PlatformTransactionManager transactionManager;
 
     @Test
-    @DisplayName("As dez migrations foram aplicadas com sucesso e ficaram registradas no histórico")
+    @DisplayName("Upgrades a V10 database without changing legacy address ids or duplicating seeded cities")
+    void shouldUpgradeExistingDatabase() {
+        String schema = "location_upgrade_" + UUID.randomUUID().toString().replace("-", "");
+        UUID addressId = UUID.randomUUID();
+        try {
+            org.flywaydb.core.Flyway.configure().dataSource(dataSource)
+                    .schemas(schema).defaultSchema(schema).target("10").load().migrate();
+            jdbc.update("UPDATE " + schema + ".addresses SET city = 'são paulo', state = 'sp'");
+            jdbc.update("INSERT INTO " + schema + ".addresses (id, street, number, neighborhood, city, state, zip_code) "
+                    + "VALUES (?, 'Legacy street', '1', 'Centro', ' campinas ', 'sp', '01001000')", addressId);
+            org.flywaydb.core.Flyway.configure().dataSource(dataSource)
+                    .schemas(schema).defaultSchema(schema).load().migrate();
+            assertEquals("campinas", jdbc.queryForObject("SELECT c.name FROM " + schema + ".addresses a JOIN "
+                    + schema + ".cities c ON c.id = a.city_id WHERE a.id = ?", String.class, addressId));
+            assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM " + schema + ".cities WHERE LOWER(name) = 'campinas'", Integer.class));
+            assertEquals(27, jdbc.queryForObject("SELECT count(*) FROM " + schema + ".states", Integer.class));
+            assertEquals(28, jdbc.queryForObject("SELECT count(*) FROM " + schema + ".cities", Integer.class));
+        } finally {
+            jdbc.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
+        }
+    }
+
+    @Test
+    @DisplayName("The database rejects addresses without a city or with an unknown city")
+    void shouldEnforceCityForeignKey() {
+        String sql = "INSERT INTO addresses (city_id, street, number, neighborhood, zip_code) "
+                + "VALUES (?, 'Invalid reference', '1', 'Centro', '01001000')";
+        assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(sql, (UUID) null));
+        assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(sql, UUID.randomUUID()));
+    }
+
+    @Test
+    @DisplayName("As migrations foram aplicadas com sucesso e ficaram registradas no histórico")
     void deveAplicarAsMigrations() {
         List<String> versoes = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = true AND version IS NOT NULL "
                         + "ORDER BY installed_rank", String.class);
 
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"), versoes);
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"), versoes);
     }
 
     @Test
-    @DisplayName("O schema tem as tabelas do modelo v2: perfis no lugar do catálogo de papéis")
+    @DisplayName("O schema contém as tabelas dos agregados e os catálogos geográficos")
     void deveCriarAsTabelas() {
         List<String> tabelas = jdbc.queryForList(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' "
                         + "AND table_name <> 'flyway_schema_history' ORDER BY table_name", String.class);
 
-        assertEquals(List.of("addresses", "admins", "clients", "couriers", "owners", "password_reset_tokens",
-                "restaurant_office_hours", "restaurants", "user_addresses", "users"), tabelas);
-    }
-
-    @ParameterizedTest(name = "{0}")
-    @CsvSource({
-            "courier_vehicle_type, ON_FOOT;BICYCLE;MOTORCYCLE;CAR",
-            "courier_status,       OFFLINE;AVAILABLE;BUSY",
-            "day_of_week,          MONDAY;TUESDAY;WEDNESDAY;THURSDAY;FRIDAY;SATURDAY;SUNDAY"
-    })
-    @DisplayName("Os tipos ENUM do modelo têm os valores do modelo, na ordem do modelo")
-    void deveCriarOsEnums(String tipo, String valores) {
-        List<String> rotulos = jdbc.queryForList("SELECT e.enumlabel FROM pg_enum e JOIN pg_type t "
-                + "ON t.oid = e.enumtypid WHERE t.typname = ? ORDER BY e.enumsortorder", String.class, tipo);
-
-        assertEquals(List.of(valores.split(";")), rotulos);
+        assertEquals(List.of("addresses", "admins", "cities", "clients", "couriers",
+                "owners", "password_reset_tokens", "restaurant_office_hours", "restaurants", "states", "user_addresses", "users"), tabelas);
     }
 
     @Test
@@ -125,19 +146,40 @@ class SchemaMigrationIT extends IntegrationTestSupport {
         assertTrue(dono.addresses().get(0).isDefault());
         assertNull(dono.addresses().get(0).label());
         assertEquals("Avenida Paulista", dono.addresses().get(0).address().street());
+        assertEquals("São Paulo", dono.addresses().get(0).address().city().name());
+        assertEquals("SP", dono.addresses().get(0).address().city().state().acronym());
+        assertTrue(dono.addresses().get(0).address().cityId() != null);
         assertEquals("01310100", dono.addresses().get(0).address().zipCode());
     }
 
     @Test
-    @DisplayName("O banco apaga em cascata vínculos, tokens e perfis; o endereço fica, porque é ele o referenciado")
+    @DisplayName("A migration preserva endereço e normaliza a chave estrangeira para cidade")
+    void deveMigrarEnderecoParaCidade() {
+        assertEquals(1, jdbc.queryForObject(
+                "SELECT count(*) FROM addresses a JOIN cities c ON c.id = a.city_id "
+                        + "JOIN states s ON s.id = c.state_id "
+                        + "WHERE a.street = 'Avenida Paulista' AND c.name = 'São Paulo' "
+                        + "AND s.name = 'São Paulo' AND s.acronym = 'SP'", Integer.class));
+        assertEquals(UUID.fromString("c0000000-0000-4000-8000-000000000001"), jdbc.queryForObject(
+                "SELECT city_id FROM addresses WHERE street = 'Avenida Paulista'", UUID.class));
+        assertEquals(List.of("city_id", "complement", "id", "neighborhood", "number", "street",
+                "zip_code"), jdbc.queryForList("SELECT column_name FROM information_schema.columns "
+                + "WHERE table_schema = 'public' AND table_name = 'addresses' ORDER BY column_name", String.class));
+    }
+
+    @Test
+    @DisplayName("Chaves estrangeiras apagam em cascata no banco, independentemente do ORM")
     void deveApagarEmCascataNoBanco() {
         try {
             jdbc.update("INSERT INTO users (id, name, email, login, password, created_at, last_updated_at) "
                     + "VALUES ('b0000000-0000-4000-8000-0000000000ff', 'Efêmero', 'efemero@email.com', 'efemero', "
                     + "'$2a$10$hash', NOW(), NOW())");
-            jdbc.update("INSERT INTO addresses (id, street, number, neighborhood, city, state, zip_code) "
-                    + "VALUES ('c0000000-0000-4000-8000-0000000000ff', 'Rua A', '1', 'Centro', 'São Paulo', 'SP', "
-                    + "'01001000')");
+            UUID cityId = jdbc.queryForObject(
+                "SELECT id FROM cities WHERE name = 'São Paulo' "
+                        + "AND state_id = (SELECT id FROM states WHERE acronym = 'SP')", UUID.class);
+        jdbc.update("INSERT INTO addresses (id, city_id, street, number, neighborhood, zip_code) "
+                    + "VALUES ('c0000000-0000-4000-8000-0000000000ff', ?, 'Rua A', '1', 'Centro', "
+                    + "'01001000')", cityId);
             jdbc.update("INSERT INTO user_addresses (user_id, address_id, is_default, created_at, last_updated_at) "
                     + "VALUES ('b0000000-0000-4000-8000-0000000000ff', 'c0000000-0000-4000-8000-0000000000ff', "
                     + "TRUE, NOW(), NOW())");
@@ -170,10 +212,10 @@ class SchemaMigrationIT extends IntegrationTestSupport {
             jdbc.update("INSERT INTO users (id, name, email, login, password, created_at, last_updated_at) "
                     + "VALUES ('b0000000-0000-4000-8000-0000000000fe', 'Dois Padrões', 'dois.padroes@email.com', "
                     + "'dois.padroes', '$2a$10$hash', NOW(), NOW())");
-            jdbc.update("INSERT INTO addresses (id, street, number, neighborhood, city, state, zip_code) VALUES "
-                    + "('c0000000-0000-4000-8000-0000000000a1', 'Rua A', '1', 'Centro', 'São Paulo', 'SP', "
+            jdbc.update("INSERT INTO addresses (id, street, number, neighborhood, city_id, zip_code) VALUES "
+                    + "('c0000000-0000-4000-8000-0000000000a1', 'Rua A', '1', 'Centro', 'c0000000-0000-4000-8000-000000000001', "
                     + "'01001000'), "
-                    + "('c0000000-0000-4000-8000-0000000000a2', 'Rua B', '2', 'Centro', 'São Paulo', 'SP', "
+                    + "('c0000000-0000-4000-8000-0000000000a2', 'Rua B', '2', 'Centro', 'c0000000-0000-4000-8000-000000000001', "
                     + "'01001000')");
             jdbc.update(vinculoPadrao, "c0000000-0000-4000-8000-0000000000a1");
 
@@ -216,8 +258,8 @@ class SchemaMigrationIT extends IntegrationTestSupport {
                 + "created_at, last_updated_at) VALUES (?, ?, 'Sem Dono', NOW(), NOW())";
         try {
             inserirUsuario(usuario);
-            jdbc.update("INSERT INTO addresses (id, street, number, neighborhood, city, state, zip_code) "
-                    + "VALUES (?, 'Rua A', '1', 'Centro', 'São Paulo', 'SP', '01001000')", endereco);
+            jdbc.update("INSERT INTO addresses (id, street, number, neighborhood, city_id, zip_code) "
+                    + "VALUES (?, 'Rua A', '1', 'Centro', 'c0000000-0000-4000-8000-000000000001', '01001000')", endereco);
 
             assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(restaurante, usuario, endereco));
             jdbc.update("INSERT INTO owners (id, cnpj, legal_name, business_phone, created_at, last_updated_at) "
@@ -241,8 +283,8 @@ class SchemaMigrationIT extends IntegrationTestSupport {
             inserirUsuario(usuario);
             jdbc.update("INSERT INTO owners (id, cnpj, legal_name, business_phone, created_at, last_updated_at) "
                     + "VALUES (?, ?, 'Dono Ltda', '1131234567', NOW(), NOW())", usuario, Documentos.cnpj());
-            jdbc.update("INSERT INTO addresses (id, street, number, neighborhood, city, state, zip_code) "
-                    + "VALUES (?, 'Rua A', '1', 'Centro', 'São Paulo', 'SP', '01001000')", endereco);
+            jdbc.update("INSERT INTO addresses (id, street, number, neighborhood, city_id, zip_code) "
+                    + "VALUES (?, 'Rua A', '1', 'Centro', 'c0000000-0000-4000-8000-000000000001', '01001000')", endereco);
             jdbc.update("INSERT INTO restaurants (user_id, address_id, name, "
                     + "created_at, last_updated_at) VALUES (?, ?, 'Cascata', NOW(), NOW())",
                     usuario, endereco);

@@ -1,13 +1,19 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa.user;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ADDRESS_ID;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.CITY_ID;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.HASH;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.NOW;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.CLIENT_DATA;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.USER_ADDRESS_DATA;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.USER_ADDRESS_ID;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.STATE_ID;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.USER_DATA;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.USER_ID;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.cityEntity;
+import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.stateEntity;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.userEntity;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -32,6 +38,10 @@ import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.address.UserAddressJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.location.SpringDataCityRepository;
+import com.postech.restaurantes.infrastructure.persistence.jpa.location.CityReferenceResolver;
+import com.postech.restaurantes.infrastructure.persistence.jpa.location.CityJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.location.StateJpaEntity;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -54,18 +64,20 @@ import org.springframework.data.domain.Sort;
 class UserDataSourceJpaTest {
 
     private SpringDataUserRepository users;
+    private SpringDataCityRepository cities;
     private UserDataSourceJpa dataSource;
 
     @BeforeEach
     void setUp() {
         users = mock(SpringDataUserRepository.class);
-        dataSource = new UserDataSourceJpa(users);
-        // Como o persist do Hibernate: o save atribui o id ao usuário novo.
+        cities = mock(SpringDataCityRepository.class);
+        dataSource = new UserDataSourceJpa(users, new CityReferenceResolver(cities));
         when(users.save(any())).thenAnswer(invocation -> {
-            UserJpaEntity novo = invocation.getArgument(0);
-            novo.setId(USER_ID);
-            return novo;
+            UserJpaEntity entity = invocation.getArgument(0);
+            entity.setId(USER_ID);
+            return entity;
         });
+        when(cities.findById(CITY_ID)).thenReturn(Optional.of(cityEntity()));
     }
 
     @Test
@@ -88,6 +100,7 @@ class UserDataSourceJpaTest {
         assertEquals("Casa", data.addresses().get(0).label());
         assertTrue(data.addresses().get(0).isDefault());
         assertEquals(ADDRESS_ID, data.addresses().get(0).address().id());
+        assertEquals(CITY_ID, data.addresses().get(0).address().cityId());
         assertEquals("01001000", data.addresses().get(0).address().zipCode());
         assertEquals(NOW.minusDays(1), data.createdAt());
         assertEquals(NOW, data.lastUpdatedAt());
@@ -263,7 +276,7 @@ class UserDataSourceJpaTest {
 
         dataSource.insert(new UserData(null, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
                 null, CLIENT_DATA, null, null, List.of(new UserAddressData(null, "Trabalho", true,
-                        new AddressData(ADDRESS_ID, "Rua A", "1", null, "Centro", "São Paulo", "SP", "01001000"))),
+                        new AddressData(ADDRESS_ID, LocationFixtures.cityId("São Paulo", "SP"), "Rua A", "1", null, "Centro", "01001000", LocationFixtures.cityData("São Paulo", "SP")))),
                 NOW, NOW));
 
         UserJpaEntity gravado = capturarGravado();
@@ -283,7 +296,7 @@ class UserDataSourceJpaTest {
         UserAddressJpaEntity vinculo = existente.getAddresses().get(0);
         when(users.findById(USER_ID)).thenReturn(Optional.of(existente));
         when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        AddressData outraRua = new AddressData(null, "Rua Outra", "7", null, "Centro", "São Paulo", "SP", "01001000");
+        AddressData outraRua = new AddressData(null, LocationFixtures.cityId("São Paulo", "SP"), "Rua Outra", "7", null, "Centro", "01001000", LocationFixtures.cityData("São Paulo", "SP"));
 
         dataSource.update(new UserData(USER_ID, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
                 null, CLIENT_DATA, null, null, List.of(new UserAddressData(USER_ADDRESS_ID, "Casa Nova", false, outraRua),
@@ -306,6 +319,33 @@ class UserDataSourceJpaTest {
                 List.of(new UserAddressData(UUID.randomUUID(), null, true, USER_ADDRESS_DATA.address())), NOW, NOW);
 
         assertThrows(IllegalStateException.class, () -> dataSource.update(comVinculoAlheio));
+    }
+
+    @Test
+    @DisplayName("Resolves an existing city by id without creating catalog entries")
+    void shouldResolveExistingCityById() {
+        when(users.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        AddressData address = new AddressData(null, CITY_ID, "Rua A", "1", null, "Centro", "01001000");
+
+        dataSource.insert(new UserData(null, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
+                null, CLIENT_DATA, null, null, List.of(new UserAddressData(null, "Casa", true, address)), NOW, NOW));
+
+        assertEquals(CITY_ID, capturarGravado().getAddresses().get(0).getAddress().getCity().getId());
+        verify(cities).findById(CITY_ID);
+    }
+
+    @Test
+    @DisplayName("Rejects an unknown city before persisting a user")
+    void shouldRejectUnknownCity() {
+        UUID cityId = UUID.randomUUID();
+        AddressData address = new AddressData(null, cityId, "Rua A", "1", null, "Centro", "01001000");
+        UserData data = new UserData(null, "João Silva", "joao.silva@email.com", "joao.silva", HASH,
+                null, CLIENT_DATA, null, null, List.of(new UserAddressData(null, "Casa", true, address)), NOW, NOW);
+
+        assertThrows(com.postech.restaurantes.domain.exception.ResourceNotFoundException.class,
+                () -> dataSource.insert(data));
+        verify(users, never()).save(any());
+        verify(users, never()).saveAndFlush(any());
     }
 
     @Test

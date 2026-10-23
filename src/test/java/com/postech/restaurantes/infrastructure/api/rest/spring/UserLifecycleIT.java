@@ -117,6 +117,6 @@ class UserLifecycleIT extends WebIntegrationTestSupport {
 
     private static Map<String, Object> endereco(String rua) {
         return Map.of("label", "Casa", "address", Map.of("street", rua, "number", "100", "complement", "Apto 21",
-                "neighborhood", "Centro", "city", "São Paulo", "state", "SP", "zipCode", "01001-000"));
+                "neighborhood", "Centro", "cityId", "c0000000-0000-4000-8000-000000000001", "zipCode", "01001-000"));
     }
 }

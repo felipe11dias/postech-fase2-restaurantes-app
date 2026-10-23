@@ -1,9 +1,12 @@
 package com.postech.restaurantes.adapter.gateway;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import static com.postech.restaurantes.adapter.AdapterFixtures.ADDRESS_ID;
 import static com.postech.restaurantes.adapter.AdapterFixtures.ADMIN_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.CLIENT_DATA;
 import static com.postech.restaurantes.adapter.AdapterFixtures.COURIER_DATA;
+import static com.postech.restaurantes.adapter.AdapterFixtures.CITY_ID;
 import static com.postech.restaurantes.adapter.AdapterFixtures.HASH;
 import static com.postech.restaurantes.adapter.AdapterFixtures.NOW;
 import static com.postech.restaurantes.adapter.AdapterFixtures.OWNER_DATA;
@@ -82,6 +85,7 @@ class UserGatewayTest {
         assertEquals("Casa", userAddress.getLabel());
         assertTrue(userAddress.isDefault());
         assertEquals(ADDRESS_ID, userAddress.getAddress().getId());
+        assertEquals(CITY_ID, userAddress.getAddress().getCityId());
         assertEquals("01001000", userAddress.getAddress().getZipCode().value());
         assertEquals(NOW.minusDays(1), user.getCreatedAt());
         assertEquals(NOW, user.getLastUpdatedAt());
@@ -126,7 +130,7 @@ class UserGatewayTest {
     void deveTraduzirNaInsercao() {
         User novo = User.create("Ana", "Ana@X.com", "ana", "hash", new UserProfiles(null, ClientProfile.create("52998224725", "11912345678", null, NOW.toLocalDate()), null, null),
                 List.of(UserAddress.create("Casa", true,
-                        Address.create("Rua A", null, null, null, "Cidade", "sp", "01001-000"))));
+                        Address.create(LocationFixtures.cityId("Cidade", "sp"), "Rua A", null, null, null, "01001-000"))));
         when(dataSource.insert(any())).thenReturn(USER_DATA);
 
         User result = gateway.insert(novo);
@@ -144,7 +148,7 @@ class UserGatewayTest {
         assertEquals("Casa", sent.addresses().get(0).label());
         assertTrue(sent.addresses().get(0).isDefault());
         assertNull(sent.addresses().get(0).address().id());
-        assertEquals("SP", sent.addresses().get(0).address().state());
+        assertEquals(LocationFixtures.CITY_ID, sent.addresses().get(0).address().cityId());
         assertEquals("01001000", sent.addresses().get(0).address().zipCode());
         assertNull(sent.createdAt());
         assertEquals(USER_ID, result.getId());
@@ -162,6 +166,7 @@ class UserGatewayTest {
         verify(dataSource).update(captor.capture());
         assertEquals(USER_ID, captor.getValue().id());
         assertEquals(USER_ADDRESS_ID, captor.getValue().addresses().get(0).id());
+        assertEquals(CITY_ID, captor.getValue().addresses().get(0).address().cityId());
         assertEquals(CLIENT_DATA, captor.getValue().client());
         assertEquals(USER_ADDRESS_DATA, captor.getValue().addresses().get(0));
         assertEquals(USER_ID, result.getId());
