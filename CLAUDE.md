@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (26 até aqui; as Etapas 17 a 25 adequaram o projeto ao Modelo de Dados v2 em
+Architecture**. O projeto está sendo entregue **etapa por etapa** (27 até aqui; as Etapas 17 a 25 adequaram o projeto ao Modelo de Dados v2 em
 `docs/modelo-dados/`, e a 25 traz o quadro final "modelo v2 × schema real", e a 26 integra endereços e catálogo geográfico) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
 `CHANGELOG.md`, e atualização do relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (marcar a etapa
 como ✅ no Sumário de Progresso, atualizar o contador e acrescentar a subseção
@@ -80,7 +80,7 @@ infrastructure  → qualquer camada. ÚNICO pacote que pode importar Spring, JPA
 Cada pacote tem um `package-info.java` com sua regra. Dentro de cada camada, entidades, casos de
 uso e DTOs ficam em **subpacotes por agregado/feature** (`domain/entity/user`,
 `application/usecase/auth`, `application/dto/common`...) — *screaming architecture*: uma feature
-nova (restaurante, cardápio) ganha o próprio subpacote em cada camada. Convenções também verificadas:
+nova (restaurante, produtos e opções) ganha o próprio subpacote em cada camada. Convenções também verificadas:
 classes em `application.usecase` terminam em `UseCase`; tudo em `application.gateway`,
 `adapter.datasource` e `adapter.service` são interfaces com prefixo `I`; `application.policy` só tem `*Policy`,
 usadas só por casos de uso; `domain.vo` só tem `record`s; records `*Data` e `*View` não carregam tipo do domínio
@@ -111,6 +111,7 @@ infrastructure/
     security/          SecurityConfig, BearerTokenAuthenticationFilter, 401, AuthenticatedUser,
                        UserSecurity, AuthenticatedActor, IAccessTokenReader, ICurrentRolesReader e IRestaurantOwnerReader (portas do módulo), RestaurantSecurity
   persistence/jpa/     PersistenceConfig, TransactionalUnitOfWork; audit/; um subpacote por agregado
+    product/           ProductJpaEntity e origem de dados; image/, optiongroup/ e optionvalue/ são partes unidirecionais
   token/jwt/           ITokenEncoder + IAccessTokenReader (jjwt): JwtTokenEncoder, JwtProperties, JwtConfig
   crypto/              IPasswordEncoder (BCrypt), ISecureTokenGenerator (SecureRandom)
   mail/smtp/           IMailSender (Spring Mail): SmtpMailSender, MailProperties, MailConfig
@@ -274,6 +275,14 @@ Pontos que só ficam claros lendo várias camadas:
   só do lado do restaurante, com `day_of_week` como texto (`?::day_of_week`); a atualização reconcilia por (dia,
   abertura), senão o Hibernate inseriria antes de apagar e violaria `UNIQUE (restaurant_id, day_of_week,
   start_time)`. O dia vem como texto e passa por `OfficeHour.dayOf` (mensagem do domínio).
+- **Catálogo de produtos (Etapa 26, V11).** `Product` é raiz; imagens guardam caminhos/URLs como
+  texto em `images.content` (`varchar(2048)`); a tarefa define que o arquivo não será enviado nem
+  usado nesta etapa. A API recebe `imagePaths`; grupos e valores são partes. O preço do produto é
+  `double`/`double precision`, como no modelo; `additional_price` continua decimal.
+  API aninhada em
+  `/api/v1/restaurants/{restaurantId}/products`: leitura pública, escrita por ADMIN/dono. O `PUT`
+  substitui as coleções integralmente. A paginação carrega ids e depois o grafo, evitando join-fetch
+  com paginação em memória. A divergência de `images.content` do modelo lógico está registrada no relatório.
 
 ### API REST organizada como MVC (Etapa 15, já implementada)
 
@@ -292,7 +301,9 @@ Pontos que só ficam claros lendo várias camadas:
   `SecurityConfig` e os links do assembler leem de lá. O assembler monta links com
   `BasicLinkBuilder.linkToCurrentMapping().slash(ApiRoutes.X)` — se usasse
   `linkTo(XRestController.class)`, `controller` e `assembler` formariam ciclo (o controller usa o
-  assembler) e `nenhum_ciclo_entre_pacotes` quebraria o build.
+  assembler) e   `nenhum_ciclo_entre_pacotes` quebraria o build.
+- **Produtos pertencem ao restaurante**: a rota usa `ApiRoutes.PRODUCTS`; `RestaurantSecurity`
+  autoriza as escritas pelo dono e consulta pública não expõe dados pessoais.
 
 ### Web e segurança (Etapa 7, já implementada)
 
