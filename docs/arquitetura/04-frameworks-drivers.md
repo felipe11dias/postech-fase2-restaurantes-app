@@ -41,7 +41,7 @@ tecnologia. Trocar uma tecnologia é apagar um subpacote e criar outro ao lado.
 |---|---|---|---|
 | [`main`](../../src/main/java/com/postech/restaurantes/infrastructure/main) | a composição (Main, cap. 26): `CompositionConfig`, `PasswordResetProperties` | Spring (`@Configuration`) | — é o único que conhece todos |
 | [`api/rest/spring`](../../src/main/java/com/postech/restaurantes/infrastructure/api/rest/spring) | entrega HTTP, organizada como MVC: `controller` (`@RestController`), `dto/request` e `dto/response`, `assembler` (HATEOAS), `route` (caminhos), `config`, `exception` (ProblemDetail), `doc` (OpenAPI), `validation`, `security` | Spring MVC, Spring Security, Spring HATEOAS, springdoc, Bean Validation | `api/rest/<outra>` ou outro canal (`api/graphql/...`) chamando os mesmos controllers de adaptação |
-| [`persistence/jpa`](../../src/main/java/com/postech/restaurantes/infrastructure/persistence/jpa) | `I*DataSource` (`UserDataSourceJpa`, …) e `IUnitOfWork` (`TransactionalUnitOfWork`); `audit` (colunas de auditoria); um subpacote por agregado (`user`, `restaurant`, `product`), as partes do agregado de usuário em `user/{address,role,password}` (`user/address` é o vínculo `user_addresses`) e o endereço, compartilhado pelos dois agregados, em `address` — espelhando o domínio | JPA/Hibernate, Spring Data, PostgreSQL | `persistence/jdbc` com as mesmas interfaces; o schema continua do Flyway |
+| [`persistence/jpa`](../../src/main/java/com/postech/restaurantes/infrastructure/persistence/jpa) | `I*DataSource` (`UserDataSourceJpa`, …), `IUnitOfWork` (`TransactionalUnitOfWork`), `audit` (colunas de auditoria) e `location` (entidades/repositórios de cidade e estado); um subpacote por agregado (`user`, `restaurant`, `product`), as partes do agregado de usuário em `user/{address,role,password}` (`user/address` é o vínculo `user_addresses`) e o endereço, compartilhado pelos agregados, em `address` — espelhando o domínio | JPA/Hibernate, Spring Data, PostgreSQL | `persistence/jdbc` com as mesmas interfaces; o schema continua do Flyway |
 | [`token/jwt`](../../src/main/java/com/postech/restaurantes/infrastructure/token/jwt) | `ITokenEncoder` e `IAccessTokenReader` (`JwtTokenEncoder`, HS256 fixo) | jjwt | `token/<outro>` implementando as duas interfaces |
 | [`crypto`](../../src/main/java/com/postech/restaurantes/infrastructure/crypto) | `IPasswordEncoder` (`BCryptPasswordAdapter`), `ISecureTokenGenerator` (`SecureRandomTokenGenerator`) | spring-security-crypto, JDK | nova classe (ex.: Argon2) implementando a porta |
 | [`mail/smtp`](../../src/main/java/com/postech/restaurantes/infrastructure/mail/smtp) | `IMailSender` (`SmtpMailSender`) — **só transporte**, com timeouts de 5 s | Spring Mail | `mail/<provedor>` implementando `IMailSender`; o texto do e-mail está no adaptador e não muda |
@@ -63,11 +63,24 @@ se a resposta esperasse por isso, o tempo dela revelaria quem tem conta. Concorr
 de entrega, e fica na borda: o núcleo continua síncrono.
 
 **Schema versionado.** O Flyway é o dono do schema
-([`V1__create_schema.sql`](../../src/main/resources/db/migration/V1__create_schema.sql)); o JPA só
-valida (`ddl-auto: validate`). O V1 documenta a normalização: papéis e endereços em tabelas
-próprias (1FN), a chave composta `user_roles` sem dependência parcial (2FN), nada derivável em
-`users` (3FN) e todo determinante — e-mail, login — como chave candidata (BCNF). A seed
-(`V2__seed_demo_users.sql`) cria os usuários de demonstração.
+([`db/migration`](../../src/main/resources/db/migration)); o JPA só valida (`ddl-auto: validate`).
+As migrations V1–V10 da main permanecem com suas versões originais. A V11 cria `states` e
+`cities`, converte cidade/UF em `addresses.city_id NOT NULL`, preserva ids e vínculos existentes
+e remove os campos textuais. A V12 semeia as 27 unidades federativas, as capitais e Campinas.
+É um catálogo inicial; os demais municípios entram por novas migrations, sem cadastro via API.
+A seed V2 continua responsável pelos usuários de demonstração.
+
+`CityReferenceResolver` consulta o id existente, compartilhado por `UserDataSourceJpa` e
+`RestaurantDataSourceJpa`; cidade inexistente lança `ResourceNotFoundException` e o handler
+existente responde 404, seguindo o padrão de recursos não encontrados. Não há gravação de estado ou cidade durante o salvamento de endereços.
+Os repositórios dos catálogos estendem `Repository` e declaram somente consultas. O relacionamento
+`AddressJpaEntity.city -> CityJpaEntity.state` não tem cascata de persistência ou remoção.
+
+`GET /api/v1/states` lista as 27 unidades federativas em ordem alfabética. `GET /api/v1/cities`
+é paginado, aceita filtros `stateId` e `name`, ordena por nome e id e preserva os filtros nos
+links HATEOAS. As duas consultas são públicas para permitir o autocadastro; não há operações de
+escrita. `AddressRequest` exige `cityId` tanto no construtor quanto em Bean Validation, e converte
+esse id sem perdas para `AddressDTO`. A resposta HTTP aninha `CityResponse` e `StateResponse`.
 
 **Perfis no lugar do catálogo de papéis (Etapa 21, V6).** `roles` e `user_roles` saíram: o papel
 passou a ser derivado do perfil (`owners`, `clients`, `couriers`, `admins`), e uma informação que se
@@ -135,6 +148,7 @@ imagens de versão fixa e portas só em `127.0.0.1`.
 | MVC dentro do módulo de API (Etapa 15) | `controller`, `dto/request`, `dto/response`, `assembler`, `exception`… | o pacote diz o papel da classe; restaurante e cardápio entram nos mesmos pacotes |
 | Rotas em um lugar só | `route/ApiRoutes` | `@RequestMapping`, `SecurityConfig` e links HATEOAS leem o mesmo caminho, e `controller` ↔ `assembler` não formam ciclo |
 | Data mapper em duas camadas | `*JpaEntity` + gateway | domínio sem anotação; o mapeamento de banco muda sem mexer na entidade |
+| Chaves estrangeiras para localização | `AddressJpaEntity.city` → `CityJpaEntity.state` | normalização e integridade referencial sem acoplar as entidades de domínio a JPA |
 | Busca paginada em duas consultas | `UserDataSourceJpa.search` | `join fetch` com paginação faria o Hibernate recortar a página em memória |
 
 ## 5. Desvios conscientes

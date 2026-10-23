@@ -19,8 +19,8 @@ class AddressJpaEntityTest {
         assertEquals("100", address.getNumber());
         assertEquals("Apto 21", address.getComplement());
         assertEquals("Centro", address.getNeighborhood());
-        assertEquals("São Paulo", address.getCity());
-        assertEquals("SP", address.getState());
+        assertEquals("São Paulo", address.getCity().getName());
+        assertEquals("SP", address.getCity().getState().getAcronym());
         assertEquals("01001000", address.getZipCode());
     }
 }

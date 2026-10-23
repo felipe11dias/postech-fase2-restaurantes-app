@@ -1,6 +1,11 @@
 package com.postech.restaurantes.infrastructure.main;
 
 import com.postech.restaurantes.adapter.controller.AuthController;
+import com.postech.restaurantes.adapter.controller.LocationController;
+import com.postech.restaurantes.adapter.controller.RestaurantController;
+import com.postech.restaurantes.adapter.controller.UserController;
+import com.postech.restaurantes.adapter.datasource.IPasswordResetTokenDataSource;
+import com.postech.restaurantes.adapter.datasource.ILocationDataSource;
 import com.postech.restaurantes.adapter.controller.ProductController;
 import com.postech.restaurantes.adapter.controller.RestaurantController;
 import com.postech.restaurantes.adapter.controller.UserController;
@@ -36,6 +41,12 @@ import org.springframework.data.domain.AuditorAware;
 @Configuration
 @EnableConfigurationProperties(PasswordResetProperties.class)
 public class CompositionConfig {
+
+    @Bean
+    public LocationController locationController(
+            ILocationDataSource dataSource, IUnitOfWork unitOfWork) {
+        return LocationController.create(dataSource, unitOfWork);
+    }
 
     /** Relógio injetável: nenhum componente chama {@code now()} por conta própria. */
     @Bean

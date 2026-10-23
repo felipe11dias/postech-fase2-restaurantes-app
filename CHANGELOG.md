@@ -1,9 +1,19 @@
 # Changelog — Restaurantes (Fase 2)
 
-## Etapa 26 — Catálogo de produtos, imagens e opções
+## Etapa 26 — Correção do merge e catálogo de endereços
+- Corrigidos imports, conversões de `Address`, vínculos `UserAddress` e referências ao antigo catálogo de papéis que quebravam a compilação após o merge com a main.
+- `cityId` obrigatório em `Address`, `AddressDTO`, `AddressData` e `AddressRequest`; `AddressView` exige `CityView` com id e estado válidos. Construtores alternativos que omitiam cidade foram removidos.
+- `AddressRequest` recebe apenas `cityId` e os campos do endereço; nomes de cidade/estado vêm do catálogo, com resposta `AddressView -> CityView -> StateView` e DTOs HTTP equivalentes.
+- Resolução compartilhada da cidade existente para usuários e restaurantes; id desconhecido responde 404, sem criação automática de cidades ou estados. Catálogos expõem apenas leitura, inclusive nos repositórios Spring Data.
+- Normalização movida para `V11__normalize_address_location.sql`, preservando V1–V10 da main. `V12__seed_location_catalog.sql` inclui as 27 unidades federativas, as capitais e Campinas; novas cidades entram por migrations.
+- Consultas públicas `GET /api/v1/states` e `GET /api/v1/cities`, com filtros por `stateId`/`name`, paginação e links de navegação para cidades.
+- Seed reconhece cidades legadas sem diferenciar maiúsculas/minúsculas, preservando ids sem duplicações.
+- Validação: `mvn verify` com 734 unitários e 142 de integração aprovados; cobertura de 100% (2174 linhas, 558 ramos). Após o ajuste da seed, nova execução com os 17 testes de migração e os unitários aprovada.
+- Nomes novos em inglês; documentação e coleção Postman atualizadas ao contrato obrigatório de cidade. Testes de contrato, domínio, persistência, API e atualização de banco na V10.
+## Etapa 27 — Catálogo de produtos, imagens e opções
 - Agregado `Product` com caminhos/URLs de imagem, grupos de opções e valores, validando preço, limites de seleção e obrigatoriedade.
 - CRUD e listagem paginada em `/api/v1/restaurants/{restaurantId}/products`; leitura pública e escrita restrita ao administrador ou dono do restaurante.
-- Migration Flyway `V11__product_catalog.sql` para `products`, `images`, `product_option_groups` e `product_option_values`; `images.content` guarda caminho/URL em `varchar(2048)`, conforme a descrição da tarefa, e `products.price` usa `double precision` conforme o modelo.
+- Migration Flyway `V12__product_catalog.sql` para `products`, `images`, `product_option_groups` e `product_option_values`; `images.content` guarda caminho/URL em `varchar(2048)`, conforme a descrição da tarefa, e `products.price` usa `double precision` conforme o modelo.
 - Persistência JPA de partes do agregado, paginação em duas consultas, DTOs REST, HATEOAS e documentação OpenAPI.
 - Adicionados 20 requests Postman para os caminhos felizes e erros documentados; os cenários de produto rodam antes da limpeza do segundo dono descartável. Execução Newman e geração dos prints aguardam Docker.
 - Implementação do catálogo alinhada à descrição da tarefa: o JSON recebe `imagePaths`, e o banco persiste essas referências textuais em `images.content`; `products.price` usa `double`.

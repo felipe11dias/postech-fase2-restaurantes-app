@@ -1,5 +1,7 @@
 package com.postech.restaurantes.adapter;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import com.postech.restaurantes.adapter.datasource.data.AddressData;
 import com.postech.restaurantes.adapter.datasource.data.AdminData;
 import com.postech.restaurantes.adapter.datasource.data.ClientData;
@@ -26,6 +28,7 @@ public final class AdapterFixtures {
     public static final UUID USER_ID = UUID.fromString("7295577e-afe6-4875-8bbf-d21c21860711");
     public static final UUID ADDRESS_ID = UUID.fromString("a0d64f5e-e511-4b52-871d-582d7a8b18d0");
     public static final UUID USER_ADDRESS_ID = UUID.fromString("5c6f1a2b-3d4e-4f50-8a61-7b8c9d0e1f23");
+    public static final UUID CITY_ID = LocationFixtures.CITY_ID;
     public static final UUID TOKEN_ID = UUID.fromString("0b1f6d8e-6f4b-4b1e-9a3c-2f0e9d1c5a77");
     public static final LocalDateTime NOW = LocalDateTime.of(2026, 9, 17, 12, 0);
     public static final String HASH = "$2a$10$hash";
@@ -42,7 +45,7 @@ public final class AdapterFixtures {
     public static final List<OfficeHourDTO> OFFICE_HOURS_DTO =
             List.of(new OfficeHourDTO("TUESDAY", LocalTime.of(9, 0), LocalTime.of(23, 0)));
     public static final AddressData ADDRESS_DATA =
-            new AddressData(ADDRESS_ID, "Rua das Flores", "100", "Apto 21", "Centro", "São Paulo", "SP", "01001000");
+            new AddressData(ADDRESS_ID, CITY_ID, "Rua das Flores", "100", "Apto 21", "Centro", "01001000", LocationFixtures.cityData(CITY_ID, "São Paulo", "SP"));
     public static final UserAddressData USER_ADDRESS_DATA =
             new UserAddressData(USER_ADDRESS_ID, "Casa", true, ADDRESS_DATA);
     public static final UserData USER_DATA = new UserData(USER_ID, "João Silva", "joao.silva@email.com", "joao.silva",

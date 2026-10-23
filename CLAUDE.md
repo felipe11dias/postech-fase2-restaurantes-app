@@ -5,15 +5,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (26 até aqui; as Etapas 17 a 25 adequaram o projeto ao Modelo de Dados v2 em
-`docs/modelo-dados/`, e a 25 traz o quadro final "modelo v2 × schema real") e cada etapa tem três saídas obrigatórias: código + testes, entrada no
+Architecture**. O projeto está sendo entregue **etapa por etapa** (27 até aqui; as Etapas 17 a 25 adequaram o projeto ao Modelo de Dados v2 em
+`docs/modelo-dados/`, e a 25 traz o quadro final "modelo v2 × schema real", e a 26 integra endereços e catálogo geográfico) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
 `CHANGELOG.md`, e atualização do relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (marcar a etapa
 como ✅ no Sumário de Progresso, atualizar o contador e acrescentar a subseção
 "O que foi entregue nesta etapa" com o resultado real do build). O relatório é a
 especificação: leia a seção da etapa antes de implementá-la e sincronize os exemplos de
 código dele com o que foi de fato escrito.
 
-Idioma do código, comentários, testes (`@DisplayName`) e documentação: português.
+Identificadores novos ou alterados do código e testes: inglês. Documentação, comentários e mensagens ao usuário podem permanecer em português. Os testes legados em português continuam aceitos, sem renomeação geral fora do escopo.
 
 ## Princípio orientador (definido pelo autor)
 
@@ -476,8 +476,7 @@ Pontos que só ficam claros lendo várias camadas:
 ## Testes (Etapa 11, já implementada)
 
 - **`TestConventionsTest` verifica no build** (ArchUnit sobre as classes de teste): `@DisplayName`
-  em todo `@Test`/`@ParameterizedTest`; método `deve<Comportamento>[Quando<Condição>]` ou
-  `naoDeve…`; `*Test` sem Testcontainers, `spring-boot-test`, contexto de teste do Spring nem
+  em todo `@Test`/`@ParameterizedTest`; método `should<Behavior>[When<Condition>]` ou `shouldNot…` (os nomes legados `deve…`/`naoDeve…` continuam aceitos); `*Test` sem Testcontainers, `spring-boot-test`, contexto de teste do Spring nem
   JDBC; `*IT` estende `IntegrationTestSupport` ou `WebIntegrationTestSupport`; `@MockitoBean` só
   em `JavaMailSender`; nenhum `@MockitoSpyBean`; nenhum `@Testcontainers`.
 - Estrutura arrange / act / assert; casos "em branco" com `@ParameterizedTest` + `@NullAndEmptySource`.

@@ -86,6 +86,8 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
                 "PATCH /api/v1/users/{id}/profiles/courier/status Usuários",
                 "POST /api/v1/restaurants Restaurantes",
                 "GET /api/v1/restaurants Restaurantes",
+                "GET /api/v1/states Localizações",
+                "GET /api/v1/cities Localizações",
                 "GET /api/v1/restaurants/{id} Restaurantes",
                 "PUT /api/v1/restaurants/{id} Restaurantes",
                 "DELETE /api/v1/restaurants/{id} Restaurantes",
@@ -188,10 +190,10 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
 
     @Test
     @DisplayName("O cadastro é documentado como 201, o status que de fato responde, e não 200")
-    void deveDocumentarOStatusRealDoCadastro() {
+    void shouldDocumentRegistrationStatuses() {
         JsonNode respostas = doc.at("/paths/~1api~1v1~1users/post/responses");
 
-        assertEquals(Set.of("201", "400", "409"), nomesDosCampos(respostas));
+        assertEquals(Set.of("201", "400", "404", "409"), nomesDosCampos(respostas));
     }
 
     /**

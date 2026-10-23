@@ -41,7 +41,7 @@
 | `UserProfiles.withClient` / `withCourier` (Etapa 22) | `domain/entity/user` | o CPF é da pessoa: *alterar* o CPF de um perfil corrige o do outro, em cópia (o original não muda); *incluir* com CPF diferente continua recusado |
 | [`RoleName`](../../src/main/java/com/postech/restaurantes/domain/entity/role/RoleName.java) | `domain/entity/role` | os quatro papéis de autorização (`ROLE_OWNER`, `ROLE_CLIENT`, `ROLE_COURIER`, `ROLE_ADMIN`), um por perfil; não há mais catálogo de papéis nem entidade `Role` |
 | [`PasswordResetToken`](../../src/main/java/com/postech/restaurantes/domain/entity/password/PasswordResetToken.java) | `domain/entity/password` | vence no instante informado; usável só uma vez (`markUsed`); **um por usuário**: o pedido novo o reemite (`reissue`: hash e validade novos, uso zerado, tudo validado antes de mudar); o **instante vem por parâmetro** — a entidade não consulta o relógio |
-| [`Address`](../../src/main/java/com/postech/restaurantes/domain/entity/address/Address.java) | `domain/entity/address` | campos obrigatórios, UF com 2 letras, CEP válido; pacote próprio porque é compartilhado: o usuário o tem por `UserAddress`, o restaurante, diretamente — e não conhece nenhum dos dois |
+| [`Address`](../../src/main/java/com/postech/restaurantes/domain/entity/address/Address.java) | `domain/entity/address` | cidade existente por `cityId` obrigatório, CEP válido; pacote próprio porque é compartilhado: o usuário o tem por `UserAddress`, o restaurante, diretamente — e não conhece nenhum dos dois |
 | [`OfficeHour`](../../src/main/java/com/postech/restaurantes/domain/entity/restaurant/OfficeHour.java) | `domain/entity/restaurant` | horário de funcionamento (Etapa 24), valor: dia (`java.time.DayOfWeek`), abertura e fechamento diferentes; fechamento antes da abertura vira a meia-noite. A sobreposição é regra do conjunto, na raiz: `Restaurant.replaceOfficeHours` exige ao menos um horário e nenhum par sobreposto na semana circular |
 | [`Product`](../../src/main/java/com/postech/restaurantes/domain/entity/product/Product.java), `ProductOptionGroup`, `ProductOptionValue` | `domain/entity/product` | raiz do produto e partes do cardápio (Etapa 26): nome, preço `double` finito e não negativo, caminhos/URLs de imagem não vazios e limitados a 2048 caracteres, e limites coerentes de seleção; grupo obrigatório exige ao menos uma seleção e o mínimo não supera os valores disponíveis |
 | [`OwnerProfile`](../../src/main/java/com/postech/restaurantes/domain/entity/owner/OwnerProfile.java), [`ClientProfile`](../../src/main/java/com/postech/restaurantes/domain/entity/client/ClientProfile.java), [`CourierProfile`](../../src/main/java/com/postech/restaurantes/domain/entity/courier/CourierProfile.java), [`AdminProfile`](../../src/main/java/com/postech/restaurantes/domain/entity/admin/AdminProfile.java) | `domain/entity/{owner,client,courier,admin}` | perfis do usuário (especializações do modelo v2), sem id próprio — a identidade é a do usuário. Cliente: nascimento não futuro, com o dia **por parâmetro**; entregador: CNH e placa andam com o veículo (`changeVehicle`) e começa `OFFLINE`; admin: código de funcionário obrigatório |
@@ -76,7 +76,7 @@ ponto de entrada (perfil de administrador fora do *autocadastro*, CPF e CNPJ ún
 
 | Padrão | Onde | Problema que resolve |
 |---|---|---|
-| Fábricas estáticas `create` / `restore` com construtor privado | `User`, os perfis, `PasswordResetToken`, `Address` | toda instância passa por validação; não existe `new User()` inválido (Aula 03) |
+| Fábricas estáticas `create` / `restore` com construtor privado | `User`, os perfis, `PasswordResetToken`, `Address`, `City`, `State` | toda instância passa por validação; `restore` exige identificadores e vínculo da cidade já persistida (Aula 03) |
 | *Value Object* como `record` | `Email`, `ZipCode`, `Cpf`, `Cnpj`, `Phone`, `LicensePlate`, `DriverLicense`; `UserProfiles` | o valor é validado e normalizado uma vez, e dois e-mails iguais são iguais |
 | Cláusula de guarda | `Guard` | a validação lê como uma frase e sempre lança a mesma exceção, cuja mensagem é escrita para o usuário final |
 | Setter que revalida | `User.setName`, `setEmail`, … | a entidade continua consistente depois de criada (Aula 03, p. 8) |
@@ -99,5 +99,13 @@ ponto de entrada (perfil de administrador fora do *autocadastro*, CPF e CNPJ ún
   [`UserTest`](../../src/test/java/com/postech/restaurantes/domain/entity/user/UserTest.java),
   `UserAddressTest`, `UserProfilesTest`, `PasswordResetTokenTest`, `AddressTest`,
   `RestaurantTest`, `OwnerProfileTest`, `ClientProfileTest`, `CourierProfileTest`, `AdminProfileTest`,
-  `CourierEnumsTest`, `CpfTest`, `CnpjTest`, `PhoneLicensePlateDriverLicenseTest`, `EmailTest`,
+  `CourierEnumsTest`, `CpfTest`, `CnpjTest`, `PhoneLicensePlateDriverLicenseTest`, `CityTest`, `StateTest`, `EmailTest`,
   `ZipCodeTest`, `GuardTest`, `DomainExceptionsTest`.
+
+### Catálogo de localização e endereços (Etapa 26)
+
+`Address.create(cityId, street, number, complement, neighborhood, zipCode)` exige cidade por id,
+sem aceitar nomes livres de cidade ou estado. `restore` recebe a `City` persistida, com seu
+`State`, para reconstituir o agregado e apresentar os dados do catálogo. Trocar o id da cidade
+invalida os detalhes carregados da referência anterior. `City` exige um estado com id conhecido;
+`State` valida nome e sigla. Nenhuma dessas entidades depende de JPA ou Spring.
