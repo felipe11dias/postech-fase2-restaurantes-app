@@ -37,7 +37,7 @@ class UserApiIT extends WebIntegrationTestSupport {
     void deveCadastrarSemAutenticacao() {
         String login = "api" + SEQUENCIA.incrementAndGet() + UUID.randomUUID().toString().substring(0, 6);
 
-        ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(novoUsuarioComCidadeId(login)), JsonNode.class);
+        ResponseEntity<JsonNode> resposta = rest.postForEntity(USERS, corpo(novoUsuario(login)), JsonNode.class);
 
         assertEquals(HttpStatus.CREATED, resposta.getStatusCode());
         JsonNode corpo = resposta.getBody();
@@ -46,9 +46,6 @@ class UserApiIT extends WebIntegrationTestSupport {
         assertEquals("ROLE_CLIENT", corpo.get("roles").get(0).asText());
         assertEquals(11, corpo.at("/client/cpf").asText().length(), "CPF sai sem máscara");
         assertTrue(corpo.get("owner").isNull());
-        assertTrue(corpo.at("/addresses/0/address/city/id").isTextual());
-        assertEquals("São Paulo", corpo.at("/addresses/0/address/city/name").asText());
-        assertEquals("SP", corpo.at("/addresses/0/address/city/state/acronym").asText());
         assertEquals("01001000", corpo.at("/addresses/0/address/zipCode").asText(), "CEP sai normalizado");
         assertEquals("Casa", corpo.at("/addresses/0/label").asText());
         assertTrue(corpo.at("/addresses/0/isDefault").asBoolean(), "o único endereço é o padrão");
@@ -328,7 +325,7 @@ class UserApiIT extends WebIntegrationTestSupport {
     }
 
     private static Map<String, Object> endereco(String rua) {
-        return Map.of("street", rua, "number", "1", "neighborhood", "Centro", "cityId", "c0000000-0000-4000-8000-000000000001",
+        return Map.of("street", rua, "number", "1", "neighborhood", "Centro", "city", "São Paulo", "state", "SP",
                 "zipCode", "01001000");
     }
 
@@ -340,11 +337,8 @@ class UserApiIT extends WebIntegrationTestSupport {
                 "password", "senhaSegura123",
                 "client", perfilDeCliente(),
                 "addresses", List.of(Map.of("label", "Casa", "address", Map.of("street", "Rua das Flores",
-                        "number", "100", "complement", "Apto 21", "neighborhood", "Centro", "cityId", "c0000000-0000-4000-8000-000000000001", "zipCode", "01001-000"))));
-    }
-
-    private Map<String, Object> novoUsuarioComCidadeId(String login) {
-        return novoUsuario(login);
+                        "number", "100", "complement", "Apto 21", "neighborhood", "Centro", "city", "São Paulo",
+                        "state", "SP", "zipCode", "01001-000"))));
     }
 
     private Usuario cadastrarEAutenticar() {

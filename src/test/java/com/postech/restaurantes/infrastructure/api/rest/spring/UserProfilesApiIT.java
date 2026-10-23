@@ -233,7 +233,7 @@ class UserProfilesApiIT extends WebIntegrationTestSupport {
 
     private static Map<String, Object> restaurante(Usuario dono) {
         return Map.of("userId", dono.id(), "name", "Restaurante " + dono.login(), "officeHours", List.of(Map.of("dayOfWeek", "MONDAY", "startTime", "08:00:00", "endTime", "22:00:00")), "address", Map.of("street", "Rua A", "number", "1",
-                        "neighborhood", "Centro", "cityId", "c0000000-0000-4000-8000-000000000001", "zipCode", "01001000"));
+                        "neighborhood", "Centro", "city", "São Paulo", "state", "SP", "zipCode", "01001000"));
     }
 
     private static Map<String, Object> entregador(String cpf, String veiculo, String cnh, String placa) {

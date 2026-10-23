@@ -122,7 +122,7 @@ class RestaurantOfficeHoursIT extends WebIntegrationTestSupport {
         corpo.put("name", "Restaurante dos Horários");
         corpo.put("officeHours", horarios);
         corpo.put("address", Map.of("street", "Rua do Relógio", "number", "1", "neighborhood", "Centro",
-                "cityId", "c0000000-0000-4000-8000-000000000001", "zipCode", "01001000"));
+                "city", "São Paulo", "state", "SP", "zipCode", "01001000"));
         return corpo;
     }
 

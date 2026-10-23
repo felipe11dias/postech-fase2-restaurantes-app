@@ -1,7 +1,5 @@
 package com.postech.restaurantes.infrastructure.api.rest.spring.dto;
 
-import com.postech.restaurantes.LocationFixtures;
-
 import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.ADDRESS_ID;
 import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.NOW;
 import static com.postech.restaurantes.infrastructure.api.rest.spring.WebFixtures.USER_ADDRESS_ID;
@@ -36,7 +34,6 @@ import com.postech.restaurantes.infrastructure.api.rest.spring.dto.request.UserA
 import com.postech.restaurantes.infrastructure.api.rest.spring.dto.response.UserResponse;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -45,7 +42,7 @@ import org.junit.jupiter.api.Test;
 class UserDtoMappingTest {
 
     private static AddressRequest enderecoRequest() {
-        return new AddressRequest(LocationFixtures.cityId("São Paulo", "SP"), "Rua das Flores", "100", "Apto 21", "Centro", "01001-000");
+        return new AddressRequest("Rua das Flores", "100", "Apto 21", "Centro", "São Paulo", "SP", "01001-000");
     }
 
     private static UserAddressRequest enderecoDoUsuarioRequest() {
@@ -134,17 +131,8 @@ class UserDtoMappingTest {
             assertEquals("100", dto.number());
             assertEquals("Apto 21", dto.complement());
             assertEquals("Centro", dto.neighborhood());
-            assertEquals(LocationFixtures.CITY_ID, dto.cityId());
-            assertEquals("01001-000", dto.zipCode());
-        }
-
-        @Test
-        @DisplayName("Endereço aceita o id da cidade sem perder os dados legíveis")
-        void deveConverterEnderecoComCidadeReferenciada() {
-            UUID cityId = UUID.randomUUID();
-            AddressDTO dto = new AddressRequest(cityId, "Rua das Flores", "100", "Apto 21", "Centro", "01001-000").toDTO();
-
-            assertEquals(cityId, dto.cityId());
+            assertEquals("São Paulo", dto.city());
+            assertEquals("SP", dto.state());
             assertEquals("01001-000", dto.zipCode());
         }
     }

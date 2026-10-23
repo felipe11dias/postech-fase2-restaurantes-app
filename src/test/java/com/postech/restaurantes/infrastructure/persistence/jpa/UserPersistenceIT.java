@@ -1,7 +1,5 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa;
 
-import com.postech.restaurantes.LocationFixtures;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -362,7 +360,7 @@ class UserPersistenceIT extends IntegrationTestSupport {
     }
 
     private static AddressData enderecoAvulso(String rua, String numero) {
-        return new AddressData(null, LocationFixtures.cityId("São Paulo", "SP"), rua, numero, null, "Centro", "01001000", LocationFixtures.cityData("São Paulo", "SP"));
+        return new AddressData(null, rua, numero, null, "Centro", "São Paulo", "SP", "01001000");
     }
 
     private int vinculos(UUID userId) {

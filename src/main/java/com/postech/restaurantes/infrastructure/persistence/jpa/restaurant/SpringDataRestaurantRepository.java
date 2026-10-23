@@ -17,7 +17,7 @@ public interface SpringDataRestaurantRepository extends JpaRepository<Restaurant
 
     /** Endereço e horários vêm na mesma consulta: o restaurante é sempre traduzido com eles. */
     @Override
-    @EntityGraph(attributePaths = {"address.city.state", "officeHours"})
+    @EntityGraph(attributePaths = {"address", "officeHours"})
     Optional<RestaurantJpaEntity> findById(UUID id);
 
     @Query("select r.id from RestaurantJpaEntity r where lower(r.name) like lower(concat('%', :name, '%'))")
@@ -27,7 +27,7 @@ public interface SpringDataRestaurantRepository extends JpaRepository<Restaurant
             + "and lower(r.name) like lower(concat('%', :name, '%'))")
     Page<UUID> findIdsByNameAndUserId(@Param("name") String name, @Param("userId") UUID userId, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"address.city.state", "officeHours"})
+    @EntityGraph(attributePaths = {"address", "officeHours"})
     List<RestaurantJpaEntity> findByIdIn(Collection<UUID> ids, Sort sort);
 
     boolean existsByUserId(UUID userId);

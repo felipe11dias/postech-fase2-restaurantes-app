@@ -85,5 +85,3 @@ management:
   health:
     mail:
       enabled: false
-server:
-  port: 8081

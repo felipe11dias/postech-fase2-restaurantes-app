@@ -1,10 +1,6 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa.address;
 
-import com.postech.restaurantes.infrastructure.persistence.jpa.location.CityJpaEntity;
 import jakarta.persistence.Column;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -41,9 +37,11 @@ public class AddressJpaEntity {
     @Column(name = "neighborhood", nullable = false, length = 100)
     private String neighborhood;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "city_id", nullable = false)
-    private CityJpaEntity city;
+    @Column(name = "city", nullable = false, length = 100)
+    private String city;
+
+    @Column(name = "state", nullable = false, length = 2)
+    private String state;
 
     /** CEP sem máscara, 8 dígitos — normalizado pelo objeto de valor do domínio. */
     @Column(name = "zip_code", nullable = false, length = 8)
@@ -89,12 +87,20 @@ public class AddressJpaEntity {
         this.neighborhood = neighborhood;
     }
 
-    public CityJpaEntity getCity() {
+    public String getCity() {
         return city;
     }
 
-    public void setCity(CityJpaEntity city) {
+    public void setCity(String city) {
         this.city = city;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public void setState(String state) {
+        this.state = state;
     }
 
     public String getZipCode() {

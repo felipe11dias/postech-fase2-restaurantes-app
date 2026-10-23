@@ -96,7 +96,6 @@ public class UserRestController {
     @ErrorResponse(type = ProblemType.INVALID_REQUEST,
             description = "Campo inválido, nenhum perfil, documento inválido ou endereço inconsistente")
     @ErrorResponse(type = ProblemType.DATA_CONFLICT, description = "E-mail, login, CPF ou CNPJ já cadastrado")
-    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Cidade do endereço não encontrada")
     public ResponseEntity<EntityModel<UserResponse>> register(@Valid @RequestBody NewUserRequest request) {
         UserView criado = controller.register(request.toDTO());
         EntityModel<UserResponse> corpo = assembler.toModel(criado);
@@ -157,7 +156,7 @@ public class UserRestController {
     @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Campo inválido ou endereço inconsistente")
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
     @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Cadastro de outro usuário")
-    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Usuário ou cidade do endereço não encontrado")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Usuário não encontrado")
     @ErrorResponse(type = ProblemType.DATA_CONFLICT, description = "E-mail ou login já usado por outro cadastro")
     public EntityModel<UserResponse> update(@Parameter(description = "Id do usuário") @PathVariable UUID id,
                                             @Valid @RequestBody UpdateUserRequest request) {

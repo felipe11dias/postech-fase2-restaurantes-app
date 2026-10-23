@@ -20,10 +20,6 @@ public final class ApiRoutes {
 
     public static final String RESTAURANTS = V1 + "/restaurants";
 
-    public static final String STATES = V1 + "/states";
-
-    public static final String CITIES = V1 + "/cities";
-
     private ApiRoutes() {
     }
 }

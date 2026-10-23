@@ -11,15 +11,15 @@
 **Arquitetura:** Clean Architecture
 **Versão do relatório:** 1.0
 
-> Documento vivo, organizado pelas etapas de desenvolvimento. O Sumário de Progresso registra as
-> entregas documentadas nesta versão do relatório.
+> Documento vivo, organizado pelas etapas de desenvolvimento. Cada etapa do Sumário de
+> Progresso abaixo corresponde a uma seção homônima neste relatório.
 >
 > O relatório registra a arquitetura, o modelo de domínio e as decisões técnicas de um
 > **projeto novo**, construído desde o início sobre a **Clean Architecture** de Robert C. Martin.
 > A Visão Geral e as tabelas de referência descrevem o código **como ele está**; a seção de cada
 > etapa diz o que ela entregou, qual conceito sustenta cada decisão e o resultado real do build —
-> com os nomes de classes e pacotes da época (as Etapas 13 a 15 registram as principais
-> reorganizações da infraestrutura e da API REST).
+> com os nomes de classes e pacotes da época (a Etapa 13 traz a correspondência para a
+> infraestrutura, a Etapa 14, para os gateways de serviço, e a Etapa 15, para a API REST).
 >
 > A correlação detalhada entre o que as aulas da Fase 2 ensinam, o que os autores de referência
 > dizem e como o projeto implementa cada camada está em [`docs/arquitetura/`](../docs/arquitetura/README.md).
@@ -46,9 +46,8 @@
 | 14  | Revisão de conformidade e documentação da arquitetura | ✅  |
 | 15  | API REST em `api/rest/spring`, organizada como MVC | ✅  |
 | 16  | Módulo de Gestão de Restaurantes (`restaurants` - Imagem 2) | ✅  |
-| 26  | Normalização de endereços, cidades e estados | ✅ |
 
-**Progresso:** 17 entregas documentadas (Etapas 1–16 e 26); as Etapas 17–25 não constam nesta versão do relatório.
+**Progresso:** 16 de 16 etapas concluídas.
 **Legenda:** ✅ concluída · 🔄 em andamento · ⏳ pendente.
 
 ---
@@ -70,8 +69,8 @@
 
 ## Escopo do Tech Challenge Fase 2 e estado
 
-As Etapas 1–16 constroem a **base** do sistema — arquitetura, agregado de usuário, autenticação,
-persistência, erros, documentação, testes e execução — e a deixam pronta para as
+As 14 etapas deste relatório constroem a **base** do sistema — arquitetura, agregado de usuário,
+autenticação, persistência, erros, documentação, testes e execução — e a deixam pronta para as
 features de restaurante e cardápio. O escopo funcional do enunciado ainda não está completo:
 
 | Requisito funcional do enunciado | Estado | Onde |
@@ -86,8 +85,8 @@ features de restaurante e cardápio. O escopo funcional do enunciado ainda não 
 | Requisito técnico e de entrega | Estado | Onde |
 | --- | --- | --- |
 | Clean Architecture em camadas | ✅ quatro camadas, regra de dependência verificada no build | Visão Geral, Etapas 11, 13 e 14 |
-| Testes unitários com 80% de cobertura | 🔄 466 testes passam; o gate atual de JaCoCo aponta 99% de linhas e 97% de ramos em classes de restaurante preexistentes | Etapas 11 e 26 |
-| Testes de integração dos componentes | 🔄 93 testes executados; 91 passam e 2 falham por divergência entre o OpenAPI atual e as expectativas de `OpenApiDocumentationIT` | Etapas 11 e 26 |
+| Testes unitários com 80% de cobertura | ✅ **100%** de linhas e ramos, com o build falhando abaixo disso | Etapa 11 |
+| Testes de integração dos componentes | ✅ 89 testes com PostgreSQL real e HTTP de ponta a ponta | Etapa 11 |
 | Documentação do projeto (arquitetura, endpoints, execução) | ✅ README, este relatório, Swagger e `docs/arquitetura/` | Etapas 9, 12 e 14 |
 | Coleção Postman | ✅ 52 requests, validada com Newman | Etapa 12 |
 | Docker Compose com aplicação e banco | ✅ aplicação, PostgreSQL e Mailpit | Etapa 10 |
@@ -378,7 +377,7 @@ validação, de modo que a entidade não pode ser corrompida depois de criada.
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `User`               | nome não vazio; e-mail válido e normalizado (`Email`); login não vazio; hash de senha presente; **ao menos um papel**; endereços válidos |
 | `Role`               | nome pertence ao conjunto `ROLE_OWNER`, `ROLE_CUSTOMER`, `ROLE_ADMIN`                                                          |
-| `Address`            | rua e CEP válidos; localização por cidade/UF ou `cityId`; UF com 2 letras quando informada                                   |
+| `Address`            | rua, cidade e UF obrigatórios; UF com 2 letras; CEP válido e normalizado (`ZipCode`)                                          |
 | `PasswordResetToken` | hash do token presente; expiração no futuro na criação; `markUsed()` só pode ser chamado uma vez                                |
 
 `User` é a **raiz do agregado**: carrega `Set<Role>` e `List<Address>`, e é através dele que
@@ -479,7 +478,7 @@ Pacote `domain` completo, com **15 classes e zero imports** fora do JDK:
 | `Email`, `ZipCode` | `record`s com construtor compacto: validam e normalizam na construção (minúsculas / só dígitos), então a igualdade por valor do record já embute a normalização — `Email.of("Joao@x.com").equals(Email.of("joao@x.com"))` é verdadeiro. |
 | `RoleName` | Enum com `from(String)` tolerante a caixa e `isPrivileged()` (só `ROLE_ADMIN`). |
 | `Role` | Identidade de negócio pelo nome: `equals`/`hashCode` ignoram o id, permitindo comparar um papel recém-criado com um restaurado do banco dentro de um `Set`. |
-| `Address` | Rua e CEP obrigatórios; localização por cidade/UF ou `cityId`; UF com 2 letras quando informada; número, complemento e bairro opcionais. |
+| `Address` | Rua, cidade, UF (2 letras, normalizada para maiúsculas) e CEP obrigatórios; número, complemento e bairro opcionais com "em branco vira ausente". |
 | `User` | Raiz do agregado. `create` (sem id/auditoria) e `restore` (com id, `createdAt`, `lastUpdatedAt`) passam pelo mesmo `fill`, então não há caminho que produza instância inválida. `replaceRoles`/`replaceAddresses` substituem as coleções por completo; `getRoles`/`getAddresses` devolvem visões imutáveis. O domínio recebe o **hash** da senha — nunca a senha nem o algoritmo. |
 | `PasswordResetToken` | Guarda só o hash do token. O instante de referência é parâmetro (`create(..., now)`, `isExpired(now)`, `isUsable(now)`), mantendo a entidade sem relógio e os testes determinísticos. `markUsed()` é de uso único e a segunda chamada é `IllegalStateException` — violação de estado, não de argumento. |
 | `DomainException` + 6 subclasses | `RuntimeException` com mensagem; sem anotação e sem código HTTP. |
@@ -2035,39 +2034,6 @@ resposta mudou.
 
 ---
 
-## Etapa 26 — Normalização de endereços, cidades e estados
-
-O endereço já existia como parte dos agregados de usuário e restaurante, mas as colunas `city` e
-`state` guardavam texto diretamente em `addresses`. Esta etapa cria os catálogos `cities` e
-`states` e a chave estrangeira obrigatória `addresses.city_id`, sem alterar migrations aplicadas.
-
-### O que foi entregue nesta etapa
-
-| Decisão | Conceito que a sustenta |
-| --- | --- |
-| **Entidades puras `City` e `State`** em subpacotes do domínio, com `create`/`restore`, invariantes via `Guard` e testes sem mocks | Entidade é regra de negócio independente de persistência; as fábricas validam objetos novos e reconstruídos (Martin, *Clean Architecture*, cap. 20; Aula 03) |
-| **`Address` preserva `cityId` ao ser restaurado**, sem anotação JPA no domínio | Integridade relacional sem acoplar regras de negócio ao ORM (Date; Martin, Aula 06) |
-| **Migration Flyway V4 aditiva** cria `states`/`cities`, converte os valores históricos e só então remove as colunas textuais antigas | Flyway é dono do schema; a migração preserva dados e integridade referencial (Date; Machado) |
-| **Mapeamento JPA separado** em `persistence/jpa/location`; `AddressJpaEntity.city` relaciona `CityJpaEntity`, que referencia `StateJpaEntity` | Data Mapper e regra de dependência: Hibernate continua um detalhe substituível (Martin, caps. 17 e 30–32) |
-| **Entrada HTTP aceita `cityId` opcional e mantém `city`/`state`; com o id, esses nomes podem ser omitidos e, se enviados, são conferidos; a resposta expõe `cityId`** | Compatibilidade com clientes atuais e uso direto da relação normalizada; o catálogo cresce com os endereços sem presumir uma carga nacional |
-
-### Verificação
-
-| Verificação | Resultado |
-| --- | --- |
-| `mvn verify -DskipITs` | **466 testes unitários**, 0 falhas; regras ArchUnit incluídas |
-| `SchemaMigrationIT` com PostgreSQL via Testcontainers | **9 testes**, 0 falhas; V4 preserva e relê o endereço da seed |
-| `UserApiIT` com PostgreSQL via Testcontainers | **15 testes**, 0 falhas; cadastro com `cityId` sem nomes textuais resolve e devolve cidade/UF, mantendo também o formato anterior |
-| `OpenApiDocumentationIT#deveTerExemplosQueFuncionam` | 1 teste, 0 falhas; o exemplo com `cityId` da migration é aceito pela API |
-| `mvn verify` | 466 testes unitários passam; **93 ITs executados, 91 passam e 2 falham** em `OpenApiDocumentationIT`, que espera a lista antiga sem os endpoints de restaurante já presentes |
-| Gate JaCoCo de `mvn verify -DskipITs` | Falha em **99% de linhas e 97% de ramos** por cobertura preexistente em classes de restaurante; as classes novas de localização e as alteradas nesta etapa têm cobertura total |
-
-O container PostgreSQL validou Flyway e `ddl-auto: validate` com o novo relacionamento. O catálogo
-inicial contém as localizações presentes nos endereços existentes e cresce com os endereços
-recebidos; esta etapa não importa nem promete um catálogo nacional completo.
-
----
-
 ## Decisões Técnicas (registro consolidado)
 
 - **API REST em `infrastructure/api/rest/spring`, organizada como MVC:** um pacote por papel da
@@ -2106,8 +2072,6 @@ recebidos; esta etapa não importa nem promete um catálogo nacional completo.
   Hibernate (`@GeneratedValue(strategy = UUID)`), com `DEFAULT gen_random_uuid()` no banco para
   inserção direta por SQL, como a seed. Etapas 5 e 6.
 - **Schema versionado com Flyway** (`ddl-auto: validate`). Etapa 6.
-- **Localização normalizada:** `addresses.city_id → cities.state_id → states.id`, com migração
-  aditiva V4 e entidades JPA separadas das entidades puras `Address`, `City` e `State`. Etapa 26.
 - **Autenticação stateless com JWT** e senha em BCrypt; **autorização por posse** para evitar
   IDOR; autocadastro não concede `ROLE_ADMIN`. Etapa 7.
 - **Padrão de erros ProblemDetail (RFC 9457, sucessora da 7807).** Etapa 8.

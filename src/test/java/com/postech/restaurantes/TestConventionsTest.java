@@ -46,11 +46,11 @@ class TestConventionsTest {
                     .because("o @DisplayName é o que aparece no relatório de testes e diz qual regra falhou");
 
     @ArchTest
-    static final ArchRule testsUseBehaviorNames =
+    static final ArchRule todo_teste_se_chama_deve_ou_nao_deve =
             methods().that().areAnnotatedWith(Test.class)
                     .or().areAnnotatedWith(ParameterizedTest.class)
-                    .should().haveNameMatching("(should|shouldNot|deve|naoDeve)[A-Z]\\w*")
-                    .because("o nome descreve o comportamento: should<Behavior>[When<Condition>]; nomes legados continuam aceitos");
+                    .should().haveNameMatching("(deve|naoDeve)[A-Z]\\w*")
+                    .because("o nome do método diz o comportamento esperado: deve<Comportamento>[Quando<Condição>]");
 
     @ArchTest
     static final ArchRule unitario_nao_sobe_contexto_nem_toca_banco =

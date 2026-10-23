@@ -1,7 +1,5 @@
 package com.postech.restaurantes.domain.entity.restaurant;
 
-import com.postech.restaurantes.LocationFixtures;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -25,7 +23,7 @@ class RestaurantTest {
 
     private static final UUID USER_ID = UUID.randomUUID();
     private static final Address ADDRESS =
-            Address.create(LocationFixtures.cityId("São Paulo", "SP"), "Rua das Flores", "100", null, "Centro", "01001000");
+            Address.create("Rua das Flores", "100", null, "Centro", "São Paulo", "SP", "01001000");
     private static final OfficeHour SEGUNDA = new OfficeHour(DayOfWeek.MONDAY, LocalTime.of(8, 0), LocalTime.of(22, 0));
     private static final List<OfficeHour> HORARIOS = List.of(SEGUNDA);
 
@@ -130,7 +128,7 @@ class RestaurantTest {
     void deveRevalidarNosSetters() {
         Restaurant restaurant = Restaurant.create(USER_ID, ADDRESS, "Sabor", HORARIOS);
         UUID novoUser = UUID.randomUUID();
-        Address novoEndereco = Address.create(LocationFixtures.cityId("Rio", "RJ"), "Av. B", null, null, null, "20000000");
+        Address novoEndereco = Address.create("Av. B", null, null, null, "Rio", "RJ", "20000000");
         List<OfficeHour> novos = List.of(new OfficeHour(DayOfWeek.FRIDAY, LocalTime.of(18, 0), LocalTime.of(2, 0)));
 
         restaurant.setUserId(novoUser);

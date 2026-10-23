@@ -114,6 +114,6 @@ class RestaurantLifecycleIT extends WebIntegrationTestSupport {
 
     private static Map<String, Object> endereco(String rua) {
         return Map.of("street", rua, "number", "10", "neighborhood", "Bairro",
-                "cityId", "c0000000-0000-4000-8000-000000000001", "zipCode", "01000-000");
+                "city", "São Paulo", "state", "SP", "zipCode", "01000-000");
     }
 }

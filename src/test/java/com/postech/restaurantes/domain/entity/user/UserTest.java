@@ -1,7 +1,5 @@
 package com.postech.restaurantes.domain.entity.user;
 
-import com.postech.restaurantes.LocationFixtures;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -30,8 +28,8 @@ class UserTest {
     private static final UserProfiles CLIENTE =
             new UserProfiles(null, ClientProfile.restore("52998224725", "11912345678", null), null, null);
     private static final UserAddress ADDRESS = UserAddress.create("Casa", true,
-            Address.create(LocationFixtures.cityId("São Paulo", "SP"), "Rua das Flores", "100", null, "Centro", "01001000"));
-    private static final Address OUTRO_ENDERECO = Address.create(LocationFixtures.cityId("Rio", "RJ"), "Av. B", null, null, null, "20000000");
+            Address.create("Rua das Flores", "100", null, "Centro", "São Paulo", "SP", "01001000"));
+    private static final Address OUTRO_ENDERECO = Address.create("Av. B", null, null, null, "Rio", "RJ", "20000000");
 
     private static User valido() {
         return User.create("João Silva", "Joao.Silva@Email.com", "joao.silva", "$2a$hash", CLIENTE, List.of(ADDRESS));

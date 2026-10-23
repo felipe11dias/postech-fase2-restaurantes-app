@@ -1,7 +1,5 @@
 package com.postech.restaurantes.application.dto.user;
 
-import com.postech.restaurantes.LocationFixtures;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -17,8 +15,8 @@ import org.junit.jupiter.api.Test;
 
 class UserAddressDTOTest {
 
-    private static final AddressDTO RUA_A = new AddressDTO(LocationFixtures.cityId("Cidade", "SP"), "Rua A", null, null, null, "01001000");
-    private static final AddressDTO RUA_B = new AddressDTO(LocationFixtures.cityId("Cidade", "RJ"), "Rua B", null, null, null, "20000000");
+    private static final AddressDTO RUA_A = new AddressDTO("Rua A", null, null, null, "Cidade", "SP", "01001000");
+    private static final AddressDTO RUA_B = new AddressDTO("Rua B", null, null, null, "Cidade", "RJ", "20000000");
 
     @Test
     @DisplayName("Lista ausente vira nenhum endereço")
@@ -35,7 +33,7 @@ class UserAddressDTOTest {
 
         assertEquals(2, enderecos.size());
         assertEquals("Casa", enderecos.get(0).getLabel());
-        assertEquals(RUA_B.cityId(), enderecos.get(1).getAddress().getCityId());
+        assertEquals("RJ", enderecos.get(1).getAddress().getState());
     }
 
     @Test

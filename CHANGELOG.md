@@ -1,16 +1,5 @@
 # Changelog — Restaurantes (Fase 2)
 
-## Etapa 26 — Correção do merge e catálogo de endereços
-- Corrigidos imports, conversões de `Address`, vínculos `UserAddress` e referências ao antigo catálogo de papéis que quebravam a compilação após o merge com a main.
-- `cityId` obrigatório em `Address`, `AddressDTO`, `AddressData` e `AddressRequest`; `AddressView` exige `CityView` com id e estado válidos. Construtores alternativos que omitiam cidade foram removidos.
-- `AddressRequest` recebe apenas `cityId` e os campos do endereço; nomes de cidade/estado vêm do catálogo, com resposta `AddressView -> CityView -> StateView` e DTOs HTTP equivalentes.
-- Resolução compartilhada da cidade existente para usuários e restaurantes; id desconhecido responde 404, sem criação automática de cidades ou estados. Catálogos expõem apenas leitura, inclusive nos repositórios Spring Data.
-- Normalização movida para `V11__normalize_address_location.sql`, preservando V1–V10 da main. `V12__seed_location_catalog.sql` inclui as 27 unidades federativas, as capitais e Campinas; novas cidades entram por migrations.
-- Consultas públicas `GET /api/v1/states` e `GET /api/v1/cities`, com filtros por `stateId`/`name`, paginação e links de navegação para cidades.
-- Seed reconhece cidades legadas sem diferenciar maiúsculas/minúsculas, preservando ids sem duplicações.
-- Validação: `mvn verify` com 734 unitários e 142 de integração aprovados; cobertura de 100% (2174 linhas, 558 ramos). Após o ajuste da seed, nova execução com os 17 testes de migração e os unitários aprovada.
-- Nomes novos em inglês; documentação e coleção Postman atualizadas ao contrato obrigatório de cidade. Testes de contrato, domínio, persistência, API e atualização de banco na V10.
-
 ## Etapa 16 — Módulo de Gestão de Restaurantes (Imagem 2)
 - Criação da tabela `restaurants` via Flyway migration `V3__create_restaurant_schema.sql` com chaves estrangeiras vinculadas a `users` e `addresses`.
 - Criação da entidade de domínio `Restaurant` com verificação estrita de invariantes (nome, dono com perfil `ROLE_OWNER` ou `ROLE_ADMIN`, endereço do dono e horários de funcionamento).

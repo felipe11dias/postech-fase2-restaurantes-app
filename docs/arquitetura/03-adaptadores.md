@@ -176,16 +176,3 @@ Outros pontos em relação ao código das aulas:
   o commit falha), que testam o
   controller "de ponta a ponta dentro do núcleo" — origens de dados e serviços mockados, casos de
   uso, gateways e presenters reais.
-
-### Endereços e catálogo geográfico (Etapa 26)
-
-`LocationController` compõe os casos de consulta com `LocationGateway`, `ILocationDataSource`
-e `IUnitOfWork`, seguindo as mesmas fábricas dos demais controllers. `LocationMapping` traduz
-`CityData`/`StateData` para as entidades; os registros e views continuam sem tipos do domínio.
-`AddressData` exige `cityId` mesmo na escrita e inclui `CityData` na leitura. `AddressMapping`
-preserva o identificador e reconstitui os detalhes vindos da persistência.
-
-`AddressPresenter` e `LocationPresenter` produzem `AddressView(id, CityView, street, number,
-complement, neighborhood, zipCode)`, com `CityView(id, name, StateView)` e
-`StateView(id, name, acronym)`. A cidade e seus ids são obrigatórios nas views. A mesma tradução
-atende usuários e restaurantes, sem duplicar a resolução da localização.

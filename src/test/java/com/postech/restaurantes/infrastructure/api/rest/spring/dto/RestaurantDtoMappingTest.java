@@ -76,7 +76,7 @@ class RestaurantDtoMappingTest {
         UpdateRestaurantDTO dto = new UpdateRestaurantRequest(DONO, ADDRESS_REQUEST, "Novo", HORARIOS).toDTO(id);
 
         assertEquals(id, dto.id());
-        assertEquals(ADDRESS_REQUEST.cityId(), dto.address().cityId());
+        assertEquals("São Paulo", dto.address().city());
     }
 
     @Test

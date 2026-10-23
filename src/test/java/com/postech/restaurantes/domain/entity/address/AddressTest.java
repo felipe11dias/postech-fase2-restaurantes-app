@@ -1,9 +1,9 @@
 package com.postech.restaurantes.domain.entity.address;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.postech.restaurantes.LocationFixtures;
-import com.postech.restaurantes.domain.exception.InvariantViolationException;
 import com.postech.restaurantes.domain.vo.ZipCode;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -13,60 +13,49 @@ import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class AddressTest {
-    private static Address validAddress() {
-        return Address.create(LocationFixtures.CITY_ID, "Rua das Flores", "100", "Apto 21", "Centro", "01001-000");
+
+    private static Address valido() {
+        return Address.create("Rua das Flores", "100", "Apto 21", "Centro", "São Paulo", "sp", "01001-000");
     }
 
     @Test
-    @DisplayName("Creates an address for an existing city and normalizes the zip code")
-    void shouldCreateAddress() {
-        Address address = validAddress();
+    @DisplayName("Cria endereço válido normalizando UF e CEP")
+    void deveCriarQuandoValido() {
+        Address address = valido();
+
         assertNull(address.getId());
-        assertEquals(LocationFixtures.CITY_ID, address.getCityId());
         assertEquals("Rua das Flores", address.getStreet());
         assertEquals("100", address.getNumber());
         assertEquals("Apto 21", address.getComplement());
         assertEquals("Centro", address.getNeighborhood());
+        assertEquals("São Paulo", address.getCity());
+        assertEquals("SP", address.getState());
         assertEquals(ZipCode.of("01001000"), address.getZipCode());
     }
 
     @Test
-    @DisplayName("Restores an address with the persisted city and state")
-    void shouldRestoreAddress() {
+    @DisplayName("Restaura endereço com id conhecido")
+    void deveRestaurarComId() {
         UUID id = UUID.randomUUID();
-        var city = LocationFixtures.city("São Paulo", "SP");
-        Address address = Address.restore(id, city, "Rua A", "1", null, "Centro", "01001000");
+
+        Address address = Address.restore(id, "Rua A", null, null, null, "Cidade", "RJ", "20000000");
+
         assertEquals(id, address.getId());
-        assertEquals(city.getId(), address.getCityId());
-        assertSame(city, address.getCity());
-        assertEquals("SP", address.getCity().getState().getAcronym());
+        assertEquals("RJ", address.getState());
     }
 
     @Test
-    @DisplayName("Rejects creation or restoration without a city")
-    void shouldRejectMissingCity() {
-        assertThrows(InvariantViolationException.class,
-                () -> Address.create(null, "Rua A", "1", null, "Centro", "01001000"));
-        assertThrows(InvariantViolationException.class,
-                () -> Address.restore(UUID.randomUUID(), null, "Rua A", "1", null, "Centro", "01001000"));
-        var transientCity = com.postech.restaurantes.domain.entity.location.city.City.create(
-                LocationFixtures.city("São Paulo", "SP").getState(), "Cidade");
-        assertThrows(InvariantViolationException.class,
-                () -> Address.restore(UUID.randomUUID(), transientCity, "Rua A", "1", null, "Centro", "01001000"));
+    @DisplayName("Recusa restauração sem id")
+    void deveRecusarRestaurarQuandoIdNulo() {
+        assertThrows(IllegalArgumentException.class,
+                () -> Address.restore(null, "Rua A", null, null, null, "Cidade", "RJ", "20000000"));
     }
 
     @Test
-    @DisplayName("Rejects restoration without an address id")
-    void shouldRejectMissingId() {
-        assertThrows(InvariantViolationException.class,
-                () -> Address.restore(null, LocationFixtures.city("São Paulo", "SP"), "Rua A", "1", null,
-                        "Centro", "01001000"));
-    }
+    @DisplayName("Campos opcionais em branco ficam ausentes")
+    void deveNormalizarOpcionaisEmBranco() {
+        Address address = Address.create("Rua A", "  ", "", null, "Cidade", "MG", "30000000");
 
-    @Test
-    @DisplayName("Converts blank optional fields to null")
-    void shouldNormalizeOptionalFields() {
-        Address address = Address.create(LocationFixtures.CITY_ID, "Rua A", " ", "", null, "01001000");
         assertNull(address.getNumber());
         assertNull(address.getComplement());
         assertNull(address.getNeighborhood());
@@ -75,34 +64,56 @@ class AddressTest {
     @ParameterizedTest
     @NullAndEmptySource
     @ValueSource(strings = {"  "})
-    @DisplayName("Rejects blank streets")
-    void shouldRejectBlankStreet(String street) {
-        assertThrows(InvariantViolationException.class,
-                () -> Address.create(LocationFixtures.CITY_ID, street, "1", null, "Centro", "01001000"));
+    @DisplayName("Recusa rua em branco")
+    void deveRecusarRuaEmBranco(String street) {
+        assertThrows(IllegalArgumentException.class,
+                () -> Address.create(street, null, null, null, "Cidade", "SP", "01001000"));
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"  "})
+    @DisplayName("Recusa cidade em branco")
+    void deveRecusarCidadeEmBranco(String city) {
+        assertThrows(IllegalArgumentException.class,
+                () -> Address.create("Rua A", null, null, null, city, "SP", "01001000"));
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"  ", "S", "SPX", "S1", "12"})
+    @DisplayName("Recusa UF que não tenha exatamente 2 letras")
+    void deveRecusarUfInvalida(String state) {
+        assertThrows(IllegalArgumentException.class,
+                () -> Address.create("Rua A", null, null, null, "Cidade", state, "01001000"));
     }
 
     @Test
-    @DisplayName("Rejects invalid zip codes and keeps valid values after invalid mutations")
-    void shouldValidateMutations() {
-        Address address = validAddress();
-        assertThrows(InvariantViolationException.class, () -> address.setCityId(null));
-        assertThrows(InvariantViolationException.class, () -> address.setStreet(" "));
-        assertThrows(InvariantViolationException.class, () -> address.setZipCode(null));
-        assertThrows(InvariantViolationException.class,
-                () -> Address.create(LocationFixtures.CITY_ID, "Rua A", "1", null, "Centro", "123"));
-        assertEquals(LocationFixtures.CITY_ID, address.getCityId());
+    @DisplayName("Recusa CEP inválido")
+    void deveRecusarCepInvalido() {
+        assertThrows(IllegalArgumentException.class,
+                () -> Address.create("Rua A", null, null, null, "Cidade", "SP", "123"));
+    }
+
+    @Test
+    @DisplayName("Recusa CEP nulo ao alterar")
+    void deveRecusarCepNuloAoAlterar() {
+        Address address = valido();
+
+        assertThrows(IllegalArgumentException.class, () -> address.setZipCode(null));
+    }
+
+    @Test
+    @DisplayName("Setters revalidam e a entidade não fica corrompida")
+    void deveRevalidarNosSetters() {
+        Address address = valido();
+
+        assertThrows(IllegalArgumentException.class, () -> address.setStreet(""));
+        assertThrows(IllegalArgumentException.class, () -> address.setCity(" "));
+        assertThrows(IllegalArgumentException.class, () -> address.setState("ABC"));
+
         assertEquals("Rua das Flores", address.getStreet());
-    }
-
-    @Test
-    @DisplayName("Keeps loaded city data for the same id and clears it when the reference changes")
-    void shouldRefreshCityReference() {
-        var city = LocationFixtures.city("São Paulo", "SP");
-        Address address = Address.restore(UUID.randomUUID(), city, "Rua A", "1", null, "Centro", "01001000");
-        address.setCityId(city.getId());
-        assertSame(city, address.getCity());
-        address.setCityId(LocationFixtures.RIO_CITY_ID);
-        assertEquals(LocationFixtures.RIO_CITY_ID, address.getCityId());
-        assertNull(address.getCity());
+        assertEquals("São Paulo", address.getCity());
+        assertEquals("SP", address.getState());
     }
 }

@@ -8,7 +8,6 @@ import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.infrastructure.persistence.jpa.address.AddressJpaMapping;
 import com.postech.restaurantes.infrastructure.persistence.jpa.user.address.UserAddressJpaEntity;
-import com.postech.restaurantes.infrastructure.persistence.jpa.location.CityReferenceResolver;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,12 +42,11 @@ public class UserDataSourceJpa implements IUserDataSource {
             "lastUpdatedAt", "lastUpdatedAt");
 
     private static final String DEFAULT_SORT_PROPERTY = "name";
-    private final SpringDataUserRepository users;
-    private final CityReferenceResolver cityResolver;
 
-    public UserDataSourceJpa(SpringDataUserRepository users, CityReferenceResolver cityResolver) {
+    private final SpringDataUserRepository users;
+
+    public UserDataSourceJpa(SpringDataUserRepository users) {
         this.users = users;
-        this.cityResolver = cityResolver;
     }
 
     @Override
@@ -118,9 +116,9 @@ public class UserDataSourceJpa implements IUserDataSource {
         UserJpaEntity entity = new UserJpaEntity();
         apply(entity, user);
         // O {@code save} emite o id do usuário; só então os perfis, que o usam como chave, entram.
-        UserJpaEntity saved = users.save(entity);
-        ProfileJpaMapping.apply(saved, user);
-        return toData(users.saveAndFlush(saved));
+        UserJpaEntity gravado = users.save(entity);
+        ProfileJpaMapping.apply(gravado, user);
+        return toData(users.saveAndFlush(gravado));
     }
 
     /** Ver {@link #insert}: o {@code saveAndFlush} garante o {@code last_updated_at} novo na volta. */
@@ -167,8 +165,18 @@ public class UserDataSourceJpa implements IUserDataSource {
         entity.replaceAddresses(reconcile(entity.getAddresses(), data.addresses()));
     }
 
-    /** Mantém os vínculos existentes pelo id e cria apenas os novos. */
-    private List<UserAddressJpaEntity> reconcile(List<UserAddressJpaEntity> current,
+    /**
+     * Tradução de {@code User.replaceAddresses}: o registro com id é um vínculo que o usuário já
+     * tem, atualizado na mesma linha (vínculo e endereço mantêm o id); sem id, é um vínculo novo; o
+     * que não vier é removido pelo {@code orphanRemoval} (o vínculo e, em cascata, o endereço dele).
+     * Assim o id que o cliente recebeu continua valendo depois de uma atualização.
+     *
+     * <p>Na descarga, o Hibernate pode inserir ou atualizar um padrão novo antes de desmarcar ou
+     * apagar o antigo: por um instante há dois endereços padrão do mesmo usuário. Por isso a
+     * restrição "um padrão por usuário" é conferida no commit ({@code DEFERRABLE INITIALLY
+     * DEFERRED}, migration V4).
+     */
+    private static List<UserAddressJpaEntity> reconcile(List<UserAddressJpaEntity> current,
                                                         List<UserAddressData> wanted) {
         Map<UUID, UserAddressJpaEntity> byId = current.stream()
                 .collect(Collectors.toMap(UserAddressJpaEntity::getId, Function.identity()));
@@ -178,21 +186,21 @@ public class UserDataSourceJpa implements IUserDataSource {
     }
 
     /** O domínio só deixa passar id de um endereço do próprio usuário; ausência aqui é falha de estado. */
-    private UserAddressJpaEntity update(UserAddressJpaEntity existing, UserAddressData data) {
+    private static UserAddressJpaEntity update(UserAddressJpaEntity existing, UserAddressData data) {
         if (existing == null) {
             throw new IllegalStateException("Endereço do usuário inexistente para atualização: " + data.id());
         }
         existing.setLabel(data.label());
         existing.setDefaultAddress(data.isDefault());
-        AddressJpaMapping.copy(data.address(), existing.getAddress(), cityResolver.resolve(data.address().cityId()));
+        AddressJpaMapping.copy(data.address(), existing.getAddress());
         return existing;
     }
 
-    private UserAddressJpaEntity toEntity(UserAddressData data) {
+    private static UserAddressJpaEntity toEntity(UserAddressData data) {
         UserAddressJpaEntity entity = new UserAddressJpaEntity();
         entity.setLabel(data.label());
         entity.setDefaultAddress(data.isDefault());
-        entity.setAddress(AddressJpaMapping.toEntity(data.address(), cityResolver.resolve(data.address().cityId())));
+        entity.setAddress(AddressJpaMapping.toEntity(data.address()));
         return entity;
     }
 

@@ -122,10 +122,3 @@ public final class RegisterUserUseCase {
   `UserQueryUseCasesTest`, `SaveUserProfileUseCaseTest`, `RemoveUserProfileUseCaseTest`, `UniqueDocumentsPolicyTest`,
   `LastAdminPolicyTest`, os testes de restaurante, `AuthenticateUseCaseTest`, `ForgotPasswordUseCaseTest`,
   `ResetPasswordUseCaseTest`, e `PageRequestTest`/`PageResultTest`/`DtoTest` para os DTOs.
-
-### Consultas geográficas (Etapa 26)
-
-`FindStatesUseCase` lê o catálogo das 27 unidades federativas por `ILocationGateway`.
-`SearchCitiesUseCase` normaliza o filtro de nome e exige `PageRequest`, com ordenação alfabética.
-Não há casos de uso de criação, edição ou exclusão de localidades. `AddressDTO` exige `cityId`
-no construtor e o repassa a `Address.create`; a infraestrutura verifica se a referência existe.
