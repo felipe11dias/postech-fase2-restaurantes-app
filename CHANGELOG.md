@@ -10,6 +10,14 @@
 - Seed reconhece cidades legadas sem diferenciar maiúsculas/minúsculas, preservando ids sem duplicações.
 - Validação: `mvn verify` com 734 unitários e 142 de integração aprovados; cobertura de 100% (2174 linhas, 558 ramos). Após o ajuste da seed, nova execução com os 17 testes de migração e os unitários aprovada.
 - Nomes novos em inglês; documentação e coleção Postman atualizadas ao contrato obrigatório de cidade. Testes de contrato, domínio, persistência, API e atualização de banco na V10.
+## Etapa 27 — Catálogo de produtos, imagens e opções
+- Agregado `Product` com caminhos/URLs de imagem, grupos de opções e valores, validando preço, limites de seleção e obrigatoriedade.
+- CRUD e listagem paginada em `/api/v1/restaurants/{restaurantId}/products`; leitura pública e escrita restrita ao administrador ou dono do restaurante.
+- Migration Flyway `V13__product_catalog.sql` para `products`, `images`, `product_option_groups` e `product_option_values`; `images.content` guarda caminho/URL em `varchar(2048)`, conforme a descrição da tarefa, e `products.price` usa `double precision` conforme o modelo.
+- Persistência JPA de partes do agregado, paginação em duas consultas, DTOs REST, HATEOAS e documentação OpenAPI.
+- Adicionados 20 requests Postman para os caminhos felizes e erros documentados; os cenários de produto rodam antes da limpeza do segundo dono descartável. Execução Newman e geração dos prints aguardam Docker.
+- Implementação do catálogo alinhada à descrição da tarefa: o JSON recebe `imagePaths`, e o banco persiste essas referências textuais em `images.content`; `products.price` usa `double`.
+- Validação após a troca do contrato de imagem: `mvn verify` passou com 821 testes unitários e 140 de integração; JaCoCo conferiu 100% de linhas e ramos. `ProductCatalogIT` confirmou gravação e retorno de caminhos no PostgreSQL.
 
 ## Etapa 16 — Módulo de Gestão de Restaurantes (Imagem 2)
 - Criação da tabela `restaurants` via Flyway migration `V3__create_restaurant_schema.sql` com chaves estrangeiras vinculadas a `users` e `addresses`.
