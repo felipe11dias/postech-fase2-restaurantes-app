@@ -93,7 +93,7 @@ o projeto está e o que resta.
 | ----------------------------------------- | ---------------------------- |
 | Descrição detalhada da arquitetura        | Visão Geral da Arquitetura   |
 | Modelagem das entidades e relacionamentos | Etapas 2, 5, 16 e 18 a 26    |
-| Estrutura do banco de dados (tabelas)     | Etapas 5, 6, 16 e 26; schema V1 a V11 |
+| Estrutura do banco de dados (tabelas)     | Etapas 5, 6, 16, 26 e catálogo geográfico; schema V1 a V13 |
 | Modelo de dados v2 (documento de referência) | "Modelo de Dados v2 — adequação" e [`docs/modelo-dados/`](../docs/modelo-dados/README.md) |
 | Descrição dos endpoints (com exemplos)    | Etapas 7, 16 e 18 a 26       |
 | Documentação Swagger                      | Etapa 9                      |
@@ -129,7 +129,7 @@ ao fim desta seção):
 | Testes de integração dos componentes | ✅ 142 testes com PostgreSQL real e HTTP de ponta a ponta | Etapas 11 e 25 |
 | Documentação do projeto (arquitetura, endpoints, execução) | ✅ README, este relatório, Swagger, `docs/arquitetura/` e `docs/modelo-dados/` | Etapas 9, 12, 14 e 25 |
 | Coleção Postman | ✅ 130 requests; 125 prints anteriores preservados | Etapas 12, 16 e 18 a 25 |
-| Testes de integração dos componentes | ✅ 140 testes com PostgreSQL real e HTTP; `ProductCatalogIT` validou o catálogo e a migração V11 | Etapas 11, 25 e 26 |
+| Testes de integração dos componentes | ✅ testes com PostgreSQL real e HTTP; `ProductCatalogIT` validou o catálogo e a migração V13 | Etapas 11, 25 e 26 |
 | Documentação do projeto (arquitetura, endpoints, execução) | ✅ README, este relatório, Swagger, `docs/arquitetura/` e `docs/modelo-dados/` | Etapas 9, 12, 14 e 25 |
 | Coleção Postman | ⚠️ 145 requests em 17 pastas; os 20 requests de produto aguardam validação Newman e geração de prints com Docker | Etapa 26 |
 | Docker Compose com aplicação e banco | ✅ aplicação, PostgreSQL e Mailpit | Etapa 10 |
@@ -3178,7 +3178,7 @@ tarefa foram comparados com a V11. A implementação preserva as quatro tabelas,
 e as relações do modelo. Para imagens, prevalece o requisito explícito da tarefa de persistir a
 referência do arquivo, não seus bytes:
 
-| Tabela/atributo | Modelo fornecido | V11 / domínio / JPA | Resultado |
+| Tabela/atributo | Modelo fornecido | V13 / domínio / JPA | Resultado |
 | --- | --- | --- | --- |
 | `products` | `id`, `restaurant_id`, `name`, `description`, `price double`, `is_dine_in_only` | Mesmas colunas; `price double precision` / `double`; FK com cascata | Conforme o modelo |
 | `images` | `id`, `product_id`, `content blob` | Mesmas colunas; `content varchar(2048)` / `String` | Desvio intencional: a descrição da tarefa define persistir caminho/URL; API usa `imagePaths` |
@@ -3199,7 +3199,7 @@ limites físicos explícitos, e há `CHECK`s adicionais para reforçar as invari
 | adapter | `ProductController`, porta de dados, records de tradução, `ProductGateway`, `ProductPresenter` e `ProductView` |
 | infrastructure | REST sob `/api/v1/restaurants/{restaurantId}/products`; leitura pública, escrita para administrador ou dono; HATEOAS, Bean Validation e OpenAPI |
 | persistence | `ProductJpaEntity`, caminhos de imagem, grupos e valores como partes JPA; busca paginada por ids e carga posterior do grafo |
-| database | V11 cria `products`, `images`, `product_option_groups` e `product_option_values`, com cascata de exclusão das partes do produto |
+| database | V13 cria `products`, `images`, `product_option_groups` e `product_option_values`, com cascata de exclusão das partes do produto |
 
 **Contrato HTTP.** `POST` cria (201), `GET` lista paginado ou consulta por id (200), `PUT` substitui
 o estado do produto e todas as suas coleções (200), `DELETE` exclui produto e partes (204). A
@@ -3234,7 +3234,7 @@ do restaurante pode alterar o catálogo; a listagem e a consulta são públicas.
 | Verificação | Resultado |
 | --- | --- |
 | `mvn verify` | BUILD SUCCESS; **821 testes unitários e 140 de integração**, JaCoCo unitário **2367/2367 linhas, 576/576 ramos e 1003/1003 métodos** |
-| PostgreSQL / Testcontainers | V11 aplicada; `SchemaMigrationIT` conferiu `products.price` como `double precision` e `images.content` como `varchar(2048)`; `ProductCatalogIT` confirmou escrita e leitura de caminhos de ponta a ponta |
+| PostgreSQL / Testcontainers | V13 aplicada; `SchemaMigrationIT` conferiu `products.price` como `double precision` e `images.content` como `varchar(2048)`; `ProductCatalogIT` confirmou escrita e leitura de caminhos de ponta a ponta |
 | Newman e prints | Pasta de produtos adicionada com 20 requests (total 145); os casos rodam antes da limpeza do segundo dono descartável. Os seis requests de limpeza foram renumerados para manter a ordem 120–145. Newman e os 20 prints aguardam Docker/serviços Compose |
 
 ---

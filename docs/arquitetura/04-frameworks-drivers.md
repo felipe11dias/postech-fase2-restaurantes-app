@@ -126,7 +126,7 @@ composição ao `RestaurantController.ownerOf`. No cadastro, sem `userId`, o don
 dono é do administrador. A V8 deu `ON DELETE CASCADE` a `restaurants.user_id → users`, mas quem apaga os
 restaurantes de um usuário excluído é a aplicação, pelas entidades — só assim o endereço de cada um sai junto.
 
-**Produtos e opções (Etapa 26, V11).** O produto é raiz do agregado; referências de imagem, grupos
+**Produtos e opções (Etapa 26, V13).** O produto é raiz do agregado; referências de imagem, grupos
 e valores são partes removidas junto com ele (`cascade`/`orphanRemoval`). A tarefa especifica que a
 foto não será enviada ou usada nesta etapa; por isso `images.content` guarda o caminho/URL como
 `varchar(2048)`, e a API recebe/devolve `imagePaths` como texto. `products.price` é

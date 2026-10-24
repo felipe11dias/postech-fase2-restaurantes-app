@@ -40,7 +40,7 @@ de produtos estão documentadas na Etapa 26 do mesmo relatório.
 | Chaves estrangeiras `DEFERRABLE INITIALLY IMMEDIATE` | Não adiáveis: o efeito é o mesmo (conferidas a cada comando), e nenhuma transação precisa adiá-las |
 | — (não está no modelo) | Garantias a mais no schema: `CHECK` de CNH e placa por tipo de veículo, `CHECK` de abertura ≠ fechamento, gatilho "um CPF, uma pessoa" entre `clients` e `couriers`, gatilho "ao menos um administrador" em `admins`, `restaurants.user_id → owners` |
 
-## Produtos: diagrama do modelo × schema da V11
+## Produtos: diagrama do modelo × schema da V13
 
 As quatro tabelas abaixo foram conferidas no diagrama PDF fornecido e no DDL exportado do modelo.
 Os nomes das colunas e as relações foram mantidos, com uma decisão alinhada à descrição da tarefa:
@@ -48,7 +48,7 @@ como o arquivo da foto não será enviado nem utilizado nesta etapa, `images.con
 o caminho/URL como texto, não o blob do modelo lógico. O schema acrescenta limites e restrições
 físicas para reforçar as invariantes.
 
-| Tabela | Modelo lógico | Schema físico V11 | Conformidade |
+| Tabela | Modelo lógico | Schema físico V13 | Conformidade |
 | --- | --- | --- | --- |
 | `products` | `id`, `restaurant_id`, `name`, `description`, `price double`, `is_dine_in_only` | Mesmas colunas; `price double precision`; FK `restaurant_id → restaurants` com `ON DELETE CASCADE` | Conforme o modelo |
 | `images` | `id`, `product_id`, `content blob` | Mesmas colunas; `content varchar(2048)`; FK para `products` com cascata | Desvio intencional para atender à tarefa: persiste referência textual; API recebe/devolve `imagePaths` |

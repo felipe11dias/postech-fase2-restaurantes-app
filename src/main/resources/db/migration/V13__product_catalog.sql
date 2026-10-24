@@ -1,4 +1,4 @@
--- Catálogo de produtos, referências de imagens e opções do cardápio.
+-- V13 — Catálogo de produtos, referências de imagens e opções do cardápio.
 
 CREATE TABLE products (
     id uuid PRIMARY KEY,

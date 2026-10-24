@@ -13,7 +13,7 @@
 ## Etapa 27 — Catálogo de produtos, imagens e opções
 - Agregado `Product` com caminhos/URLs de imagem, grupos de opções e valores, validando preço, limites de seleção e obrigatoriedade.
 - CRUD e listagem paginada em `/api/v1/restaurants/{restaurantId}/products`; leitura pública e escrita restrita ao administrador ou dono do restaurante.
-- Migration Flyway `V12__product_catalog.sql` para `products`, `images`, `product_option_groups` e `product_option_values`; `images.content` guarda caminho/URL em `varchar(2048)`, conforme a descrição da tarefa, e `products.price` usa `double precision` conforme o modelo.
+- Migration Flyway `V13__product_catalog.sql` para `products`, `images`, `product_option_groups` e `product_option_values`; `images.content` guarda caminho/URL em `varchar(2048)`, conforme a descrição da tarefa, e `products.price` usa `double precision` conforme o modelo.
 - Persistência JPA de partes do agregado, paginação em duas consultas, DTOs REST, HATEOAS e documentação OpenAPI.
 - Adicionados 20 requests Postman para os caminhos felizes e erros documentados; os cenários de produto rodam antes da limpeza do segundo dono descartável. Execução Newman e geração dos prints aguardam Docker.
 - Implementação do catálogo alinhada à descrição da tarefa: o JSON recebe `imagePaths`, e o banco persiste essas referências textuais em `images.content`; `products.price` usa `double`.

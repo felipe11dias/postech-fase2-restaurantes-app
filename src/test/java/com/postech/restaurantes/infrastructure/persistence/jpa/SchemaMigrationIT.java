@@ -73,33 +73,26 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("As migrations foram aplicadas com sucesso e ficaram registradas no histórico")
-    @DisplayName("As onze migrations foram aplicadas com sucesso e ficaram registradas no histórico")
+    @DisplayName("As treze migrations foram aplicadas com sucesso e ficaram registradas no histórico")
     void deveAplicarAsMigrations() {
         List<String> versoes = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = true AND version IS NOT NULL "
                         + "ORDER BY installed_rank", String.class);
 
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"), versoes);
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"),
+                versoes);
     }
 
     @Test
     @DisplayName("O schema contém as tabelas dos agregados e os catálogos geográficos")
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"), versoes);
-    }
-
-    @Test
-    @DisplayName("O schema tem as tabelas do modelo v2, incluindo o catálogo de produtos")
     void deveCriarAsTabelas() {
         List<String> tabelas = jdbc.queryForList(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' "
                         + "AND table_name <> 'flyway_schema_history' ORDER BY table_name", String.class);
 
-        assertEquals(List.of("addresses", "admins", "cities", "clients", "couriers",
-                "owners", "password_reset_tokens", "restaurant_office_hours", "restaurants", "states", "user_addresses", "users"), tabelas);
-        assertEquals(List.of("addresses", "admins", "clients", "couriers", "images", "owners",
+        assertEquals(List.of("addresses", "admins", "cities", "clients", "couriers", "images", "owners",
                 "password_reset_tokens", "product_option_groups", "product_option_values", "products",
-                "restaurant_office_hours", "restaurants", "user_addresses", "users"), tabelas);
+                "restaurant_office_hours", "restaurants", "states", "user_addresses", "users"), tabelas);
     }
 
     @Test
