@@ -113,6 +113,16 @@ composição ao `RestaurantController.ownerOf`. No cadastro, sem `userId`, o don
 dono é do administrador. A V8 deu `ON DELETE CASCADE` a `restaurants.user_id → users`, mas quem apaga os
 restaurantes de um usuário excluído é a aplicação, pelas entidades — só assim o endereço de cada um sai junto.
 
+**Tipos de cozinha (Etapa 26, V11 e V12).** O catálogo `cuisines` tem nome único sem diferenciar maiúsculas (índice
+em `LOWER(name)`: a garantia contra duas requisições simultâneas fica no schema, e a `UniqueCuisineNamePolicy`
+confere antes para dar a mensagem certa). A ligação N:N `restaurant_cuisines` tem chave composta, `CASCADE` do lado
+do restaurante e `RESTRICT` do lado do tipo. Na JPA, `persistence/jpa/cuisine` não conhece o restaurante: o
+`@ManyToMany` fica só em `RestaurantJpaEntity`, sem cascata (o tipo é do catálogo), com `@BatchSize` e **fora** do
+`@EntityGraph` (um `Set` junto da lista de horários repetiria os horários). Por isso "algum restaurante usa este
+tipo?" é consulta nativa na tabela de ligação — uma consulta JPQL a partir do tipo faria os dois pacotes formarem
+ciclo. O filtro `?cuisineId=` da listagem de restaurantes fica na consulta paginada de ids (`join r.cuisines`); a
+carga continua pelo grafo. A V12 traz o catálogo inicial em migration própria, porque a V11 já estava aplicada.
+
 **Execução.** Docker Compose sobe a aplicação, o PostgreSQL e o Mailpit (SMTP de testes), com
 imagens de versão fixa e portas só em `127.0.0.1`.
 

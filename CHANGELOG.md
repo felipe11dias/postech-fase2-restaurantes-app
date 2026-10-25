@@ -534,3 +534,31 @@
   execuções; 125 prints.
 - `mvn clean verify`: 775 testes unitários e 138 de integração; cobertura unitária 100% (2009 linhas,
   544 ramos, 840 métodos). Suíte também em ordem aleatória (semente 20261006), sem falhas.
+
+## Etapa 26 — Tipos de cozinha (cuisines e restaurant_cuisines)
+- Migration `V11__cuisines.sql`: catálogo `cuisines` (nome único sem diferenciar maiúsculas, índice em
+  `LOWER(name)`) e ligação N:N `restaurant_cuisines` (chave composta; `ON DELETE CASCADE` no restaurante,
+  `RESTRICT` no tipo). Migration `V12__seed_cuisines.sql`: catálogo inicial com oito tipos e ids fixos
+  (`c0000000-0000-4000-8000-00000000000N`), em migration própria porque a V11 já estava aplicada.
+- Domínio: entidade `Cuisine` (nome obrigatório); `Restaurant` passa a ter a lista de tipos
+  (`replaceCuisines`: sem nulos, sem repetir, só tipos já cadastrados, em ordem alfabética do português
+  via `Collator` `pt-BR`).
+- Casos de uso do catálogo (`Create`, `Update`, `FindById`, `Search`, `DeleteCuisineUseCase`); excluir tipo
+  em uso por restaurante é `ResourceInUseException` (409 `recurso-em-uso`). Políticas compartilhadas:
+  `application/policy/cuisine/UniqueCuisineNamePolicy` (criação e alteração) e
+  `application/policy/restaurant/ExistingCuisinesPolicy` (cadastro e atualização do restaurante; id
+  inexistente → 404).
+- Restaurante: `cuisineIds` opcional no `POST` (ausente = nenhum tipo) e no `PUT` (ausente = mantém, lista
+  vazia = tira todos); `cuisines` (id e nome) na resposta.
+- Filtro novo na listagem pública: `GET /api/v1/restaurants?cuisineId=` (combina com `name` e `ownerId`; a
+  navegação HATEOAS repete o filtro).
+- Adaptadores (`ICuisineDataSource`, `CuisineData`, `CuisineGateway`, `CuisinePresenter`, `CuisineView`,
+  `CuisineController`) e infraestrutura (`CuisineJpaEntity`, `SpringDataCuisineRepository`,
+  `CuisineDataSourceJpa`; `@ManyToMany` sem cascata e com `@BatchSize` em `RestaurantJpaEntity`, fora do
+  `@EntityGraph`; `CuisineRestController` em `/api/v1/cuisines` — leitura pública, escrita só do administrador).
+- Testes: unitários de todas as classes novas e alteradas, `CuisineLifecycleIT`, `RestaurantCuisinesIT` (7
+  casos, filtro incluído), `SchemaMigrationIT` (V11 e V12) e `OpenApiDocumentationIT` (25 operações).
+- Postman: pasta 17 "Tipos de cozinha", requests 126 a 144 (o 138 é o filtro por tipo); 144 requests. A
+  execução pelo newman e os prints ficaram pendentes (Node não instalado na máquina desta etapa).
+- `mvn verify`: 863 testes unitários e 153 de integração; cobertura unitária 100% (2256 linhas, 578 ramos,
+  951 métodos).

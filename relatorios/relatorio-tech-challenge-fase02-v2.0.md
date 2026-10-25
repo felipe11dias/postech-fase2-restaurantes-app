@@ -14,7 +14,7 @@
 | Versão | Conteúdo |
 | --- | --- |
 | 1.0 | Etapas 1 a 16: base do sistema (arquitetura, usuário, autenticação, persistência, erros, documentação, testes, execução) e módulo de restaurantes |
-| 2.0 | **Modelo de Dados v2**: documentos do novo modelo no projeto, enums, divergências modelo → schema e as Etapas 17 a 25, que adequam `users`, `password_reset_tokens`, `owners`, `clients`, `couriers`, `admins`, `restaurants` e `restaurant_office_hours` ao modelo |
+| 2.0 | **Modelo de Dados v2**: documentos do novo modelo no projeto, enums, divergências modelo → schema e as Etapas 17 a 25, que adequam `users`, `password_reset_tokens`, `owners`, `clients`, `couriers`, `admins`, `restaurants` e `restaurant_office_hours` ao modelo; Etapa 26, tipos de cozinha (`cuisines`, `restaurant_cuisines`) |
 
 > Documento vivo, organizado pelas etapas de desenvolvimento. Cada etapa do Sumário de
 > Progresso abaixo corresponde a uma seção homônima neste relatório.
@@ -60,14 +60,15 @@
 | 23  | Restaurante alinhado ao modelo v2 e à regra de posse (`restaurants`) | ✅ |
 | 24  | Horário de funcionamento por dia (`restaurant_office_hours`) | ✅ |
 | 25  | Revisão de conformidade do modelo de dados v2      | ✅     |
+| 26  | Tipos de cozinha (`cuisines` e `restaurant_cuisines`) | ✅ |
 
-**Progresso:** 25 de 25 etapas concluídas. As Etapas 17 a 24 adequaram o projeto ao Modelo de
+**Progresso:** 26 de 26 etapas concluídas. As Etapas 17 a 24 adequaram o projeto ao Modelo de
 Dados v2 (seção "Modelo de Dados v2 — adequação"), e a 25 conferiu o resultado contra o modelo e
-as referências.
+as referências. A 26 trouxe o tipo de cozinha do restaurante.
 
-**Atenção ao ler "25 de 25":** são as etapas planejadas para a adequação ao Modelo de Dados v2, e
+**Atenção ao ler "26 de 26":** são as etapas planejadas até aqui (a adequação ao Modelo de Dados v2 e o tipo de cozinha), e
 todas estão concluídas. Isso **não** significa que o escopo do enunciado da Fase 2 esteja completo:
-faltam o cardápio, o tipo de cozinha do restaurante, o CRUD de tipos de usuário e o vídeo. A seção
+faltam o cardápio, o CRUD de tipos de usuário e o vídeo. A seção
 "Escopo do Tech Challenge Fase 2 e estado" e a subseção "Conformidade com o enunciado" dizem onde
 o projeto está e o que resta.
 
@@ -80,12 +81,12 @@ o projeto está e o que resta.
 | Entregável obrigatório                    | Onde encontrar               |
 | ----------------------------------------- | ---------------------------- |
 | Descrição detalhada da arquitetura        | Visão Geral da Arquitetura   |
-| Modelagem das entidades e relacionamentos | Etapas 2, 5, 16 e 18 a 24    |
+| Modelagem das entidades e relacionamentos | Etapas 2, 5, 16, 18 a 24 e 26 |
 | Estrutura do banco de dados (tabelas)     | Etapas 5, 6 e 16; schema atual no quadro "Modelo v2 × schema real" da Etapa 25 |
 | Modelo de dados v2 (documento de referência) | "Modelo de Dados v2 — adequação" e [`docs/modelo-dados/`](../docs/modelo-dados/README.md) |
-| Descrição dos endpoints (com exemplos)    | Etapas 7, 16 e 18 a 24       |
+| Descrição dos endpoints (com exemplos)    | Etapas 7, 16, 18 a 24 e 26   |
 | Documentação Swagger                      | Etapa 9                      |
-| Coleção Postman                           | Etapas 12, 16 e 18 a 25      |
+| Coleção Postman                           | Etapas 12, 16 e 18 a 26      |
 | Passo a passo com Docker Compose          | Etapa 10                     |
 | Correlação aulas × autores × código       | Etapa 14 e [`docs/arquitetura/`](../docs/arquitetura/README.md) |
 
@@ -95,8 +96,8 @@ o projeto está e o que resta.
 
 As Etapas 1 a 15 deste relatório constroem a **base** do sistema — arquitetura, agregado de usuário,
 autenticação, persistência, erros, documentação, testes e execução. A 16 trouxe o restaurante, e as
-17 a 25 adequaram usuário e restaurante ao Modelo de Dados v2. O escopo funcional do enunciado
-ainda não está completo — a situação abaixo é a da branch `etapa-25-revisao-modelo-v2`, conferida contra o
+17 a 25 adequaram usuário e restaurante ao Modelo de Dados v2; a 26 trouxe o tipo de cozinha. O escopo funcional do enunciado
+ainda não está completo — a situação abaixo é a da branch da Etapa 26, conferida contra o
 enunciado da Fase 2 (ver "Conformidade com o enunciado", ao fim desta seção):
 
 | Requisito funcional do enunciado | Estado | Onde |
@@ -106,18 +107,18 @@ enunciado da Fase 2 (ver "Conformidade com o enunciado", ao fim desta seção):
 | Tipo de usuário: associar o tipo a usuários **existentes** | ✅ incluir, alterar e remover perfil de cadastro existente (`/api/v1/users/{id}/profiles/...`), valendo na hora para a autorização | Etapa 22 |
 | Tipo de usuário: **CRUD do catálogo** (campo "nome do tipo"; o enunciado diz "incluindo um CRUD para gerenciar tipos de usuário") | ⏳ pendente — **ponto de atenção:** o modelo v2 fixa os tipos no schema (uma tabela por perfil) e não tem catálogo editável; a forma de atender a este requisito precisa ser decidida pelo autor | — |
 | Cadastro de restaurante: CRUD com nome, endereço, horário de funcionamento e dono | ✅ endereço próprio, dono com perfil de dono e regra de posse, horário por dia da semana | Etapas 16, 18, 21, 23 e 24 |
-| Cadastro de restaurante: **tipo de cozinha** | ⏳ pendente — o enunciado o lista entre os campos obrigatórios; o modelo v2 prevê `cuisines` e `restaurant_cuisines`, que ficaram fora do escopo das Etapas 17 a 25 | — |
+| Cadastro de restaurante: **tipo de cozinha** | ✅ catálogo `cuisines` (leitura pública, manutenção do administrador) e ligação N:N `restaurant_cuisines`; `cuisineIds` no restaurante e filtro `GET /api/v1/restaurants?cuisineId=` | Etapa 26 |
 | Cadastro de itens do cardápio (nome, descrição, preço, só no local, caminho da foto) | ⏳ pendente — nenhuma entidade, tabela ou endpoint. O modelo v2 tem `products` e `images`, mas `images.content` é `blob` e o enunciado pede apenas o **caminho** da foto: o trecho precisa de adaptação | — |
 
 | Requisito técnico e de entrega | Estado | Onde |
 | --- | --- | --- |
 | Clean Architecture em camadas | ✅ quatro camadas, regra de dependência verificada no build | Visão Geral, Etapas 11, 13 e 14 |
 | Testes unitários com 80% de cobertura | ✅ **100%** de linhas e ramos, com o build falhando abaixo disso | Etapa 11 |
-| Testes de integração dos componentes | ✅ 138 testes com PostgreSQL real e HTTP de ponta a ponta | Etapas 11 e 25 |
+| Testes de integração dos componentes | ✅ 153 testes com PostgreSQL real e HTTP de ponta a ponta | Etapas 11, 25 e 26 |
 | Documentação do projeto (arquitetura, endpoints, execução) | ✅ README, este relatório, Swagger, `docs/arquitetura/` e `docs/modelo-dados/` | Etapas 9, 12, 14 e 25 |
-| Coleção Postman | ✅ 125 requests, com um print por request | Etapas 12, 16 e 18 a 25 |
+| Coleção Postman | ✅ 144 requests; prints até o 125 (os da pasta 17, tipos de cozinha, pendentes) | Etapas 12, 16 e 18 a 26 |
 | Docker Compose com aplicação e banco | ✅ aplicação, PostgreSQL e Mailpit | Etapa 10 |
-| Repositório aberto | ✅ público no GitHub (`felipe11dias/postech-fase2-restaurantes-app`), uma branch por etapa. **A `main` está na Etapa 16**: as Etapas 17 a 25 estão só nas branches `etapa-NN-*` e ainda precisam ser mescladas | — |
+| Repositório aberto | ✅ público no GitHub (`felipe11dias/postech-fase2-restaurantes-app`), uma branch por etapa. As Etapas 17 a 25 já estão na `main`; a 26 está na branch `feat/cuisines`, a mesclar | — |
 | Vídeo de apresentação (cerca de 5 minutos) | ⏳ pendente — depende das features | — |
 
 ### Conformidade com o enunciado
@@ -126,21 +127,21 @@ Os nove fatores de avaliação do enunciado, conferidos contra o estado atual:
 
 | # | Fator | Situação | Observação |
 | --- | --- | --- | --- |
-| 1 | Funcionalidade (tipo de usuário, restaurante, item do cardápio) | **Parcial** | Restaurante quase completo (falta o tipo de cozinha); tipo de usuário sem o CRUD do catálogo; cardápio inexistente |
+| 1 | Funcionalidade (tipo de usuário, restaurante, item do cardápio) | **Parcial** | Restaurante completo (com tipo de cozinha, Etapa 26); tipo de usuário sem o CRUD do catálogo; cardápio inexistente |
 | 2 | Qualidade do código (práticas do Spring Boot, código organizado e documentado) | ✅ | Bean Validation, ProblemDetail, HATEOAS, Actuator, JWT; Javadoc e `package-info` por pacote; 48 regras do ArchUnit |
 | 3 | Documentação (arquitetura, endpoints, configuração e execução) | ✅ | README, este relatório, Swagger, `docs/arquitetura/`, `docs/modelo-dados/` |
-| 4 | Collections para teste | ✅ | 125 requests e 260 asserções, um print por request; cobre usuários, perfis e restaurantes |
+| 4 | Collections para teste | ✅ | 144 requests; cobre usuários, perfis, restaurantes e tipos de cozinha. Execução pelo newman e prints da pasta 17 pendentes |
 | 5 | Docker Compose (aplicação e banco) | ✅ | Aplicação, PostgreSQL e Mailpit; o professor cria o `.env` e gera o segredo JWT (passo a passo no README) |
-| 6 | Repositório aberto | ✅, com risco | Público; a `main` está defasada em relação às Etapas 17 a 25 |
+| 6 | Repositório aberto | ✅ | Público; a `main` tem até a Etapa 25, e a 26 aguarda o merge |
 | 7 | Clean Architecture | ✅ | Quatro camadas e módulos de infraestrutura substituíveis, verificados no build |
-| 8 | Cobertura de teste (80% unitários; integração) | ✅ | 775 unitários com 100% de linhas e ramos; 138 de integração com PostgreSQL real |
+| 8 | Cobertura de teste (80% unitários; integração) | ✅ | 863 unitários com 100% de linhas e ramos; 153 de integração com PostgreSQL real |
 | 9 | Vídeo de cerca de 5 minutos | ⏳ | Não gravado |
 
 **Lacunas, por prioridade.** (1) O cardápio, o maior vazio: um dos três cadastros do enunciado. (2) O
-tipo de cozinha, campo obrigatório do restaurante. (3) O CRUD de tipos de usuário — depende de decisão
-do autor sobre como conciliar o requisito com o modelo v2 (uma tabela de tipos editável, que contraria
-o modelo; ou um recurso de catálogo derivado dos perfis fixos, com a justificativa no relatório). (4)
-Mesclar as Etapas 17 a 25 na `main`. (5) Gravar o vídeo, depois de 1 a 3.
+CRUD de tipos de usuário — depende de decisão do autor sobre como conciliar o requisito com o modelo v2
+(uma tabela de tipos editável, que contraria o modelo; ou um recurso de catálogo derivado dos perfis
+fixos, com a justificativa no relatório). (3) Rodar a coleção Postman pelo newman e gerar os prints da
+pasta 17 (tipos de cozinha). (4) Mesclar a Etapa 26 na `main`. (5) Gravar o vídeo, depois de 1 e 2.
 
 As features pendentes seguem as mesmas regras já verificadas no build: cada uma ganha o próprio
 subpacote em cada camada (*screaming architecture*), com entidade que valida seus invariantes,
@@ -3139,10 +3140,86 @@ Antes de fechar, o diff da etapa passou por uma revisão focada em falhas reais.
 
 ---
 
+## Etapa 26 — Tipos de cozinha (`cuisines` e `restaurant_cuisines`)
+
+O enunciado lista o tipo de cozinha entre os campos obrigatórios do restaurante, e o modelo v2 o prevê em duas
+tabelas: `cuisines`, o catálogo, e `restaurant_cuisines`, a ligação entre restaurante e tipo (relação N:N, que
+ganha tabela própria). Esta etapa implementa as duas nas quatro camadas, seguindo o padrão já aplicado ao usuário
+e ao restaurante, e acrescenta à listagem pública de restaurantes o filtro por tipo de cozinha.
+
+### Schema
+
+```sql
+-- V11__cuisines.sql (resumo)
+CREATE TABLE cuisines (
+    id   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    -- created_at, last_updated_at, created_by, last_updated_by
+);
+CREATE UNIQUE INDEX uk_cuisines_name_lower ON cuisines (LOWER(name));
+
+CREATE TABLE restaurant_cuisines (
+    restaurant_id UUID NOT NULL REFERENCES restaurants (id) ON DELETE CASCADE,
+    cuisine_id    UUID NOT NULL REFERENCES cuisines (id)    ON DELETE RESTRICT,
+    PRIMARY KEY (restaurant_id, cuisine_id)
+);
+```
+
+A `V12__seed_cuisines.sql` traz o catálogo inicial (Brasileira, Italiana, Japonesa, Árabe, Mexicana, Vegetariana,
+Hamburgueria e Pizzaria), com ids fixos `c0000000-0000-4000-8000-00000000000N`, para que o restaurante possa
+escolher tipos logo depois do `docker compose up`. Ela é uma migration à parte porque a V11 já estava aplicada nos
+bancos do grupo, e migration aplicada não se edita (o Flyway recusaria a soma de verificação).
+
+### Endpoints
+
+| Método | Caminho | Acesso | Resposta |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/cuisines?name=&page=&size=&sort=` | público | 200, página HATEOAS |
+| `GET` | `/api/v1/cuisines/{id}` | público | 200; 404 |
+| `POST` | `/api/v1/cuisines` | administrador | 201 com `Location`; 400; 409 nome repetido |
+| `PUT` | `/api/v1/cuisines/{id}` | administrador | 200; 404; 409 nome repetido |
+| `DELETE` | `/api/v1/cuisines/{id}` | administrador | 204; 404; 409 `recurso-em-uso` (tipo usado por restaurante) |
+| `GET` | `/api/v1/restaurants?cuisineId=` | público | 200, só os restaurantes que servem o tipo; combina com `name` e `ownerId` |
+
+No restaurante, `cuisineIds` é opcional. No `POST`, ausente quer dizer nenhum tipo; no `PUT`, ausente mantém os
+tipos, uma lista troca a lista inteira e a lista vazia tira todos (a mesma leitura do `userId` na Etapa 23). Id
+que não está no catálogo é 404 e nada é gravado. A resposta traz `cuisines` (id e nome), em ordem alfabética.
+
+### O que foi entregue nesta etapa
+
+| Entrega | Onde | Conceito que sustenta a decisão |
+| --- | --- | --- |
+| `cuisines` e `restaurant_cuisines` (V11) e o catálogo inicial (V12) | `db/migration` | Date: relação N:N vira tabela de ligação com chave composta (o par não se repete). Integridade referencial: `CASCADE` no restaurante (a ligação é dele) e `RESTRICT` no tipo (o restaurante não aponta para o que não existe) |
+| Nome único **sem diferenciar maiúsculas**: índice em `LOWER(name)` e `UniqueCuisineNamePolicy` | V11; `application/policy/cuisine` | Machado/Date: a unicidade é garantida pelo banco, contra duas requisições simultâneas, e a aplicação confere antes para devolver a mensagem certa — como CPF e CNPJ (Etapa 22). Uma política só, usada pela criação e pela alteração (DRY) |
+| Entidade `Cuisine` (nome obrigatório) | `domain/entity/cuisine` | Martin, *Clean Architecture* (entidades): a invariante que vale sempre mora na entidade; a que depende de consultar outros tipos (nome único) é regra de aplicação |
+| `Restaurant` guarda a lista de `Cuisine`; `replaceCuisines` recusa nulos, repetidos e tipos sem id (não cadastrados) | `domain/entity/restaurant` | Mesma regra de conjunto dos horários (Etapa 24): a regra sobre o conjunto mora na raiz do agregado. O restaurante se liga ao tipo, mas não é dono dele: o catálogo é um agregado à parte |
+| Ordem alfabética do português (`Collator` `pt-BR`, força primária) | `Restaurant` | Achado da etapa: `String.CASE_INSENSITIVE_ORDER` compara códigos de caractere e mandava "Árabe", do catálogo inicial, para o fim. O teste que o pegou ficou como proteção |
+| Casos de uso do catálogo: criar, alterar, consultar, listar, excluir; excluir tipo em uso é `ResourceInUseException` (409) | `application/usecase/cuisine` | Cockburn: um objetivo do ator por caso de uso. Como o dono com restaurante (Etapa 22), o recurso de que outro depende não sai |
+| `ExistingCuisinesPolicy` no cadastro e na atualização do restaurante | `application/policy/restaurant` | Regra de aplicação compartilhada por dois casos de uso vai para `application/policy/<agregado>` (Etapa 22), não copiada |
+| `ICuisineGateway`, `ICuisineDataSource`, `CuisineData`, `CuisineGateway`, `CuisinePresenter`, `CuisineView`, `CuisineController` | `application/gateway`, `adapter/*` | Etapas 4 e 14: havendo tradução, há gateway; a saída é uma view, e só o presenter a produz; o `RestaurantGateway` e o `RestaurantPresenter` reaproveitam a tradução do tipo, uma tradução só |
+| `CuisineJpaEntity`, `CuisineDataSourceJpa`; `@ManyToMany` em `RestaurantJpaEntity` sem cascata, com `@BatchSize`, fora do `@EntityGraph` | `persistence/jpa/cuisine`, `persistence/jpa/restaurant` | ADP: o restaurante depende do pacote do tipo, nunca o contrário — por isso "algum restaurante usa este tipo?" é consulta nativa na tabela de ligação. Um `Set` junto da lista de horários no mesmo grafo repetiria os horários (regra da Etapa 18). Sem cascata: o tipo é do catálogo, e a ligação aponta para linhas que já existem |
+| Filtro `cuisineId` na listagem: porta `search(name, ownerId, cuisineId, page)` em todas as camadas; uma consulta paginada de ids por combinação de filtros; a navegação repete o filtro | `SearchRestaurantsUseCase` → `SpringDataRestaurantRepository` | Paginação em duas consultas (Etapa 5): o `join` com a ligação fica na consulta de ids, e a carga continua pelo grafo. Links montados dos parâmetros decodificados (Etapa 7) |
+| API: `GET` públicos, `POST`/`PUT`/`DELETE` só do administrador; `cuisineIds` no restaurante e `cuisines` na resposta | `CuisineRestController`, `CuisineModelAssembler`, requests e responses | O catálogo é de todos os restaurantes, e não de um dono: a escrita é administrativa, e a leitura, pública como a de restaurante (Etapa 7). Erros pela categoria (`@ErrorResponse`), cadeado batendo com a `SecurityConfig` (Etapa 9) |
+| Postman: pasta 17, requests 126 a 144 | `postman/` | Etapa 12: um request por caso; o tipo e o restaurante de teste são criados e excluídos pela própria coleção, sem tocar na seed |
+
+### Verificação
+
+| Verificação | Resultado |
+| --- | --- |
+| `mvn verify` | **863 testes unitários** e **153 de integração** (`CuisineLifecycleIT`, `RestaurantCuisinesIT` com 7 casos — filtro incluído —, `SchemaMigrationIT` com V11 e V12, `OpenApiDocumentationIT` com 25 operações) — BUILD SUCCESS; cobertura unitária **2256/2256 linhas, 578/578 ramos, 951/951 métodos** |
+| Regras de arquitetura | 48 regras ArchUnit (17 + 24 + 7) sem violação; nenhuma regra nova foi necessária: as existentes já cobriram os pacotes novos |
+| Postman | Pasta 17 escrita (144 requests na coleção, JSON validado). **Pendente:** a execução pelo `npx newman@6` e a geração dos prints da pasta 17 — a máquina desta etapa não tem Node instalado |
+
+---
+
 ## Decisões Técnicas (registro consolidado)
 
 **Implementadas:**
 
+- **Tipo de cozinha como catálogo à parte, ligado ao restaurante por N:N:** `cuisines` com nome único
+  sem diferenciar maiúsculas (índice em `LOWER(name)` e `UniqueCuisineNamePolicy`), escrita só do
+  administrador; o restaurante escolhe por `cuisineIds`, e tipo em uso não sai do catálogo (409);
+  listagem de restaurantes filtrável por `cuisineId`. Etapa 26.
 - **Modelo de Dados v2 conferido tabela por tabela** contra o schema real, com cada divergência
   justificada; regras de build novas para o que as Etapas 17 a 24 decidiram (a infraestrutura só
   conhece do domínio as exceções; registros e views sem tipo do domínio; políticas de aplicação;

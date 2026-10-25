@@ -47,7 +47,8 @@ Um caso de uso por **intenção do ator**, em subpacotes por feature:
 | Usuário — consultar/atualizar/excluir o próprio cadastro | `FindUserByIdUseCase`, `UpdateUserUseCase`, `DeleteUserUseCase` | busca, altera dados e endereços, remove (com os restaurantes dele, pela porta do restaurante) | inexistente; e-mail/login de outro cadastro; excluir o último administrador (`ResourceInUseException`) |
 | Usuário ou administrador — manter os perfis do cadastro | `SaveUserProfileUseCase`, `RemoveUserProfileUseCase` | inclui ou altera um perfil (entrada `UserProfileDTO`, interface selada, um `case` por tipo); remove um perfil | CPF/CNPJ de outro cadastro (`DuplicateResourceException`); perfil que o usuário não tem (`ResourceNotFoundException`); último perfil (invariante); dono com restaurante (`ResourceInUseException`, pela porta `IRestaurantGateway`) |
 | Entregador — informar a disponibilidade | `ChangeCourierStatusUseCase` | troca o status (`CourierStatus.from`) | quem não é entregador; status desconhecido |
-| Visitante, dono ou administrador — consultar restaurantes | `FindRestaurantByIdUseCase`, `SearchRestaurantsUseCase` | por id, ou paginado com busca por nome e, opcionalmente, só os de um dono | restaurante inexistente |
+| Visitante, dono ou administrador — consultar restaurantes | `FindRestaurantByIdUseCase`, `SearchRestaurantsUseCase` | por id, ou paginado com busca por nome e, opcionalmente, só os de um dono e/ou só os de um tipo de cozinha | restaurante inexistente |
+| Administrador — manter o catálogo de tipos de cozinha; visitante — consultá-lo | `CreateCuisineUseCase`, `UpdateCuisineUseCase`, `FindCuisineByIdUseCase`, `SearchCuisinesUseCase`, `DeleteCuisineUseCase` | nome único sem diferenciar maiúsculas; o restaurante escolhe tipos por `cuisineIds` (`ExistingCuisinesPolicy`) | nome repetido (`DuplicateResourceException`); tipo inexistente; tipo em uso por restaurante não sai (`ResourceInUseException`) |
 | Regra de posse — saber de quem é o restaurante | `FindRestaurantOwnerUseCase` | o dono do restaurante, para a borda decidir se o requisitante pode alterar ou excluir | inexistente não tem dono (vazio, não exceção) |
 | Usuário — trocar a senha | `ChangePasswordUseCase` | confere a atual → confirmação → novo hash | senha atual errada, confirmação divergente (`InvalidPasswordException`) |
 | Administrador — listar cadastros | `SearchUsersUseCase` | busca paginada por nome | ordenação por propriedade não permitida cai no nome |
@@ -60,7 +61,7 @@ Um caso de uso por **intenção do ator**, em subpacotes por feature:
 
 | Porta | O que o caso de uso pede | Implementada por |
 |---|---|---|
-| `IUserGateway` (inclusive `findByCpf`, `findByCnpj`), `IPasswordResetTokenGateway`, `IRestaurantGateway` | encontrar, incluir, alterar, excluir agregados | gateways do adaptador sobre origens de dados (`UserGateway`, …) |
+| `IUserGateway` (inclusive `findByCpf`, `findByCnpj`), `IPasswordResetTokenGateway`, `IRestaurantGateway`, `ICuisineGateway` | encontrar, incluir, alterar, excluir agregados | gateways do adaptador sobre origens de dados (`UserGateway`, …) |
 | `IMailGateway` | "mande este token a este e-mail, válido por tanto tempo" | `PasswordResetMailGateway` (adaptador) sobre `IMailSender` |
 | `ITokenIssuer` | "emita o token de acesso deste usuário" | `TokenGateway` (adaptador) sobre `ITokenEncoder` |
 | `IPasswordEncoder` | gerar e conferir hash; gastar o tempo de uma comparação | direto pela infraestrutura (`crypto`) — porta técnica |
@@ -99,7 +100,7 @@ public final class RegisterUserUseCase {
 | Extensões como exceções de domínio | `DomainException` e subclasses | cada desvio do cenário principal tem nome de negócio e vira uma categoria de erro HTTP no handler |
 | Regra de negócio × regra de aplicação | entidade × caso de uso | o que vale sempre fica na entidade; o que depende do ponto de entrada fica no caso de uso |
 | Relógio e validade por parâmetro | `ForgotPasswordUseCase.create(..., validity, clock)`, `RegisterUserUseCase.create(..., clock)` | vencimento e "nascimento não futuro" testáveis com `Clock.fixed`, sem esperar o tempo passar |
-| Regra de aplicação compartilhada (Etapas 22 e 25) | `application/policy/user/UniqueDocumentsPolicy` (`RegisterUserUseCase`, `SaveUserProfileUseCase`) e `LastAdminPolicy` (`RemoveUserProfileUseCase`, `DeleteUserUseCase`) | "CPF e CNPJ únicos" e "o sistema não fica sem administrador" existem uma vez só (DRY); não é caso de uso — não é objetivo do ator nem tem `run` —, então mora num pacote de políticas da camada, que depende só do domínio e das portas |
+| Regra de aplicação compartilhada (Etapas 22, 25 e 26) | `application/policy/user/UniqueDocumentsPolicy` (`RegisterUserUseCase`, `SaveUserProfileUseCase`), `LastAdminPolicy` (`RemoveUserProfileUseCase`, `DeleteUserUseCase`), `application/policy/cuisine/UniqueCuisineNamePolicy` (criação e alteração do tipo) e `application/policy/restaurant/ExistingCuisinesPolicy` (cadastro e atualização do restaurante) | "CPF e CNPJ únicos", "o sistema não fica sem administrador", "nome de tipo único" e "os tipos escolhidos existem" existem uma vez só (DRY); não é caso de uso — não é objetivo do ator nem tem `run` —, então mora num pacote de políticas da camada, que depende só do domínio e das portas |
 | Papéis atuais a cada requisição (Etapa 22) | `FindCurrentRolesUseCase` | a autorização usa os perfis gravados agora, não os do token: perfil removido deixa de valer na hora |
 
 ## 5. Desvios conscientes
@@ -120,5 +121,5 @@ public final class RegisterUserUseCase {
 - Testes unitários com as portas mockadas e AAA, um comportamento por teste:
   `RegisterUserUseCaseTest`, `UpdateUserUseCaseTest`, `ChangePasswordUseCaseTest`,
   `UserQueryUseCasesTest`, `SaveUserProfileUseCaseTest`, `RemoveUserProfileUseCaseTest`, `UniqueDocumentsPolicyTest`,
-  `LastAdminPolicyTest`, os testes de restaurante, `AuthenticateUseCaseTest`, `ForgotPasswordUseCaseTest`,
+  `LastAdminPolicyTest`, `UniqueCuisineNamePolicyTest`, `ExistingCuisinesPolicyTest`, os testes de restaurante e de tipo de cozinha, `AuthenticateUseCaseTest`, `ForgotPasswordUseCaseTest`,
   `ResetPasswordUseCaseTest`, e `PageRequestTest`/`PageResultTest`/`DtoTest` para os DTOs.
