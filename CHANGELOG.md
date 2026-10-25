@@ -558,7 +558,7 @@
   `@EntityGraph`; `CuisineRestController` em `/api/v1/cuisines` — leitura pública, escrita só do administrador).
 - Testes: unitários de todas as classes novas e alteradas, `CuisineLifecycleIT`, `RestaurantCuisinesIT` (7
   casos, filtro incluído), `SchemaMigrationIT` (V11 e V12) e `OpenApiDocumentationIT` (25 operações).
-- Postman: pasta 17 "Tipos de cozinha", requests 126 a 144 (o 138 é o filtro por tipo); 144 requests. A
-  execução pelo newman e os prints ficaram pendentes (Node não instalado na máquina desta etapa).
+- Postman: pasta 17 "Tipos de cozinha", requests 126 a 144 (o 138 é o filtro por tipo); 144 requests. Execução
+  pelo `npx newman@6`: 145 execuções (com a nova tentativa do Mailpit), 295 asserções, sem falhas; 144 prints.
 - `mvn verify`: 863 testes unitários e 153 de integração; cobertura unitária 100% (2256 linhas, 578 ramos,
   951 métodos).

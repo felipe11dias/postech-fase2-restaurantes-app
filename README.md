@@ -31,7 +31,7 @@ Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo é a da
 | Clean Architecture em camadas | ✅ Quatro camadas, verificadas no build (ArchUnit, 48 regras) |
 | Testes: unitários com 80% e de integração | ✅ 863 unitários com **100%** de linhas e ramos; 153 de integração com PostgreSQL real |
 | Documentação (arquitetura, endpoints, execução) | ✅ Este README, o relatório técnico, o Swagger, `docs/arquitetura/` e `docs/modelo-dados/` |
-| Coleção Postman | ✅ 144 requests; cobre usuários, perfis, restaurantes e tipos de cozinha. Prints até o 125 — os da pasta 17 (tipos de cozinha) ainda serão gerados |
+| Coleção Postman | ✅ 144 requests; cobre usuários, perfis, restaurantes e tipos de cozinha; um print por request (144); 295 asserções, sem falhas |
 | Docker Compose (aplicação e banco) | ✅ Aplicação, PostgreSQL e Mailpit |
 | Repositório aberto | ✅ Público; a `main` tem até a Etapa 25, e a 26 aguarda o merge |
 | Vídeo de apresentação (cerca de 5 minutos) | ⏳ Pendente — depende das funcionalidades acima |
@@ -315,7 +315,6 @@ node postman/gerar-prints.js target/newman.json postman/Restaurantes.postman_col
 
 O script usa o Chrome em modo headless; fora do Windows, aponte `CHROME_PATH` para o executável.
 Os prints antigos só são substituídos depois que todos os novos forem gerados.
-Os prints da pasta 17 (requests 126 a 144, tipos de cozinha) ainda não foram gerados.
 
 ## Testes
 

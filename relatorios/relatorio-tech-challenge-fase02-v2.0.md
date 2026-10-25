@@ -116,7 +116,7 @@ enunciado da Fase 2 (ver "Conformidade com o enunciado", ao fim desta seção):
 | Testes unitários com 80% de cobertura | ✅ **100%** de linhas e ramos, com o build falhando abaixo disso | Etapa 11 |
 | Testes de integração dos componentes | ✅ 153 testes com PostgreSQL real e HTTP de ponta a ponta | Etapas 11, 25 e 26 |
 | Documentação do projeto (arquitetura, endpoints, execução) | ✅ README, este relatório, Swagger, `docs/arquitetura/` e `docs/modelo-dados/` | Etapas 9, 12, 14 e 25 |
-| Coleção Postman | ✅ 144 requests; prints até o 125 (os da pasta 17, tipos de cozinha, pendentes) | Etapas 12, 16 e 18 a 26 |
+| Coleção Postman | ✅ 144 requests, com um print por request | Etapas 12, 16 e 18 a 26 |
 | Docker Compose com aplicação e banco | ✅ aplicação, PostgreSQL e Mailpit | Etapa 10 |
 | Repositório aberto | ✅ público no GitHub (`felipe11dias/postech-fase2-restaurantes-app`), uma branch por etapa. As Etapas 17 a 25 já estão na `main`; a 26 está na branch `feat/cuisines`, a mesclar | — |
 | Vídeo de apresentação (cerca de 5 minutos) | ⏳ pendente — depende das features | — |
@@ -130,7 +130,7 @@ Os nove fatores de avaliação do enunciado, conferidos contra o estado atual:
 | 1 | Funcionalidade (tipo de usuário, restaurante, item do cardápio) | **Parcial** | Restaurante completo (com tipo de cozinha, Etapa 26); tipo de usuário sem o CRUD do catálogo; cardápio inexistente |
 | 2 | Qualidade do código (práticas do Spring Boot, código organizado e documentado) | ✅ | Bean Validation, ProblemDetail, HATEOAS, Actuator, JWT; Javadoc e `package-info` por pacote; 48 regras do ArchUnit |
 | 3 | Documentação (arquitetura, endpoints, configuração e execução) | ✅ | README, este relatório, Swagger, `docs/arquitetura/`, `docs/modelo-dados/` |
-| 4 | Collections para teste | ✅ | 144 requests; cobre usuários, perfis, restaurantes e tipos de cozinha. Execução pelo newman e prints da pasta 17 pendentes |
+| 4 | Collections para teste | ✅ | 144 requests e 295 asserções, sem falhas, um print por request; cobre usuários, perfis, restaurantes e tipos de cozinha |
 | 5 | Docker Compose (aplicação e banco) | ✅ | Aplicação, PostgreSQL e Mailpit; o professor cria o `.env` e gera o segredo JWT (passo a passo no README) |
 | 6 | Repositório aberto | ✅ | Público; a `main` tem até a Etapa 25, e a 26 aguarda o merge |
 | 7 | Clean Architecture | ✅ | Quatro camadas e módulos de infraestrutura substituíveis, verificados no build |
@@ -140,8 +140,7 @@ Os nove fatores de avaliação do enunciado, conferidos contra o estado atual:
 **Lacunas, por prioridade.** (1) O cardápio, o maior vazio: um dos três cadastros do enunciado. (2) O
 CRUD de tipos de usuário — depende de decisão do autor sobre como conciliar o requisito com o modelo v2
 (uma tabela de tipos editável, que contraria o modelo; ou um recurso de catálogo derivado dos perfis
-fixos, com a justificativa no relatório). (3) Rodar a coleção Postman pelo newman e gerar os prints da
-pasta 17 (tipos de cozinha). (4) Mesclar a Etapa 26 na `main`. (5) Gravar o vídeo, depois de 1 e 2.
+fixos, com a justificativa no relatório). (3) Mesclar a Etapa 26 na `main`. (4) Gravar o vídeo, depois de 1 e 2.
 
 As features pendentes seguem as mesmas regras já verificadas no build: cada uma ganha o próprio
 subpacote em cada camada (*screaming architecture*), com entidade que valida seus invariantes,
@@ -3208,7 +3207,7 @@ que não está no catálogo é 404 e nada é gravado. A resposta traz `cuisines`
 | --- | --- |
 | `mvn verify` | **863 testes unitários** e **153 de integração** (`CuisineLifecycleIT`, `RestaurantCuisinesIT` com 7 casos — filtro incluído —, `SchemaMigrationIT` com V11 e V12, `OpenApiDocumentationIT` com 25 operações) — BUILD SUCCESS; cobertura unitária **2256/2256 linhas, 578/578 ramos, 951/951 métodos** |
 | Regras de arquitetura | 48 regras ArchUnit (17 + 24 + 7) sem violação; nenhuma regra nova foi necessária: as existentes já cobriram os pacotes novos |
-| Postman | Pasta 17 escrita (144 requests na coleção, JSON validado). **Pendente:** a execução pelo `npx newman@6` e a geração dos prints da pasta 17 — a máquina desta etapa não tem Node instalado |
+| Postman (`npx newman@6`) | **144 requests (145 execuções, com a nova tentativa do Mailpit), 295 asserções, 0 falhas** contra a pilha do Compose; prints regenerados da mesma execução (144) |
 
 ---
 
