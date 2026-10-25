@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +33,7 @@ class FindRestaurantByIdUseCaseTest {
     void deveEncontrarQuandoIdExiste() {
         UUID id = UUID.randomUUID();
         Restaurant restaurant = Restaurant.restore(id, UUID.randomUUID(), address(), "Sabor",
-                OFFICE_HOURS, null, null);
+                OFFICE_HOURS, List.of(), null, null);
         when(restaurantGateway.findById(id)).thenReturn(Optional.of(restaurant));
 
         Restaurant result = useCase.run(id);

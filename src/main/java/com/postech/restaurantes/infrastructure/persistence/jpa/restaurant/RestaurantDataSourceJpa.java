@@ -1,12 +1,15 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa.restaurant;
 
 import com.postech.restaurantes.adapter.datasource.IRestaurantDataSource;
+import com.postech.restaurantes.adapter.datasource.data.CuisineData;
 import com.postech.restaurantes.adapter.datasource.data.OfficeHourData;
 import com.postech.restaurantes.adapter.datasource.data.RestaurantData;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.infrastructure.persistence.jpa.address.AddressJpaMapping;
+import com.postech.restaurantes.infrastructure.persistence.jpa.cuisine.CuisineDataSourceJpa;
+import com.postech.restaurantes.infrastructure.persistence.jpa.cuisine.SpringDataCuisineRepository;
 import com.postech.restaurantes.infrastructure.persistence.jpa.restaurant.officehour.OfficeHourJpaEntity;
 import java.util.List;
 import java.util.Map;
@@ -33,9 +36,11 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
     private static final String DEFAULT_SORT_PROPERTY = "name";
 
     private final SpringDataRestaurantRepository restaurants;
+    private final SpringDataCuisineRepository cuisines;
 
-    public RestaurantDataSourceJpa(SpringDataRestaurantRepository restaurants) {
+    public RestaurantDataSourceJpa(SpringDataRestaurantRepository restaurants, SpringDataCuisineRepository cuisines) {
         this.restaurants = restaurants;
+        this.cuisines = cuisines;
     }
 
     @Override
@@ -46,13 +51,10 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResult<RestaurantData> search(String name, UUID ownerId, PageRequest request) {
+    public PageResult<RestaurantData> search(String name, UUID ownerId, UUID cuisineId, PageRequest request) {
         Sort sort = toSort(request);
         Pageable pageable = org.springframework.data.domain.PageRequest.of(request.page(), request.size(), sort);
-        String nome = name == null ? "" : name;
-        Page<UUID> ids = ownerId == null
-                ? restaurants.findIdsByName(nome, pageable)
-                : restaurants.findIdsByNameAndUserId(nome, ownerId, pageable);
+        Page<UUID> ids = findIds(name == null ? "" : name, ownerId, cuisineId, pageable);
         List<RestaurantData> content = ids.isEmpty()
                 ? List.of()
                 : restaurants.findByIdIn(ids.getContent(), sort).stream().map(RestaurantDataSourceJpa::toData).toList();
@@ -111,6 +113,8 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
         }
         entity.setName(data.name());
         entity.replaceOfficeHours(reconcile(entity.getOfficeHours(), data.officeHours()));
+        // Os tipos de cozinha são do catálogo: a ligação aponta para as linhas que já existem, pelos ids.
+        entity.replaceCuisines(cuisines.findAllById(data.cuisines().stream().map(CuisineData::id).toList()));
     }
 
     /**
@@ -148,9 +152,22 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
                 entity.getOfficeHours().stream()
                         .map(hour -> new OfficeHourData(hour.getDayOfWeek(), hour.getStartTime(), hour.getEndTime()))
                         .toList(),
+                entity.getCuisines().stream().map(CuisineDataSourceJpa::toData).toList(),
                 entity.getCreatedAt(),
                 entity.getLastUpdatedAt()
         );
+    }
+
+    /** Uma consulta por combinação de filtros: dono e tipo de cozinha são opcionais, cada um de forma independente. */
+    private Page<UUID> findIds(String name, UUID ownerId, UUID cuisineId, Pageable pageable) {
+        if (cuisineId == null) {
+            return ownerId == null
+                    ? restaurants.findIdsByName(name, pageable)
+                    : restaurants.findIdsByNameAndUserId(name, ownerId, pageable);
+        }
+        return ownerId == null
+                ? restaurants.findIdsByNameAndCuisineId(name, cuisineId, pageable)
+                : restaurants.findIdsByNameAndUserIdAndCuisineId(name, ownerId, cuisineId, pageable);
     }
 
     private static Sort toSort(PageRequest request) {

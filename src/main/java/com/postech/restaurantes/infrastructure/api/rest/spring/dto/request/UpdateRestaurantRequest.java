@@ -20,11 +20,14 @@ public record UpdateRestaurantRequest(
         @NotNull @Valid AddressRequest address,
         @Schema(example = "Restaurante Sabor & Arte") @NotBlank @Size(max = 150) String name,
         @Schema(description = "Horários de funcionamento por dia da semana; ao menos um, sem sobreposição")
-        @NotNull @Valid List<OfficeHourRequest> officeHours
+        @NotNull @Valid List<OfficeHourRequest> officeHours,
+        @Schema(description = "Ids dos tipos de cozinha do catálogo (GET /api/v1/cuisines). Opcional: ausente, os "
+                + "tipos atuais continuam; lista vazia, tira todos; com ids, troca a lista inteira")
+        List<@NotNull UUID> cuisineIds
 ) {
 
     public UpdateRestaurantDTO toDTO(UUID id) {
         return new UpdateRestaurantDTO(id, userId, address == null ? null : address.toDTO(), name,
-                OfficeHourRequest.toDTOs(officeHours));
+                OfficeHourRequest.toDTOs(officeHours), cuisineIds);
     }
 }

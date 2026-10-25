@@ -15,10 +15,12 @@ import static org.mockito.Mockito.when;
 
 import com.postech.restaurantes.adapter.datasource.IRestaurantDataSource;
 import com.postech.restaurantes.adapter.datasource.data.AddressData;
+import com.postech.restaurantes.adapter.datasource.data.CuisineData;
 import com.postech.restaurantes.adapter.datasource.data.RestaurantData;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.domain.entity.address.Address;
+import com.postech.restaurantes.domain.entity.cuisine.Cuisine;
 import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,6 +32,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class RestaurantGatewayTest {
+
+    private static final UUID CUISINE_ID = UUID.randomUUID();
 
     private IRestaurantDataSource dataSource;
     private RestaurantGateway gateway;
@@ -48,6 +52,7 @@ class RestaurantGatewayTest {
         userId = UUID.randomUUID();
         addressData = new AddressData(UUID.randomUUID(), "Rua A", "10", null, "Bairro", "Cidade", "SP", "01000000");
         data = new RestaurantData(id, userId, addressData, "Sabor", OFFICE_HOURS_DATA,
+                List.of(new CuisineData(CUISINE_ID, "Italiana", null, null)),
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
@@ -62,6 +67,8 @@ class RestaurantGatewayTest {
         assertEquals("Sabor", result.get().getName());
         assertEquals(addressData.id(), result.get().getAddress().getId());
         assertEquals("Rua A", result.get().getAddress().getStreet());
+        assertEquals(CUISINE_ID, result.get().getCuisines().get(0).getId());
+        assertEquals("Italiana", result.get().getCuisines().get(0).getName());
     }
 
     @Test
@@ -70,9 +77,10 @@ class RestaurantGatewayTest {
         PageRequest req = PageRequest.of(0, 10);
         PageResult<RestaurantData> page = new PageResult<>(List.of(data), 0, 10, 1);
         UUID dono = UUID.randomUUID();
-        when(dataSource.search("sabor", dono, req)).thenReturn(page);
+        UUID cozinha = UUID.randomUUID();
+        when(dataSource.search("sabor", dono, cozinha, req)).thenReturn(page);
 
-        PageResult<Restaurant> result = gateway.search("sabor", dono, req);
+        PageResult<Restaurant> result = gateway.search("sabor", dono, cozinha, req);
 
         assertEquals(1, result.totalElements());
     }
@@ -83,7 +91,8 @@ class RestaurantGatewayTest {
         when(dataSource.insert(any())).thenReturn(data);
         when(dataSource.update(any())).thenReturn(data);
         Address endereco = Address.create("Rua A", "10", null, "Bairro", "Cidade", "sp", "01000-000");
-        Restaurant r = Restaurant.restore(id, userId, endereco, "Sabor", OFFICE_HOURS, null, null);
+        Restaurant r = Restaurant.restore(id, userId, endereco, "Sabor", OFFICE_HOURS,
+                List.of(Cuisine.restore(CUISINE_ID, "Italiana", null, null)), null, null);
 
         Restaurant inserted = gateway.insert(r);
         Restaurant updated = gateway.update(r);
@@ -95,6 +104,8 @@ class RestaurantGatewayTest {
         assertNull(captor.getValue().address().id());
         assertEquals("SP", captor.getValue().address().state());
         assertEquals("01000000", captor.getValue().address().zipCode());
+        assertEquals(CUISINE_ID, captor.getValue().cuisines().get(0).id());
+        assertEquals("Italiana", captor.getValue().cuisines().get(0).name());
     }
 
     @Test

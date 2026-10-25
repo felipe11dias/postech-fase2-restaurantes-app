@@ -34,8 +34,8 @@ public final class RestaurantGateway implements IRestaurantGateway {
     }
 
     @Override
-    public PageResult<Restaurant> search(String name, UUID ownerId, PageRequest request) {
-        return dataSource.search(name, ownerId, request).map(RestaurantGateway::toEntity);
+    public PageResult<Restaurant> search(String name, UUID ownerId, UUID cuisineId, PageRequest request) {
+        return dataSource.search(name, ownerId, cuisineId, request).map(RestaurantGateway::toEntity);
     }
 
     @Override
@@ -70,6 +70,7 @@ public final class RestaurantGateway implements IRestaurantGateway {
                 AddressMapping.toEntity(data.address()),
                 data.name(),
                 data.officeHours().stream().map(RestaurantGateway::toEntity).toList(),
+                data.cuisines().stream().map(CuisineGateway::toEntity).toList(),
                 data.createdAt(),
                 data.lastUpdatedAt()
         );
@@ -82,6 +83,7 @@ public final class RestaurantGateway implements IRestaurantGateway {
                 AddressMapping.toData(restaurant.getAddress()),
                 restaurant.getName(),
                 restaurant.getOfficeHours().stream().map(RestaurantGateway::toData).toList(),
+                restaurant.getCuisines().stream().map(CuisineGateway::toData).toList(),
                 restaurant.getCreatedAt(),
                 restaurant.getLastUpdatedAt()
         );

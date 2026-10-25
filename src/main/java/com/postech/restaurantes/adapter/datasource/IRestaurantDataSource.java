@@ -11,7 +11,7 @@ public interface IRestaurantDataSource {
 
     Optional<RestaurantData> findById(UUID id);
 
-    PageResult<RestaurantData> search(String name, UUID ownerId, PageRequest request);
+    PageResult<RestaurantData> search(String name, UUID ownerId, UUID cuisineId, PageRequest request);
 
     RestaurantData insert(RestaurantData data);
 

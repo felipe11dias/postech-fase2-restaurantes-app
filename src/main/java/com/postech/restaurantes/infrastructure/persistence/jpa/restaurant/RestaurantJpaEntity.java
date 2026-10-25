@@ -2,6 +2,7 @@ package com.postech.restaurantes.infrastructure.persistence.jpa.restaurant;
 
 import com.postech.restaurantes.infrastructure.persistence.jpa.address.AddressJpaEntity;
 import com.postech.restaurantes.infrastructure.persistence.jpa.audit.AuditableJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.cuisine.CuisineJpaEntity;
 import com.postech.restaurantes.infrastructure.persistence.jpa.restaurant.officehour.OfficeHourJpaEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -11,13 +12,19 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import org.hibernate.annotations.BatchSize;
 
 /**
  * Tabela {@code restaurants}. Mapeamento JPA separado da entidade de domínio.
@@ -54,6 +61,19 @@ public class RestaurantJpaEntity extends AuditableJpaEntity {
     @JoinColumn(name = "restaurant_id", nullable = false, updatable = false)
     @OrderBy("dayOfWeek ASC, startTime ASC")
     private List<OfficeHourJpaEntity> officeHours = new ArrayList<>();
+
+    /**
+     * Os tipos de cozinha são do catálogo: o restaurante só se liga a eles pela tabela {@code restaurant_cuisines},
+     * sem cascata — gravar ou excluir o restaurante mexe só nas ligações, nunca nos tipos. Fica fora do
+     * {@code @EntityGraph}: buscar um {@code Set} junto da lista de horários repetiria os horários; carregada à
+     * parte, em lotes ({@code @BatchSize}), não faz uma consulta por restaurante na listagem.
+     */
+    @ManyToMany
+    @JoinTable(name = "restaurant_cuisines",
+            joinColumns = @JoinColumn(name = "restaurant_id"),
+            inverseJoinColumns = @JoinColumn(name = "cuisine_id"))
+    @BatchSize(size = 50)
+    private Set<CuisineJpaEntity> cuisines = new LinkedHashSet<>();
 
     public UUID getId() {
         return id;
@@ -95,5 +115,15 @@ public class RestaurantJpaEntity extends AuditableJpaEntity {
     public void replaceOfficeHours(List<OfficeHourJpaEntity> newOfficeHours) {
         officeHours.clear();
         officeHours.addAll(newOfficeHours);
+    }
+
+    public Set<CuisineJpaEntity> getCuisines() {
+        return cuisines;
+    }
+
+    /** Troca as ligações: o Hibernate apaga as que saíram e grava as novas, sem tocar nos tipos. */
+    public void replaceCuisines(Collection<CuisineJpaEntity> newCuisines) {
+        cuisines.clear();
+        cuisines.addAll(newCuisines);
     }
 }

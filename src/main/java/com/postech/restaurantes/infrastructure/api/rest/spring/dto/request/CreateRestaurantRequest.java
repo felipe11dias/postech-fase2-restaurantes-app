@@ -20,13 +20,16 @@ public record CreateRestaurantRequest(
         @NotNull @Valid AddressRequest address,
         @Schema(example = "Restaurante Sabor & Arte") @NotBlank @Size(max = 150) String name,
         @Schema(description = "Horários de funcionamento por dia da semana; ao menos um, sem sobreposição")
-        @NotNull @Valid List<OfficeHourRequest> officeHours
+        @NotNull @Valid List<OfficeHourRequest> officeHours,
+        @Schema(description = "Ids dos tipos de cozinha do catálogo (GET /api/v1/cuisines). Opcional: ausente, o "
+                + "restaurante nasce sem tipo de cozinha")
+        List<@NotNull UUID> cuisineIds
 ) {
 
     /** {@code authenticatedUserId} é o dono quando o corpo não indica nenhum. */
     public CreateRestaurantDTO toDTO(UUID authenticatedUserId) {
         return new CreateRestaurantDTO(userId != null ? userId : authenticatedUserId,
                 address == null ? null : address.toDTO(), name,
-                OfficeHourRequest.toDTOs(officeHours));
+                OfficeHourRequest.toDTOs(officeHours), cuisineIds);
     }
 }

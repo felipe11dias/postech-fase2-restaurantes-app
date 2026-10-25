@@ -1,8 +1,10 @@
 package com.postech.restaurantes.infrastructure.main;
 
 import com.postech.restaurantes.adapter.controller.AuthController;
+import com.postech.restaurantes.adapter.controller.CuisineController;
 import com.postech.restaurantes.adapter.controller.RestaurantController;
 import com.postech.restaurantes.adapter.controller.UserController;
+import com.postech.restaurantes.adapter.datasource.ICuisineDataSource;
 import com.postech.restaurantes.adapter.datasource.IPasswordResetTokenDataSource;
 import com.postech.restaurantes.adapter.datasource.IRestaurantDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
@@ -75,13 +77,19 @@ public class CompositionConfig {
 
     @Bean
     public RestaurantController restaurantController(IRestaurantDataSource restaurantDataSource,
-                                                     IUserDataSource userDataSource, IUnitOfWork unitOfWork) {
-        return RestaurantController.create(restaurantDataSource, userDataSource, unitOfWork);
+                                                     IUserDataSource userDataSource,
+                                                     ICuisineDataSource cuisineDataSource, IUnitOfWork unitOfWork) {
+        return RestaurantController.create(restaurantDataSource, userDataSource, cuisineDataSource, unitOfWork);
     }
 
     /** A regra de posse do restaurante pergunta o dono pelo núcleo; a API declara a porta, e a composição liga. */
     @Bean
     public IRestaurantOwnerReader restaurantOwnerReader(RestaurantController restaurantController) {
         return restaurantController::ownerOf;
+    }
+
+    @Bean
+    public CuisineController cuisineController(ICuisineDataSource cuisineDataSource, IUnitOfWork unitOfWork) {
+        return CuisineController.create(cuisineDataSource, unitOfWork);
     }
 }

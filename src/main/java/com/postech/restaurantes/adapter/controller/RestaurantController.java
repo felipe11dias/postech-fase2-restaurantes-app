@@ -1,7 +1,9 @@
 package com.postech.restaurantes.adapter.controller;
 
+import com.postech.restaurantes.adapter.datasource.ICuisineDataSource;
 import com.postech.restaurantes.adapter.datasource.IRestaurantDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
+import com.postech.restaurantes.adapter.gateway.CuisineGateway;
 import com.postech.restaurantes.adapter.gateway.RestaurantGateway;
 import com.postech.restaurantes.adapter.gateway.UserGateway;
 import com.postech.restaurantes.adapter.presenter.RestaurantPresenter;
@@ -26,24 +28,28 @@ public final class RestaurantController {
 
     private final IRestaurantDataSource restaurantDataSource;
     private final IUserDataSource userDataSource;
+    private final ICuisineDataSource cuisineDataSource;
     private final IUnitOfWork unitOfWork;
 
     private RestaurantController(IRestaurantDataSource restaurantDataSource,
                                  IUserDataSource userDataSource,
+                                 ICuisineDataSource cuisineDataSource,
                                  IUnitOfWork unitOfWork) {
         this.restaurantDataSource = Guard.requireNonNull(restaurantDataSource, "Origem de dados de restaurante inválida");
         this.userDataSource = Guard.requireNonNull(userDataSource, "Origem de dados de usuário inválida");
+        this.cuisineDataSource = Guard.requireNonNull(cuisineDataSource, "Origem de dados de tipo de cozinha inválida");
         this.unitOfWork = Guard.requireNonNull(unitOfWork, "Unidade de trabalho inválida");
     }
 
     public static RestaurantController create(IRestaurantDataSource restaurantDataSource,
                                                IUserDataSource userDataSource,
+                                               ICuisineDataSource cuisineDataSource,
                                                IUnitOfWork unitOfWork) {
-        return new RestaurantController(restaurantDataSource, userDataSource, unitOfWork);
+        return new RestaurantController(restaurantDataSource, userDataSource, cuisineDataSource, unitOfWork);
     }
 
     public RestaurantView create(CreateRestaurantDTO dto) {
-        var useCase = CreateRestaurantUseCase.create(restaurantGateway(), userGateway());
+        var useCase = CreateRestaurantUseCase.create(restaurantGateway(), userGateway(), cuisineGateway());
         return RestaurantPresenter.toView(unitOfWork.execute(() -> useCase.run(dto)));
     }
 
@@ -52,13 +58,13 @@ public final class RestaurantController {
         return RestaurantPresenter.toView(unitOfWork.execute(() -> useCase.run(id)));
     }
 
-    public PageResult<RestaurantView> search(String name, UUID ownerId, PageRequest request) {
+    public PageResult<RestaurantView> search(String name, UUID ownerId, UUID cuisineId, PageRequest request) {
         var useCase = SearchRestaurantsUseCase.create(restaurantGateway());
-        return RestaurantPresenter.toView(unitOfWork.execute(() -> useCase.run(name, ownerId, request)));
+        return RestaurantPresenter.toView(unitOfWork.execute(() -> useCase.run(name, ownerId, cuisineId, request)));
     }
 
     public RestaurantView update(UpdateRestaurantDTO dto) {
-        var useCase = UpdateRestaurantUseCase.create(restaurantGateway(), userGateway());
+        var useCase = UpdateRestaurantUseCase.create(restaurantGateway(), userGateway(), cuisineGateway());
         return RestaurantPresenter.toView(unitOfWork.execute(() -> useCase.run(dto)));
     }
 
@@ -79,5 +85,9 @@ public final class RestaurantController {
 
     private UserGateway userGateway() {
         return UserGateway.create(userDataSource);
+    }
+
+    private CuisineGateway cuisineGateway() {
+        return CuisineGateway.create(cuisineDataSource);
     }
 }

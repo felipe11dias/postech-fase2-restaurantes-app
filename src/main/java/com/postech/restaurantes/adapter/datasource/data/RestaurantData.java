@@ -14,6 +14,7 @@ public record RestaurantData(
         AddressData address,
         String name,
         List<OfficeHourData> officeHours,
+        List<CuisineData> cuisines,
         LocalDateTime createdAt,
         LocalDateTime lastUpdatedAt
 ) {

@@ -33,7 +33,7 @@ class RestaurantModelAssemblerTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
-        view = new RestaurantView(UUID.randomUUID(), UUID.randomUUID(), ADDRESS_VIEW, "Sabor", OFFICE_HOURS_VIEW, LocalDateTime.now(), LocalDateTime.now());
+        view = new RestaurantView(UUID.randomUUID(), UUID.randomUUID(), ADDRESS_VIEW, "Sabor", OFFICE_HOURS_VIEW, List.of(), LocalDateTime.now(), LocalDateTime.now());
     }
 
     @Test
@@ -52,8 +52,9 @@ class RestaurantModelAssemblerTest {
         PageResult<RestaurantView> page = new PageResult<>(List.of(view), 1, 10, 25);
 
         UUID dono = UUID.fromString("44444444-4444-4444-4444-444444444444");
+        UUID cozinha = UUID.fromString("c0000000-0000-4000-8000-000000000001");
 
-        PagedModel<EntityModel<RestaurantResponse>> pagedModel = assembler.toPagedModel(page, "sabor", dono, "name,asc");
+        PagedModel<EntityModel<RestaurantResponse>> pagedModel = assembler.toPagedModel(page, "sabor", dono, cozinha, "name,asc");
 
         assertNotNull(pagedModel.getContent());
         assertTrue(pagedModel.hasLink("self"));
@@ -63,6 +64,10 @@ class RestaurantModelAssemblerTest {
         assertTrue(pagedModel.hasLink("last"));
         assertTrue(pagedModel.getRequiredLink("next").getHref().contains("ownerId=" + dono),
                 "a navegação repete o filtro por dono");
-        assertFalse(assembler.toPagedModel(page, null, null, null).getRequiredLink("self").getHref().contains("ownerId"));
+        assertTrue(pagedModel.getRequiredLink("next").getHref().contains("cuisineId=" + cozinha),
+                "a navegação repete o filtro por tipo de cozinha");
+        String semFiltros = assembler.toPagedModel(page, null, null, null, null).getRequiredLink("self").getHref();
+        assertFalse(semFiltros.contains("ownerId"));
+        assertFalse(semFiltros.contains("cuisineId"));
     }
 }
