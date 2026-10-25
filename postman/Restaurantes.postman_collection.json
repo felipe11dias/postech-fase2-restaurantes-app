@@ -4953,12 +4953,558 @@
         }
       ]
     },
+{
+      "name": "18 Produtos — Catálogo",
+      "item": [
+        {
+          "name": "120 Cadastro de produto pelo dono",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) { pm.collectionVariables.set(\"productId\", pm.response.json().id); } else { postman.setNextRequest(null); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Pizza Margherita\",\"description\":\"Produto Postman\",\"price\":49.90,\"dineInOnly\":false,\"imagePaths\":[\"/images/pizza.jpg\"],\"optionGroups\":[{\"name\":\"Borda\",\"required\":false,\"minSelections\":0,\"maxSelections\":1,\"values\":[{\"name\":\"Recheada\",\"additionalPrice\":5.00}]}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products"
+          }
+        },
+        {
+          "name": "121 Cadastro de produto com preço inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"type requisicao-invalida\", () => pm.expect(pm.response.json().type).to.include(\"requisicao-invalida\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Produto inválido\",\"description\":\"Teste\",\"price\":-1,\"dineInOnly\":false,\"imagePaths\":[],\"optionGroups\":[]}"
+            },
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products"
+          }
+        },
+        {
+          "name": "122 Cadastro de produto sem autenticação",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"type nao-autenticado\", () => pm.expect(pm.response.json().type).to.include(\"nao-autenticado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Produto sem token\",\"description\":\"Teste\",\"price\":10.00,\"dineInOnly\":false,\"imagePaths\":[],\"optionGroups\":[]}"
+            },
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products"
+          }
+        },
+        {
+          "name": "123 Segundo dono tenta cadastrar produto no restaurante alheio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"type acesso-negado\", () => pm.expect(pm.response.json().type).to.include(\"acesso-negado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{outroDonoToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Produto alheio\",\"description\":\"Teste\",\"price\":10.00,\"dineInOnly\":false,\"imagePaths\":[],\"optionGroups\":[]}"
+            },
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products"
+          }
+        },
+        {
+          "name": "124 Cadastro de produto em restaurante inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"type recurso-nao-encontrado\", () => pm.expect(pm.response.json().type).to.include(\"recurso-nao-encontrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Produto sem restaurante\",\"description\":\"Teste\",\"price\":10.00,\"dineInOnly\":false,\"imagePaths\":[],\"optionGroups\":[]}"
+            },
+            "url": "{{baseUrl}}/api/v1/restaurants/00000000-0000-4000-8000-000000000000/products"
+          }
+        },
+        {
+          "name": "125 Lista produtos publicamente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Lista contém o produto cadastrado\", () => pm.expect(pm.response.json()._embedded.productResponseList.some(item => item.id === pm.collectionVariables.get(\"productId\"))).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products?page=0&size=20"
+          }
+        },
+        {
+          "name": "126 Lista produtos com tamanho inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"type requisicao-invalida\", () => pm.expect(pm.response.json().type).to.include(\"requisicao-invalida\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products?page=0&size=0"
+          }
+        },
+        {
+          "name": "127 Lista produtos de restaurante inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"type recurso-nao-encontrado\", () => pm.expect(pm.response.json().type).to.include(\"recurso-nao-encontrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/restaurants/00000000-0000-4000-8000-000000000000/products"
+          }
+        },
+        {
+          "name": "128 Consulta produto com imagens e opções",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Produto, caminho da imagem e grupo retornados\", () => { const body = pm.response.json(); pm.expect(body.id).to.eql(pm.collectionVariables.get(\"productId\")); pm.expect(body.imagePaths).to.include(\"/images/pizza.jpg\"); pm.expect(body.optionGroups[0].values[0].name).to.eql(\"Recheada\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products/{{productId}}"
+          }
+        },
+        {
+          "name": "129 Consulta produto com identificador inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"type requisicao-invalida\", () => pm.expect(pm.response.json().type).to.include(\"requisicao-invalida\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products/nao-uuid"
+          }
+        },
+        {
+          "name": "130 Consulta produto inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"type recurso-nao-encontrado\", () => pm.expect(pm.response.json().type).to.include(\"recurso-nao-encontrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products/00000000-0000-4000-8000-000000000000"
+          }
+        },
+        {
+          "name": "131 Dono atualiza produto e substitui suas opções",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Dados substituídos\", () => { const body = pm.response.json(); pm.expect(body.name).to.eql(\"Pizza atualizada\"); pm.expect(body.optionGroups[0].values[0].name).to.eql(\"Azeitona\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Pizza atualizada\",\"description\":\"Produto Postman\",\"price\":52.00,\"dineInOnly\":true,\"imagePaths\":[\"/images/pizza-atualizada.jpg\"],\"optionGroups\":[{\"name\":\"Complementos\",\"required\":false,\"minSelections\":0,\"maxSelections\":1,\"values\":[{\"name\":\"Azeitona\",\"additionalPrice\":2.00}]}]}"
+            },
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products/{{productId}}"
+          }
+        },
+        {
+          "name": "132 Atualiza produto com preço inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"type requisicao-invalida\", () => pm.expect(pm.response.json().type).to.include(\"requisicao-invalida\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Produto inválido\",\"description\":\"Teste\",\"price\":-1,\"dineInOnly\":false,\"imagePaths\":[],\"optionGroups\":[]}"
+            },
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products/{{productId}}"
+          }
+        },
+        {
+          "name": "133 Atualiza produto sem autenticação",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"type nao-autenticado\", () => pm.expect(pm.response.json().type).to.include(\"nao-autenticado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Pizza\",\"description\":\"Teste\",\"price\":10.00,\"dineInOnly\":false,\"imagePaths\":[],\"optionGroups\":[]}"
+            },
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products/{{productId}}"
+          }
+        },
+        {
+          "name": "134 Segundo dono tenta atualizar produto alheio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"type acesso-negado\", () => pm.expect(pm.response.json().type).to.include(\"acesso-negado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{outroDonoToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Produto alheio\",\"description\":\"Teste\",\"price\":10.00,\"dineInOnly\":false,\"imagePaths\":[],\"optionGroups\":[]}"
+            },
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products/{{productId}}"
+          }
+        },
+        {
+          "name": "135 Atualiza produto inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"type recurso-nao-encontrado\", () => pm.expect(pm.response.json().type).to.include(\"recurso-nao-encontrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Produto inexistente\",\"description\":\"Teste\",\"price\":10.00,\"dineInOnly\":false,\"imagePaths\":[],\"optionGroups\":[]}"
+            },
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products/00000000-0000-4000-8000-000000000000"
+          }
+        },
+        {
+          "name": "136 Exclui produto sem autenticação",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"type nao-autenticado\", () => pm.expect(pm.response.json().type).to.include(\"nao-autenticado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products/{{productId}}"
+          }
+        },
+        {
+          "name": "137 Segundo dono tenta excluir produto alheio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"type acesso-negado\", () => pm.expect(pm.response.json().type).to.include(\"acesso-negado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{outroDonoToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products/{{productId}}"
+          }
+        },
+        {
+          "name": "138 Dono exclui produto e suas partes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products/{{productId}}"
+          }
+        },
+        {
+          "name": "139 Exclui produto inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"type recurso-nao-encontrado\", () => pm.expect(pm.response.json().type).to.include(\"recurso-nao-encontrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products/00000000-0000-4000-8000-000000000000"
+          }
+        }
+      ]
+    },
     {
       "name": "16 Restaurantes — Exclusão (DELETE /api/v1/restaurants/{id})",
       "description": "Exclusão de restaurante.",
       "item": [
         {
-          "name": "120 Exclusão de restaurante sem token",
+          "name": "140 Exclusão de restaurante sem token",
           "event": [
             {
               "listen": "test",
@@ -4988,7 +5534,7 @@
           }
         },
         {
-          "name": "121 Dono tenta excluir o restaurante de outro dono",
+          "name": "141 Dono tenta excluir o restaurante de outro dono",
           "event": [
             {
               "listen": "test",
@@ -5018,7 +5564,7 @@
           }
         },
         {
-          "name": "122 Exclusão de restaurante pelo dono",
+          "name": "142 Exclusão de restaurante pelo dono",
           "event": [
             {
               "listen": "test",
@@ -5053,7 +5599,7 @@
           }
         },
         {
-          "name": "123 Consulta de restaurante após exclusão",
+          "name": "143 Consulta de restaurante após exclusão",
           "event": [
             {
               "listen": "test",
@@ -5083,7 +5629,7 @@
           }
         },
         {
-          "name": "124 Administrador exclui o segundo dono, e o restaurante dele sai junto",
+          "name": "144 Administrador exclui o segundo dono, e o restaurante dele sai junto",
           "event": [
             {
               "listen": "test",
@@ -5108,7 +5654,7 @@
           }
         },
         {
-          "name": "125 Restaurante do dono excluído não existe mais",
+          "name": "145 Restaurante do dono excluído não existe mais",
           "event": [
             {
               "listen": "test",
@@ -5359,6 +5905,10 @@
     },
     {
       "key": "outroDonoRestaurantId",
+      "value": ""
+    },
+    {
+      "key": "productId",
       "value": ""
     },
     {
