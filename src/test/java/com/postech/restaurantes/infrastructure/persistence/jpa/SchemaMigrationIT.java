@@ -73,13 +73,13 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("As treze migrations foram aplicadas com sucesso e ficaram registradas no histórico")
+    @DisplayName("As quatorze migrations foram aplicadas com sucesso e ficaram registradas no histórico")
     void deveAplicarAsMigrations() {
         List<String> versoes = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = true AND version IS NOT NULL "
                         + "ORDER BY installed_rank", String.class);
 
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"),
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"),
                 versoes);
     }
 
@@ -98,7 +98,9 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     @Test
     @DisplayName("Produtos e caminhos de imagem usam os tipos e colunas definidos pela implementação")
     void deveMapearOsTiposDeProdutoDoModelo() {
-        assertEquals("double precision", tipoDaColuna("products", "price"));
+        assertEquals("numeric", tipoDaColuna("products", "price"));
+        assertEquals(10, precisaoDaColuna("products", "price"));
+        assertEquals(2, escalaDaColuna("products", "price"));
         assertEquals("character varying", tipoDaColuna("images", "content"));
         assertEquals(2048, comprimentoDaColuna("images", "content"));
         assertEquals(List.of("id", "product_id", "content"), colunas("images"));
@@ -115,6 +117,18 @@ class SchemaMigrationIT extends IntegrationTestSupport {
 
     private Integer comprimentoDaColuna(String tabela, String coluna) {
         return jdbc.queryForObject("SELECT character_maximum_length FROM information_schema.columns "
+                + "WHERE table_schema = 'public' AND table_name = ? AND column_name = ?",
+                Integer.class, tabela, coluna);
+    }
+
+    private Integer precisaoDaColuna(String tabela, String coluna) {
+        return jdbc.queryForObject("SELECT numeric_precision FROM information_schema.columns "
+                + "WHERE table_schema = 'public' AND table_name = ? AND column_name = ?",
+                Integer.class, tabela, coluna);
+    }
+
+    private Integer escalaDaColuna(String tabela, String coluna) {
+        return jdbc.queryForObject("SELECT numeric_scale FROM information_schema.columns "
                 + "WHERE table_schema = 'public' AND table_name = ? AND column_name = ?",
                 Integer.class, tabela, coluna);
     }

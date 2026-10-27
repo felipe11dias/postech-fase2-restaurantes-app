@@ -11,7 +11,7 @@ public record ProductResponse(
         UUID restaurantId,
         String name,
         String description,
-        double price,
+        BigDecimal price,
         boolean dineInOnly,
         List<String> imagePaths,
         List<ProductOptionGroupResponse> optionGroups

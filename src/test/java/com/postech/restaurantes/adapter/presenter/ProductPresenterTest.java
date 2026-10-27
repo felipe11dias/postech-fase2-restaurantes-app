@@ -18,7 +18,7 @@ class ProductPresenterTest {
     @Test
     @DisplayName("Apresenta produto sem expor tipos do domínio")
     void deveApresentarProduto() {
-        Product product = Product.restore(UUID.randomUUID(), UUID.randomUUID(), "Pizza", null, 10.0,
+        Product product = Product.restore(UUID.randomUUID(), UUID.randomUUID(), "Pizza", null, new BigDecimal("10.00"),
                 false, List.of("/images/pizza.jpg"),
                 List.of(new ProductOptionGroup("Tamanho", false, 0, 1,
                         List.of(new ProductOptionValue("Grande", BigDecimal.ZERO)))));
@@ -33,7 +33,7 @@ class ProductPresenterTest {
     @Test
     @DisplayName("Apresenta página de produtos")
     void deveApresentarPagina() {
-        Product product = Product.create(UUID.randomUUID(), "Pizza", null, 10.0,
+        Product product = Product.create(UUID.randomUUID(), "Pizza", null, new BigDecimal("10.00"),
                 false, List.of(), List.of());
         PageResult<Product> page = new PageResult<>(List.of(product), 0, 10, 1);
         assertEquals("Pizza", ProductPresenter.toView(page).content().getFirst().name());

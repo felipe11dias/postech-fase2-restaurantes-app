@@ -126,11 +126,12 @@ composição ao `RestaurantController.ownerOf`. No cadastro, sem `userId`, o don
 dono é do administrador. A V8 deu `ON DELETE CASCADE` a `restaurants.user_id → users`, mas quem apaga os
 restaurantes de um usuário excluído é a aplicação, pelas entidades — só assim o endereço de cada um sai junto.
 
-**Produtos e opções (Etapa 26, V13).** O produto é raiz do agregado; referências de imagem, grupos
+**Produtos e opções (Etapa 27, V13/V14).** O produto é raiz do agregado; referências de imagem, grupos
 e valores são partes removidas junto com ele (`cascade`/`orphanRemoval`). A tarefa especifica que a
 foto não será enviada ou usada nesta etapa; por isso `images.content` guarda o caminho/URL como
 `varchar(2048)`, e a API recebe/devolve `imagePaths` como texto. `products.price` é
-`double precision`, como no modelo, e `additional_price` permanece `numeric(10,2)`.
+`numeric(10,2)` pela migration V14; domínio, DTOs, views e JPA usam `BigDecimal`, evitando
+aproximação binária em valores monetários. `additional_price` também permanece `numeric(10,2)`.
 `GET /restaurants/{restaurantId}/products` pagina primeiro os ids e depois carrega as coleções,
 evitando paginação sobre `EntityGraph` de múltiplas coleções. `POST`, `PUT` e `DELETE` exigem
 administrador ou o dono do restaurante; o `PUT` substitui por completo as imagens e opções.

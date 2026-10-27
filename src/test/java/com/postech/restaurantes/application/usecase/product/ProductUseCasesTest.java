@@ -38,10 +38,10 @@ class ProductUseCasesTest {
     void setUp() {
         products = mock(IProductGateway.class);
         restaurants = mock(IRestaurantGateway.class);
-        dto = new ProductDTO("Pizza", null, 20.0, false, List.of("/images/pizza.jpg"),
+        dto = new ProductDTO("Pizza", null, new BigDecimal("20.00"), false, List.of("/images/pizza.jpg"),
                 List.of(new ProductOptionGroupDTO("Tamanho", false, 0, 1,
                         List.of(new ProductOptionValueDTO("Grande", BigDecimal.ZERO)))));
-        product = Product.restore(productId, restaurantId, "Pizza", null, 20.0,
+        product = Product.restore(productId, restaurantId, "Pizza", null, new BigDecimal("20.00"),
                 false, List.of("/images/pizza.jpg"), List.of());
         when(restaurants.findById(restaurantId)).thenReturn(Optional.of(
                 Restaurant.restore(UUID.randomUUID(), UUID.randomUUID(),

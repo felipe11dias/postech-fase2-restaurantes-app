@@ -41,7 +41,7 @@ class ProductDataSourceJpaTest {
         restaurantId = UUID.randomUUID();
         productId = UUID.randomUUID();
         entity = entity();
-        data = new ProductData(productId, restaurantId, "Pizza", "Descrição", 20.0,
+        data = new ProductData(productId, restaurantId, "Pizza", "Descrição", new BigDecimal("20.00"),
                 false, List.of("/images/pizza.jpg"), List.of());
     }
 
@@ -127,7 +127,7 @@ class ProductDataSourceJpaTest {
     }
 
     private ProductData dataWithGroups() {
-        return new ProductData(productId, restaurantId, "Pizza", "Descrição", 20.0,
+        return new ProductData(productId, restaurantId, "Pizza", "Descrição", new BigDecimal("20.00"),
                 false, List.of("/images/pizza.jpg"),
                 List.of(new com.postech.restaurantes.adapter.datasource.data.ProductOptionGroupData(
                         "Tamanho", true, 1, 1,
@@ -140,7 +140,7 @@ class ProductDataSourceJpaTest {
         product.setRestaurantId(restaurantId);
         product.setName("Pizza");
         product.setDescription("Descrição");
-        product.setPrice(20.0);
+        product.setPrice(new BigDecimal("20.00"));
         product.setDineInOnly(false);
         ProductImageJpaEntity image = new ProductImageJpaEntity();
         image.setContent("/images/pizza.jpg");

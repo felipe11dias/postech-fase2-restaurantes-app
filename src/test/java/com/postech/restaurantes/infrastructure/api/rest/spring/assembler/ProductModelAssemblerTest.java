@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.postech.restaurantes.adapter.presenter.view.ProductView;
 import com.postech.restaurantes.application.dto.common.PageResult;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -20,7 +21,7 @@ class ProductModelAssemblerTest {
     private final ProductModelAssembler assembler = new ProductModelAssembler();
     private final UUID restaurantId = UUID.randomUUID();
     private final UUID productId = UUID.randomUUID();
-    private final ProductView view = new ProductView(productId, restaurantId, "Pizza", null, 10.0,
+    private final ProductView view = new ProductView(productId, restaurantId, "Pizza", null, new BigDecimal("10.00"),
             false, List.of("/images/pizza.jpg"), List.of());
 
     @AfterEach

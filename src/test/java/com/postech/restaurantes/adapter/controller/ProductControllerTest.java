@@ -54,7 +54,7 @@ class ProductControllerTest {
         controller = ProductController.create(products, restaurants, unitOfWork);
         restaurantId = UUID.randomUUID();
         productId = UUID.randomUUID();
-        data = new ProductData(productId, restaurantId, "Pizza", null, 10.0,
+        data = new ProductData(productId, restaurantId, "Pizza", null, new BigDecimal("10.00"),
                 false, List.of(), List.of());
     }
 
@@ -65,7 +65,7 @@ class ProductControllerTest {
                 restaurantData()));
         when(products.insert(any())).thenReturn(data);
         assertNotNull(controller.create(restaurantId,
-                new ProductDTO("Pizza", null, 10.0, false, List.of(), List.of())));
+                new ProductDTO("Pizza", null, new BigDecimal("10.00"), false, List.of(), List.of())));
     }
 
     @Test
@@ -85,7 +85,7 @@ class ProductControllerTest {
     void deveAtualizarEExcluirProduto() {
         when(products.findById(restaurantId, productId)).thenReturn(Optional.of(data));
         when(products.update(any())).thenReturn(data);
-        ProductDTO dto = new ProductDTO("Pizza nova", null, 10.0, false, List.of(), List.of());
+        ProductDTO dto = new ProductDTO("Pizza nova", null, new BigDecimal("10.00"), false, List.of(), List.of());
         assertNotNull(controller.update(restaurantId, productId, dto));
         controller.delete(restaurantId, productId);
     }

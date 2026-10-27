@@ -11,7 +11,7 @@ A adequação, com o quadro antes × v2, os enums e cada etapa, está no relató
 "Modelo de Dados v2 — adequação" de
 [`relatorio-tech-challenge-fase02-v2.0.md`](../../relatorios/relatorio-tech-challenge-fase02-v2.0.md); o
 quadro final, tabela por tabela, com o schema real até V10, está na Etapa 25; a V11 e as tabelas
-de produtos estão documentadas na Etapa 26 do mesmo relatório.
+de produtos estão documentadas na Etapa 27 do mesmo relatório.
 
 ## Escopo implementado (Etapas 17 a 26)
 
@@ -50,14 +50,16 @@ físicas para reforçar as invariantes.
 
 | Tabela | Modelo lógico | Schema físico V13 | Conformidade |
 | --- | --- | --- | --- |
-| `products` | `id`, `restaurant_id`, `name`, `description`, `price double`, `is_dine_in_only` | Mesmas colunas; `price double precision`; FK `restaurant_id → restaurants` com `ON DELETE CASCADE` | Conforme o modelo |
+| `products` | `id`, `restaurant_id`, `name`, `description`, `price double`, `is_dine_in_only` | Mesmas colunas; `price numeric(10,2)`; FK `restaurant_id → restaurants` com `ON DELETE CASCADE` | Desvio físico intencional: precisão decimal para valor monetário |
 | `images` | `id`, `product_id`, `content blob` | Mesmas colunas; `content varchar(2048)`; FK para `products` com cascata | Desvio intencional para atender à tarefa: persiste referência textual; API recebe/devolve `imagePaths` |
 | `product_option_groups` | `id`, `product_id`, `name`, `is_required`, `min_selections`, `max_selections` e auditoria | Mesmas colunas e FK para `products` com cascata; timestamps obrigatórios | Estrutura mantida; timestamps `NOT NULL` seguem o padrão de auditoria do projeto |
 | `product_option_values` | `id`, `option_group_id`, `name`, `additional_price numeric(10,2)` e auditoria | Mesmas colunas e FK para `product_option_groups` com cascata | Estrutura, relação e precisão monetária mantidas |
 
-**Tipos monetários conforme o modelo.** `products.price` usa `double` no domínio/JPA e
-`double precision` no PostgreSQL, conforme a definição explícita do modelo. `additional_price`
-permanece `BigDecimal`/`numeric(10,2)`, também como definido pelo modelo.
+**Tipos monetários.** O modelo lógico declara `products.price` como `double`, mas a implementação
+usa `BigDecimal` no domínio e nas fronteiras, com `numeric(10,2)` no PostgreSQL após a V14. A
+migration converte os valores existentes; o domínio aceita valores não negativos com até oito
+dígitos inteiros e duas casas decimais. `additional_price` permanece `BigDecimal`/`numeric(10,2)`,
+como definido pelo modelo.
 
 **Complementos físicos.** O DDL original deixa `varchar` sem limite e os campos de auditoria
 anuláveis. A V11 limita nomes/descrições, acrescenta `CHECK`s para preços e limites de seleção,

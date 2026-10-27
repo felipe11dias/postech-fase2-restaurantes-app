@@ -38,7 +38,7 @@ class ProductGatewayTest {
         gateway = ProductGateway.create(dataSource);
         restaurantId = UUID.randomUUID();
         productId = UUID.randomUUID();
-        data = new ProductData(productId, restaurantId, "Pizza", "Descrição", 20.0,
+        data = new ProductData(productId, restaurantId, "Pizza", "Descrição", new BigDecimal("20.00"),
                 false, List.of("/images/pizza.jpg"),
                 List.of(new ProductOptionGroupData("Tamanho", true, 1, 1,
                         List.of(new ProductOptionValueData("Grande", new BigDecimal("2.50"))))));
@@ -73,7 +73,7 @@ class ProductGatewayTest {
         when(dataSource.insert(any())).thenReturn(data);
         when(dataSource.update(any())).thenReturn(data);
         Product product = Product.restore(productId, restaurantId, "Pizza", "Descrição",
-                20.0, false, List.of("/images/pizza.jpg"),
+                new BigDecimal("20.00"), false, List.of("/images/pizza.jpg"),
                 List.of(new com.postech.restaurantes.domain.entity.product.ProductOptionGroup(
                         "Tamanho", true, 1, 1, List.of(new com.postech.restaurantes.domain.entity.product
                                 .ProductOptionValue("Grande", new BigDecimal("2.50"))))));

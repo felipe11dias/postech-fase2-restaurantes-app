@@ -18,6 +18,8 @@
 - Adicionados 20 requests Postman para os caminhos felizes e erros documentados; os cenários de produto rodam antes da limpeza do segundo dono descartável. Execução Newman e geração dos prints aguardam Docker.
 - Implementação do catálogo alinhada à descrição da tarefa: o JSON recebe `imagePaths`, e o banco persiste essas referências textuais em `images.content`; `products.price` usa `double`.
 - Validação após a troca do contrato de imagem: `mvn verify` passou com 821 testes unitários e 140 de integração; JaCoCo conferiu 100% de linhas e ramos. `ProductCatalogIT` confirmou gravação e retorno de caminhos no PostgreSQL.
+- V14 converte `products.price` para `numeric(10,2)`; domínio, DTOs, records de dados, views e entidade JPA passam a usar `BigDecimal`, evitando aproximação binária em valores monetários.
+- Validação da alteração: `mvn test` passou com 851 testes unitários, 100% de cobertura (2519 linhas e 592 ramos); `mvn verify -Dit.test=ProductCatalogIT,SchemaMigrationIT -Dtest=NoSuch -Dsurefire.failIfNoSpecifiedTests=false` passou com 22 testes de integração e gate de cobertura atendido.
 
 ## Etapa 16 — Módulo de Gestão de Restaurantes (Imagem 2)
 - Criação da tabela `restaurants` via Flyway migration `V3__create_restaurant_schema.sql` com chaves estrangeiras vinculadas a `users` e `addresses`.

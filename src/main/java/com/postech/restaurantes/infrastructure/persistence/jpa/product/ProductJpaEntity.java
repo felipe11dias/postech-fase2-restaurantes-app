@@ -12,6 +12,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -35,8 +36,8 @@ public class ProductJpaEntity {
     @Column(name = "description", length = 1000)
     private String description;
 
-    @Column(name = "price", nullable = false)
-    private double price;
+    @Column(name = "price", nullable = false, precision = 10, scale = 2)
+    private BigDecimal price;
 
     @Column(name = "is_dine_in_only", nullable = false)
     private boolean dineInOnly;
@@ -77,11 +78,11 @@ public class ProductJpaEntity {
         this.description = description;
     }
 
-    public double getPrice() {
+    public BigDecimal getPrice() {
         return price;
     }
 
-    public void setPrice(double price) {
+    public void setPrice(BigDecimal price) {
         this.price = price;
     }
 

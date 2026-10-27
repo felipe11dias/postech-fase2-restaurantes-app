@@ -1,5 +1,6 @@
 package com.postech.restaurantes.adapter.datasource.data;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -9,7 +10,7 @@ public record ProductData(
         UUID restaurantId,
         String name,
         String description,
-        double price,
+        BigDecimal price,
         boolean dineInOnly,
         List<String> imagePaths,
         List<ProductOptionGroupData> optionGroups

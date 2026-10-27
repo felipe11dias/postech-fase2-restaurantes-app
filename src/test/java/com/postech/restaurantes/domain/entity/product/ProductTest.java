@@ -23,14 +23,14 @@ class ProductTest {
     @DisplayName("Cria produto com imagens e grupos de opções")
     void deveCriarQuandoValido() {
         String image = "/images/pizza.jpg";
-        Product product = Product.create(RESTAURANT_ID, "Pizza", "Descrição", 49.90,
+        Product product = Product.create(RESTAURANT_ID, "Pizza", "Descrição", new BigDecimal("49.90"),
                 false, List.of(image), List.of(GROUP));
 
         assertNull(product.getId());
         assertEquals(RESTAURANT_ID, product.getRestaurantId());
         assertEquals("Pizza", product.getName());
         assertEquals("Descrição", product.getDescription());
-        assertEquals(49.90, product.getPrice());
+        assertEquals(new BigDecimal("49.90"), product.getPrice());
         assertEquals(image, product.getImagePaths().getFirst());
         assertEquals(List.of(GROUP), product.getOptionGroups());
     }
@@ -39,7 +39,7 @@ class ProductTest {
     @DisplayName("Restaura produto com identificador")
     void deveRestaurarProduto() {
         UUID id = UUID.randomUUID();
-        Product product = Product.restore(id, RESTAURANT_ID, "Pizza", null, 0,
+        Product product = Product.restore(id, RESTAURANT_ID, "Pizza", null, BigDecimal.ZERO,
                 true, List.of(), List.of());
 
         assertEquals(id, product.getId());
@@ -50,41 +50,41 @@ class ProductTest {
     @DisplayName("Recusa id, restaurante, nome, preço, imagens ou grupos inválidos")
     void deveRecusarDadosInvalidos() {
         assertThrows(IllegalArgumentException.class,
-                () -> Product.restore(null, RESTAURANT_ID, "Pizza", null, 1, false, List.of(), List.of()));
+                () -> Product.restore(null, RESTAURANT_ID, "Pizza", null, BigDecimal.ONE, false, List.of(), List.of()));
         assertThrows(IllegalArgumentException.class,
-                () -> Product.create(null, "Pizza", null, 1, false, List.of(), List.of()));
+                () -> Product.create(null, "Pizza", null, BigDecimal.ONE, false, List.of(), List.of()));
         assertThrows(IllegalArgumentException.class,
-                () -> Product.create(RESTAURANT_ID, " ", null, 1, false, List.of(), List.of()));
+                () -> Product.create(RESTAURANT_ID, " ", null, BigDecimal.ONE, false, List.of(), List.of()));
         assertThrows(IllegalArgumentException.class,
-                () -> Product.create(RESTAURANT_ID, "Pizza", null, Double.NaN, false, List.of(), List.of()));
+                () -> Product.create(RESTAURANT_ID, "Pizza", null, null, false, List.of(), List.of()));
         assertThrows(IllegalArgumentException.class,
-                () -> Product.create(RESTAURANT_ID, "Pizza", null, -1, false, List.of(), List.of()));
+                () -> Product.create(RESTAURANT_ID, "Pizza", null, new BigDecimal("-0.01"), false, List.of(), List.of()));
         assertThrows(IllegalArgumentException.class,
-                () -> Product.create(RESTAURANT_ID, "Pizza", null, Double.POSITIVE_INFINITY, false, List.of(), List.of()));
+                () -> Product.create(RESTAURANT_ID, "Pizza", null, new BigDecimal("0.001"), false, List.of(), List.of()));
         assertThrows(IllegalArgumentException.class,
-                () -> Product.create(RESTAURANT_ID, "Pizza", null, Double.NEGATIVE_INFINITY, false, List.of(), List.of()));
+                () -> Product.create(RESTAURANT_ID, "Pizza", null, new BigDecimal("100000000"), false, List.of(), List.of()));
         assertThrows(IllegalArgumentException.class,
-                () -> Product.create(RESTAURANT_ID, "Pizza", null, 1, false, null, List.of()));
+                () -> Product.create(RESTAURANT_ID, "Pizza", null, BigDecimal.ONE, false, null, List.of()));
         assertThrows(IllegalArgumentException.class,
-                () -> Product.create(RESTAURANT_ID, "Pizza", null, 1, false,
+                () -> Product.create(RESTAURANT_ID, "Pizza", null, BigDecimal.ONE, false,
                         Arrays.asList("/images/pizza.jpg", null), List.of()));
         assertThrows(IllegalArgumentException.class,
-                        () -> Product.create(RESTAURANT_ID, "Pizza", null, 1, false, List.of(" "), List.of()));
+                        () -> Product.create(RESTAURANT_ID, "Pizza", null, BigDecimal.ONE, false, List.of(" "), List.of()));
         assertThrows(IllegalArgumentException.class,
-                        () -> Product.create(RESTAURANT_ID, "Pizza", null, 1, false, List.of("x".repeat(2049)), List.of()));
+                        () -> Product.create(RESTAURANT_ID, "Pizza", null, BigDecimal.ONE, false, List.of("x".repeat(2049)), List.of()));
         assertThrows(IllegalArgumentException.class,
-                () -> Product.create(RESTAURANT_ID, "Pizza", null, 1, false, List.of(), null));
+                () -> Product.create(RESTAURANT_ID, "Pizza", null, BigDecimal.ONE, false, List.of(), null));
         assertThrows(IllegalArgumentException.class,
-                () -> Product.create(RESTAURANT_ID, "Pizza", null, 1, false, List.of(), Arrays.asList(GROUP, null)));
+                () -> Product.create(RESTAURANT_ID, "Pizza", null, BigDecimal.ONE, false, List.of(), Arrays.asList(GROUP, null)));
         assertThrows(IllegalArgumentException.class,
-                () -> Product.restore(UUID.randomUUID(), null, "Pizza", null, 1, false, List.of(), List.of()));
+                () -> Product.restore(UUID.randomUUID(), null, "Pizza", null, BigDecimal.ONE, false, List.of(), List.of()));
     }
 
     @Test
     @DisplayName("Normaliza descrição e mantém listas imutáveis")
     void deveNormalizarDescricaoEImpedirAlteracaoDasListas() {
         String image = "/images/pizza.jpg";
-        Product product = Product.create(RESTAURANT_ID, "Pizza", "  ", 1,
+        Product product = Product.create(RESTAURANT_ID, "Pizza", "  ", BigDecimal.ONE,
                 false, new ArrayList<>(List.of(image)), List.of(GROUP));
 
         assertNull(product.getDescription());
@@ -97,15 +97,18 @@ class ProductTest {
     @Test
     @DisplayName("Setters validam os novos valores antes de alterar o estado")
     void deveValidarAlteracoes() {
-        Product product = Product.create(RESTAURANT_ID, "Pizza", null, 1,
+        Product product = Product.create(RESTAURANT_ID, "Pizza", null, BigDecimal.ONE,
                 false, List.of(), List.of());
 
         assertThrows(IllegalArgumentException.class, () -> product.setName(""));
-        assertThrows(IllegalArgumentException.class, () -> product.setPrice(Double.NaN));
+        assertThrows(IllegalArgumentException.class, () -> product.setPrice(null));
+        assertThrows(IllegalArgumentException.class, () -> product.setPrice(new BigDecimal("-0.01")));
+        assertThrows(IllegalArgumentException.class, () -> product.setPrice(new BigDecimal("1.001")));
+        assertThrows(IllegalArgumentException.class, () -> product.setPrice(new BigDecimal("100000000")));
         assertThrows(IllegalArgumentException.class, () -> product.replaceImagePaths(null));
         assertThrows(IllegalArgumentException.class, () -> product.replaceOptionGroups(null));
         assertEquals("Pizza", product.getName());
-        assertEquals(1, product.getPrice());
+        assertEquals(BigDecimal.ONE, product.getPrice());
     }
 
     @Test

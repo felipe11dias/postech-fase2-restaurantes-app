@@ -11,6 +11,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -19,7 +20,7 @@ public record ProductRequest(
         @Schema(example = "Pizza Margherita") @NotBlank @Size(max = 150) String name,
         @Schema(example = "Molho de tomate, mozzarella e manjericão")
         @Size(max = 1000) String description,
-        @Schema(example = "49.90") @NotNull @PositiveOrZero Double price,
+        @Schema(example = "49.90") @NotNull @PositiveOrZero @Digits(integer = 8, fraction = 2) BigDecimal price,
         @Schema(example = "false") boolean dineInOnly,
         @Schema(description = "Caminhos ou URLs das imagens do produto",
                 example = "[\"/images/pizza.jpg\"]")

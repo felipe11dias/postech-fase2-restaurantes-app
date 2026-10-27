@@ -1,6 +1,7 @@
 package com.postech.restaurantes.domain.entity.product;
 
 import com.postech.restaurantes.domain.Guard;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -12,7 +13,7 @@ public final class Product {
     private final UUID restaurantId;
     private String name;
     private String description;
-    private double price;
+    private BigDecimal price;
     private boolean dineInOnly;
     private List<String> imagePaths;
     private List<ProductOptionGroup> optionGroups;
@@ -21,21 +22,21 @@ public final class Product {
         this.restaurantId = restaurantId;
     }
 
-    public static Product create(UUID restaurantId, String name, String description, double price,
+    public static Product create(UUID restaurantId, String name, String description, BigDecimal price,
                                  boolean dineInOnly, List<String> imagePaths,
                                  List<ProductOptionGroup> optionGroups) {
         return fill(new Product(null, restaurantId), name, description, price, dineInOnly,
                 imagePaths, optionGroups);
     }
 
-    public static Product restore(UUID id, UUID restaurantId, String name, String description, double price,
+    public static Product restore(UUID id, UUID restaurantId, String name, String description, BigDecimal price,
                                   boolean dineInOnly, List<String> imagePaths,
                                   List<ProductOptionGroup> optionGroups) {
         Product product = new Product(Guard.requireNonNull(id, "Id do produto inválido"), restaurantId);
         return fill(product, name, description, price, dineInOnly, imagePaths, optionGroups);
     }
 
-    private static Product fill(Product product, String name, String description, double price,
+    private static Product fill(Product product, String name, String description, BigDecimal price,
                                 boolean dineInOnly, List<String> imagePaths,
                                 List<ProductOptionGroup> optionGroups) {
         Guard.requireNonNull(product.restaurantId, "Id do restaurante inválido");
@@ -56,8 +57,11 @@ public final class Product {
         this.description = Guard.trimToNull(description);
     }
 
-    public void setPrice(double price) {
-        Guard.require(Double.isFinite(price) && price >= 0, "Preço do produto inválido");
+    public void setPrice(BigDecimal price) {
+        Guard.requireNonNull(price, "Preço do produto inválido");
+        Guard.require(price.signum() >= 0 && price.scale() <= 2
+                        && price.precision() - price.scale() <= 8,
+                "Preço do produto inválido");
         this.price = price;
     }
 
@@ -97,7 +101,7 @@ public final class Product {
         return description;
     }
 
-    public double getPrice() {
+    public BigDecimal getPrice() {
         return price;
     }
 

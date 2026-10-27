@@ -10,7 +10,7 @@ public record ProductView(
         UUID restaurantId,
         String name,
         String description,
-        double price,
+        BigDecimal price,
         boolean dineInOnly,
         List<String> imagePaths,
         List<ProductOptionGroupView> optionGroups

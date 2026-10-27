@@ -51,11 +51,11 @@ class ProductRestControllerTest {
                 new ServletRequestAttributes(new MockHttpServletRequest()));
         restaurantId = UUID.randomUUID();
         productId = UUID.randomUUID();
-        view = new ProductView(productId, restaurantId, "Pizza", null, 20.0,
+        view = new ProductView(productId, restaurantId, "Pizza", null, new BigDecimal("20.00"),
                 false, List.of("/images/pizza.jpg"), List.of(
                 new ProductView.ProductOptionGroupView("Tamanho", false, 0, 1,
                         List.of(new ProductView.ProductOptionValueView("Grande", BigDecimal.ZERO)))));
-        request = new ProductRequest("Pizza", null, 20.0, false,
+        request = new ProductRequest("Pizza", null, new BigDecimal("20.00"), false,
                 List.of("/images/pizza.jpg"),
                 List.of(new ProductRequest.ProductOptionGroupRequest("Tamanho", false, 0, 1,
                         List.of(new ProductRequest.ProductOptionValueRequest("Grande", BigDecimal.ZERO)))));

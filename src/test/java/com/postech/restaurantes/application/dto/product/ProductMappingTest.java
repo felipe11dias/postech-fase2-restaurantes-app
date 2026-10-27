@@ -13,14 +13,14 @@ import org.junit.jupiter.api.Test;
 class ProductMappingTest {
 
     @Test
-    @DisplayName("Converte caminhos de imagem e preço double para o produto")
+    @DisplayName("Converte caminhos de imagem e preço decimal para o produto")
     void deveConverterDadosDoProduto() {
         String image = "/images/pizza.jpg";
-        ProductDTO dto = new ProductDTO("Pizza", null, 49.90, false, List.of(image), List.of());
+        ProductDTO dto = new ProductDTO("Pizza", null, new BigDecimal("49.90"), false, List.of(image), List.of());
 
         var product = dto.toProduct(UUID.randomUUID());
 
-        assertEquals(49.90, product.getPrice());
+        assertEquals(new BigDecimal("49.90"), product.getPrice());
         assertEquals(image, product.getImagePaths().getFirst());
     }
 

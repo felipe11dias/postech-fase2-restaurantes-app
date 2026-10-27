@@ -275,10 +275,11 @@ Pontos que só ficam claros lendo várias camadas:
   só do lado do restaurante, com `day_of_week` como texto (`?::day_of_week`); a atualização reconcilia por (dia,
   abertura), senão o Hibernate inseriria antes de apagar e violaria `UNIQUE (restaurant_id, day_of_week,
   start_time)`. O dia vem como texto e passa por `OfficeHour.dayOf` (mensagem do domínio).
-- **Catálogo de produtos (Etapa 26, V13).** `Product` é raiz; imagens guardam caminhos/URLs como
+- **Catálogo de produtos (Etapa 27, V13/V14).** `Product` é raiz; imagens guardam caminhos/URLs como
   texto em `images.content` (`varchar(2048)`); a tarefa define que o arquivo não será enviado nem
   usado nesta etapa. A API recebe `imagePaths`; grupos e valores são partes. O preço do produto é
-  `double`/`double precision`, como no modelo; `additional_price` continua decimal.
+  `BigDecimal`/`numeric(10,2)` após a V14 (o modelo lógico declara `double`);
+  `additional_price` continua decimal.
   API aninhada em
   `/api/v1/restaurants/{restaurantId}/products`: leitura pública, escrita por ADMIN/dono. O `PUT`
   substitui as coleções integralmente. A paginação carrega ids e depois o grafo, evitando join-fetch

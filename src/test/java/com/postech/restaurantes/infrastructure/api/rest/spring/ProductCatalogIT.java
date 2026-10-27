@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.postech.restaurantes.LocationFixtures;
 import com.postech.restaurantes.WebIntegrationTestSupport;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +56,7 @@ class ProductCatalogIT extends WebIntegrationTestSupport {
         assertNotNull(created.getHeaders().getLocation());
         UUID productId = UUID.fromString(created.getBody().get("id").asText());
         assertEquals("Pizza", created.getBody().get("name").asText());
+        assertEquals(0, created.getBody().get("price").decimalValue().compareTo(new BigDecimal("25.50")));
         assertEquals("/images/pizza.jpg", created.getBody().at("/imagePaths/0").asText());
         assertEquals("Recheada", created.getBody().at("/optionGroups/0/values/0/name").asText());
 
@@ -62,6 +64,7 @@ class ProductCatalogIT extends WebIntegrationTestSupport {
         ResponseEntity<JsonNode> found = rest.getForEntity(productUri, JsonNode.class);
         assertEquals(HttpStatus.OK, found.getStatusCode());
         assertEquals(productId.toString(), found.getBody().get("id").asText());
+        assertEquals(0, found.getBody().get("price").decimalValue().compareTo(new BigDecimal("25.50")));
         assertEquals(1, rest.getForEntity(products + "?page=0&size=10", JsonNode.class)
                 .getBody().get("_embedded").get("productResponseList").size());
 
@@ -82,7 +85,7 @@ class ProductCatalogIT extends WebIntegrationTestSupport {
         return Map.of(
                 "name", name,
                 "description", "Produto de integração",
-                "price", 25.50,
+                "price", new BigDecimal("25.50"),
                 "dineInOnly", false,
                 "imagePaths", List.of(image),
                 "optionGroups", List.of(Map.of(
