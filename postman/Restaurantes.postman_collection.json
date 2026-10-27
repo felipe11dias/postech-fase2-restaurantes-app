@@ -5132,7 +5132,7 @@
       "name": "17 Location catalog (read only)",
       "item": [
         {
-          "name": "126 List seeded states",
+          "name": "126 Listagem dos estados da seed",
           "event": [
             {
               "listen": "test",
@@ -5152,7 +5152,7 @@
           }
         },
         {
-          "name": "127 Search seeded cities",
+          "name": "127 Busca de cidades da seed",
           "event": [
             {
               "listen": "test",
@@ -5172,7 +5172,7 @@
           }
         },
         {
-          "name": "128 Reject invalid catalog pagination",
+          "name": "128 Paginação inválida do catálogo",
           "event": [
             {
               "listen": "test",
@@ -5192,7 +5192,7 @@
           }
         },
         {
-          "name": "129 Reject address without city",
+          "name": "129 Autocadastro com endereço sem cidade",
           "event": [
             {
               "listen": "prerequest",
@@ -5235,7 +5235,7 @@
           }
         },
         {
-          "name": "130 Reject address with unknown city",
+          "name": "130 Autocadastro com endereço com cidade inexistente",
           "event": [
             {
               "listen": "prerequest",
