@@ -6,13 +6,15 @@ plataforma única, em vez de manter sistemas individuais caros, para que o clien
 comer pela qualidade da comida, não pela do sistema.
 
 A Fase 2 reconstrói a base em **Clean Architecture**, com testes automatizados em dois níveis e
-execução completa em Docker Compose. O relatório técnico, organizado por etapa de
-desenvolvimento, está em [`relatorios/`](relatorios/).
+execução completa em Docker Compose. O relatório técnico atual é a
+[versão 3.0](relatorios/relatorio-tech-challenge-fase02-v3.0.md), que consolida a entrega de
+endereços e suas evidências. As [versões anteriores](relatorios/) foram preservadas para
+consulta e comparação do histórico.
 
 ## Estado da entrega
 
-Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo é a da branch
-`etapa-25-revisao-modelo-v2`, última das 25 etapas do relatório técnico.
+Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo contempla as 26 etapas
+registradas no relatório técnico v3.0, incluindo endereços e catálogo geográfico.
 
 | Requisito do enunciado | Estado |
 | --- | --- |
@@ -31,9 +33,9 @@ Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo é a da
 | Clean Architecture em camadas | ✅ Quatro camadas, verificadas no build (ArchUnit, 48 regras) |
 | Testes: unitários com 80% e de integração | ✅ 734 unitários com **100%** de linhas e ramos; 142 de integração com PostgreSQL real |
 | Documentação (arquitetura, endpoints, execução) | ✅ Este README, o relatório técnico, o Swagger, `docs/arquitetura/` e `docs/modelo-dados/` |
-| Coleção Postman | ✅ 130 requests; inclui catálogo geográfico e validação de cidade. Os 125 prints anteriores foram preservados; os cinco casos novos ainda não têm prints |
+| Coleção Postman | 130 requests e 130 prints; os 11 casos de endereços têm 28 asserções aprovadas. A ressalva da execução completa no request 92 está registrada no relatório v3.0 |
 | Docker Compose (aplicação e banco) | ✅ Aplicação, PostgreSQL e Mailpit |
-| Repositório aberto | ✅ Público; a `main` ainda não recebeu as Etapas 17 a 25 (estão nas branches `etapa-NN-*`) |
+| Repositório aberto | ✅ Público, com histórico por etapa |
 | Vídeo de apresentação (cerca de 5 minutos) | ⏳ Pendente — depende das funcionalidades acima |
 
 ## Endereços e catálogo de localidades
@@ -316,12 +318,15 @@ npx newman@6 run postman/Restaurantes.postman_collection.json
 
 Se você mudou as portas no `.env`, sobrescreva as variáveis:
 `--env-var baseUrl=http://localhost:8081 --env-var mailpitUrl=http://localhost:8026`.
+Para o pré-request do caso 92, ajuste também `baseUrl` nas variáveis da própria coleção:
+ele lê esse valor diretamente, mesmo quando há uma variável de ambiente com o mesmo nome.
 
-Os **prints** de cada request estão em [`postman/prints/`](postman/prints/), numerados na ordem da
-coleção. Foram gerados a partir de uma única execução do Newman contra a pilha do Docker
-Compose: cada imagem mostra o request, a resposta e os testes daquela chamada (tokens JWT
-aparecem abreviados). Para gerá-los de novo — por exemplo, depois de acrescentar requests —, com a
-pilha no ar:
+Os **130 prints** estão em [`postman/prints/`](postman/prints/), numerados na ordem da coleção.
+Os 11 casos de endereços vieram da execução de 23/10/2026 na porta 8081: seis imagens foram
+atualizadas e cinco acrescentadas, mantendo as outras 119 evidências. O relatório v3.0 traz
+os links desses casos e a ressalva da falha auxiliar no request 92. Cada imagem mostra o
+request, a resposta e os testes daquela chamada (tokens JWT aparecem abreviados).
+Para regenerar a coleção completa, com a pilha no ar:
 
 ```bash
 npx newman@6 run postman/Restaurantes.postman_collection.json --reporters cli,json --reporter-json-export target/newman.json
