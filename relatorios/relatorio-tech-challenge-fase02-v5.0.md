@@ -127,7 +127,8 @@ sem alterar o repositório; a correção fica para a etapa dona da configuraçã
 ## Documentação e coleção Postman
 
 A branch atualiza o README, o changelog, as orientações do projeto (`CLAUDE.md`) e os documentos das
-camadas em `docs/arquitetura/` (01, 02 e 04). A documentação OpenAPI inclui as operações do catálogo,
+camadas em `docs/arquitetura/` (01, 02 e 04). Em `docs/modelo-dados/README.md`, as duas tabelas saem de "etapas
+futuras" e ganham o quadro modelo × schema da V15. A documentação OpenAPI inclui as operações do catálogo,
 segurança, respostas de sucesso e categorias de erro.
 
 A coleção `postman/Restaurantes.postman_collection.json` ganhou a pasta **"19 Tipos de cozinha"**, com
