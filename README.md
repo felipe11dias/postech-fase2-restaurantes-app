@@ -15,6 +15,15 @@ foram preservadas para consulta e comparação do histórico.
 
 Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo contempla as 27 etapas
 registradas, incluindo endereços, catálogo geográfico e catálogo de produtos.
+execução completa em Docker Compose. O relatório técnico atual é a
+[versão 3.0](relatorios/relatorio-tech-challenge-fase02-v3.0.md), que consolida a entrega de
+endereços e suas evidências. As [versões anteriores](relatorios/) foram preservadas para
+consulta e comparação do histórico.
+
+## Estado da entrega
+
+Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo contempla as 26 etapas
+registradas no relatório técnico v3.0, incluindo endereços e catálogo geográfico.
 
 | Requisito do enunciado | Estado |
 | --- | --- |
@@ -34,6 +43,7 @@ registradas, incluindo endereços, catálogo geográfico e catálogo de produtos
 | Testes: unitários com 80% e de integração | ✅ 851 unitários com **100%** de linhas e ramos; testes direcionados de produto e migrations com PostgreSQL real |
 | Documentação (arquitetura, endpoints, execução) | ✅ Este README, o relatório técnico, o Swagger, `docs/arquitetura/` e `docs/modelo-dados/` |
 | Coleção Postman | ✅ 151 requests; execução completa com 308 asserções aprovadas. Prints dos 20 requests de produtos em `postman/prints-product/` |
+| Coleção Postman | 130 requests e 130 prints; os 11 casos de endereços têm 28 asserções aprovadas. A ressalva da execução completa no request 92 está registrada no relatório v3.0 |
 | Docker Compose (aplicação e banco) | ✅ Aplicação, PostgreSQL e Mailpit |
 | Repositório aberto | ✅ Público, com histórico por etapa |
 | Vídeo de apresentação (cerca de 5 minutos) | ⏳ Pendente — depende das funcionalidades acima |
@@ -354,6 +364,15 @@ endereços estão em [`postman/prints-address/`](postman/prints-address/) e os 2
 produtos em [`postman/prints-product/`](postman/prints-product/). Os prints de produto mostram
 request, resposta e testes da chamada (tokens JWT aparecem abreviados). Para regenerar os prints
 da coleção completa — por exemplo, depois de acrescentar requests —, com a pilha no ar:
+Para o pré-request do caso 92, ajuste também `baseUrl` nas variáveis da própria coleção:
+ele lê esse valor diretamente, mesmo quando há uma variável de ambiente com o mesmo nome.
+
+Os **130 prints** estão em [`postman/prints/`](postman/prints/), numerados na ordem da coleção.
+Os 11 casos de endereços vieram da execução de 23/10/2026 na porta 8081: seis imagens foram
+atualizadas e cinco acrescentadas, mantendo as outras 119 evidências. O relatório v3.0 traz
+os links desses casos e a ressalva da falha auxiliar no request 92. Cada imagem mostra o
+request, a resposta e os testes daquela chamada (tokens JWT aparecem abreviados).
+Para regenerar a coleção completa, com a pilha no ar:
 
 ```bash
 npx newman@6 run postman/Restaurantes.postman_collection.json --reporters cli,json --reporter-json-export target/newman.json

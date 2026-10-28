@@ -1,5 +1,11 @@
 # Changelog — Restaurantes (Fase 2)
 
+## Documentação — Relatório técnico v3.0
+- Criado `relatorios/relatorio-tech-challenge-fase02-v3.0.md` a partir do padrão da versão 2.0, preservando os arquivos das versões 1.0 e 2.0 para controle e histórico.
+- Consolidada a Etapa 26 com arquitetura de endereços/localidades, contrato HTTP, migrations V11/V12, testes existentes e links para os 11 prints integrados a `postman/prints/`.
+- Registrada a execução de 23/10/2026: 11 casos de endereços e 28 asserções aprovadas; a execução completa teve uma falha auxiliar de conexão no request 92, descrita separadamente.
+- README aponta para o relatório v3.0 e registra as 130 imagens atuais. Alteração documental, sem nova execução Maven/Newman ou mudança no código da aplicação.
+
 ## Etapa 26 — Correção do merge e catálogo de endereços
 - Corrigidos imports, conversões de `Address`, vínculos `UserAddress` e referências ao antigo catálogo de papéis que quebravam a compilação após o merge com a main.
 - `cityId` obrigatório em `Address`, `AddressDTO`, `AddressData` e `AddressRequest`; `AddressView` exige `CityView` com id e estado válidos. Construtores alternativos que omitiam cidade foram removidos.
