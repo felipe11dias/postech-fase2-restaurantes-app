@@ -5,13 +5,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (28 até aqui; as Etapas 17 a 25 adequaram o projeto ao Modelo de Dados v2 em
-`docs/modelo-dados/`, a 25 traz o quadro final "modelo v2 × schema real", a 26 integra endereços e catálogo geográfico, a 27 o catálogo de produtos e a 28 os tipos de cozinha) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
-`CHANGELOG.md`, e atualização do relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (marcar a etapa
-como ✅ no Sumário de Progresso, atualizar o contador e acrescentar a subseção
-"O que foi entregue nesta etapa" com o resultado real do build). O relatório é a
-especificação: leia a seção da etapa antes de implementá-la e sincronize os exemplos de
-código dele com o que foi de fato escrito.
+Architecture**. O projeto foi entregue **etapa por etapa** (29 até aqui; as Etapas 17 a 25 adequaram o projeto ao Modelo de Dados v2 em
+`docs/modelo-dados/`, a 25 traz o quadro final "modelo v2 × schema real", a 26 integra endereços e catálogo geográfico, a 27 o catálogo de produtos, a 28 os tipos de cozinha e a 29 é a revisão final da entrega) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
+`CHANGELOG.md` (uma seção por etapa, em ordem crescente, com autor, PR e data abaixo do título), e atualização do
+relatório técnico vigente, `relatorios/relatorio-tech-challenge-fase02-final.md` (marcar a etapa como ✅ no Sumário de
+Progresso, atualizar o contador, acrescentar a subseção da etapa com o conceito de cada decisão e o resultado real do
+build, e atualizar a conformidade com o enunciado e a participação de cada integrante). As versões v1.0 a v5.0 em
+`relatorios/` são histórico: não se editam, e trazem os exemplos de código de cada etapa na época.
+
+O enunciado da fase (`ADJ_Fase 2 - Tech Challenge`) é a régua da entrega. O único requisito atendido por desvio
+consciente é o CRUD de "tipo de usuário": o tipo é o perfil (dono, cliente, entregador, administrador), com tabela,
+campos e regras próprios, associado ao usuário pelos endpoints `/users/{id}/profiles/…`; a justificativa está na
+seção 8 do relatório final. Não criar um catálogo editável de tipos sem rever essa decisão.
 
 Identificadores novos ou alterados do código e testes: inglês. Documentação, comentários e mensagens ao usuário podem permanecer em português. Os testes legados em português continuam aceitos, sem renomeação geral fora do escopo.
 
@@ -442,7 +447,8 @@ Pontos que só ficam claros lendo várias camadas:
 
 - **Endpoint novo entra na coleção** (`postman/Restaurantes.postman_collection.json`): um request
   para o sucesso e um para cada `@ErrorResponse` da operação, na pasta da operação, conferindo
-  status e `type`. O JSON da coleção é a fonte de verdade — edite no Postman ou à mão.
+  status e `type`. Os nomes de pastas e requests começam pelo número da **posição de execução** (01, 02…); request
+  novo no meio renumera os seguintes (e os prints são regenerados), para nome de print nunca repetir. O JSON da coleção é a fonte de verdade — edite no Postman ou à mão.
 - Casos de acesso negado miram um cadastro **descartável criado pela coleção**, nunca a seed; a
   coleção exclui o que cria. Ela precisa poder rodar várias vezes contra o mesmo banco. Caso que só a
   seed pode exercitar (excluir o último administrador → 409) confirma a pré-condição antes, no pré-request

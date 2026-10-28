@@ -10,8 +10,13 @@ São **documentos de referência**, não migrations: o Flyway só executa o que 
 A adequação, com o quadro antes × v2, os enums e cada etapa, está no relatório técnico — seção
 "Modelo de Dados v2 — adequação" de
 [`relatorio-tech-challenge-fase02-v2.0.md`](../../relatorios/relatorio-tech-challenge-fase02-v2.0.md); o
-quadro final, tabela por tabela, com o schema real até V10, está na Etapa 25; a V11 e as tabelas
-de produtos estão documentadas na Etapa 27 do mesmo relatório.
+quadro final, tabela por tabela, com o schema real até V10, está na Etapa 25 do mesmo relatório. A
+normalização do endereço por cidade e estado (V11/V12) está na Etapa 26
+([v3.0](../../relatorios/relatorio-tech-challenge-fase02-v3.0.md)), as tabelas de produtos (V13/V14) na
+Etapa 27 ([v4.0](../../relatorios/relatorio-tech-challenge-fase02-v4.0.md)) e os tipos de cozinha
+(V15 a V17) na Etapa 28 ([v5.0](../../relatorios/relatorio-tech-challenge-fase02-v5.0.md)). O
+[relatório final](../../relatorios/relatorio-tech-challenge-fase02-final.md) resume tudo e traz as
+divergências numa tabela só.
 
 ## Escopo implementado (Etapas 17 a 28)
 
@@ -40,6 +45,16 @@ de produtos estão documentadas na Etapa 27 do mesmo relatório.
 | Chaves estrangeiras `DEFERRABLE INITIALLY IMMEDIATE` | Não adiáveis: o efeito é o mesmo (conferidas a cada comando), e nenhuma transação precisa adiá-las |
 | — (não está no modelo) | Garantias a mais no schema: `CHECK` de CNH e placa por tipo de veículo, `CHECK` de abertura ≠ fechamento, gatilho "um CPF, uma pessoa" entre `clients` e `couriers`, gatilho "ao menos um administrador" em `admins`, `restaurants.user_id → owners` |
 
+## Localidades: modelo × schema da V11 e da V12
+
+| Tabela / ponto | No modelo | No schema físico (V11) | Por quê |
+| --- | --- | --- | --- |
+| `states` | `name` e `acronym` `varchar` anuláveis | `name VARCHAR(100) NOT NULL`, `acronym VARCHAR(2) NOT NULL UNIQUE` | estado sem nome ou sigla não identifica nada; a sigla é a chave natural |
+| `cities` | `name` `varchar` anulável | `name VARCHAR(100) NOT NULL`, `UNIQUE (state_id, name)` | a mesma cidade não pode aparecer duas vezes no mesmo estado |
+| `cities.state_id → states` e `addresses.city_id → cities` | FK sem ação, `DEFERRABLE INITIALLY IMMEDIATE` | `ON DELETE RESTRICT`, não adiáveis | catálogo referenciado não sai enquanto houver endereço apontando para ele; o efeito de "imediata" é o mesmo |
+| `addresses.city_id` | `NOT NULL` | `NOT NULL`, preenchida pela conversão dos textos de cidade/UF dos endereços existentes | a V11 preserva ids e vínculos de um banco na V10 |
+| Carga inicial | — | V12: as 27 unidades federativas, as capitais e Campinas, com ids fixos | catálogo sem API de escrita: municípios novos entram por migration |
+
 ## Produtos: diagrama do modelo × schema da V13
 
 As quatro tabelas abaixo foram conferidas no diagrama PDF fornecido e no DDL exportado do modelo.
@@ -62,7 +77,7 @@ dígitos inteiros e duas casas decimais. `additional_price` permanece `BigDecima
 como definido pelo modelo.
 
 **Complementos físicos.** O DDL original deixa `varchar` sem limite e os campos de auditoria
-anuláveis. A V11 limita nomes/descrições, acrescenta `CHECK`s para preços e limites de seleção,
+anuláveis. A V13 limita nomes/descrições, acrescenta `CHECK`s para preços e limites de seleção,
 e torna `created_at`/`last_updated_at` obrigatórios nas tabelas auditáveis. O índice em
 `products.restaurant_id` atende à listagem por restaurante. As FKs mantêm as cascatas declaradas
 pelo modelo.

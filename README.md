@@ -6,15 +6,17 @@ plataforma única, em vez de manter sistemas individuais caros, para que o clien
 comer pela qualidade da comida, não pela do sistema.
 
 A Fase 2 reconstrói a base em **Clean Architecture**, com testes automatizados em dois níveis e
-execução em Docker Compose. O relatório técnico atual é a
-[versão 5.0](relatorios/relatorio-tech-challenge-fase02-v5.0.md), com as alterações da Etapa 28
-para os tipos de cozinha. As [versões anteriores](relatorios/)
-foram preservadas para consulta e comparação do histórico.
+execução em Docker Compose. O documento de referência da entrega é o
+[relatório final](relatorios/relatorio-tech-challenge-fase02-final.md), que consolida as 29 etapas,
+a conformidade com o enunciado, a participação de cada integrante e o roteiro do vídeo. As
+[versões anteriores](relatorios/) (v1.0 a v5.0) foram preservadas como histórico detalhado de cada
+etapa, com os exemplos de código da época.
 
 ## Estado da entrega
 
-Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo contempla as 28 etapas
-registradas, incluindo endereços, catálogo geográfico, catálogo de produtos e tipos de cozinha.
+Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo contempla as 29 etapas
+registradas, incluindo endereços, catálogo geográfico, catálogo de produtos, tipos de cozinha e a
+revisão final da entrega.
 
 | Requisito do enunciado | Estado |
 | --- | --- |
@@ -23,7 +25,7 @@ registradas, incluindo endereços, catálogo geográfico, catálogo de produtos 
 | Recuperação de senha por e-mail (token de uso único com validade) | ✅ Implementado |
 | Tipo de usuário: distinguir "Dono de Restaurante" e "Cliente" | ✅ Perfis `owner`, `client`, `courier` e `admin`, em tabelas próprias; o papel é derivado do perfil |
 | Tipo de usuário: associar o tipo a usuários **existentes** | ✅ Incluir, alterar e remover perfil em `/api/v1/users/{id}/profiles/…`, valendo na hora |
-| Tipo de usuário: **CRUD de tipos de usuário** (campo "Nome do Tipo") | ⏳ Pendente — os perfis são fixos no modelo de dados v2 e não há catálogo editável; a forma de atender o requisito ainda será decidida |
+| Tipo de usuário: **CRUD de tipos de usuário** (campo "Nome do Tipo") | ⚠️ Atendido pelos perfis, como desvio consciente — o "tipo" é o perfil (dono, cliente, entregador, administrador), com tabela e campos próprios; incluir, alterar, consultar e remover o tipo de um usuário é feito nos endpoints de perfil. Não há catálogo editável só de nomes: a justificativa está no [relatório final](relatorios/relatorio-tech-challenge-fase02-final.md#8-desvios-conscientes) |
 | Cadastro de restaurante: CRUD com nome, endereço, horário de funcionamento e dono | ✅ Implementado — endereço próprio, horário por dia da semana, dono com perfil de dono e regra de posse |
 | Cadastro de restaurante: **tipo de cozinha** | ✅ Implementado — catálogo `/api/v1/cuisines` (leitura pública, manutenção do administrador), `cuisineIds` no restaurante e filtro `?cuisineId=` na listagem |
 | Cadastro de itens do cardápio (nome, descrição, preço, só no local e imagem) | ✅ CRUD de produtos com caminhos/URLs de imagem, grupos/valores de opção e preço decimal (`BigDecimal` / `numeric(10,2)`) |
@@ -33,10 +35,10 @@ registradas, incluindo endereços, catálogo geográfico, catálogo de produtos 
 | Clean Architecture em camadas | ✅ Quatro camadas, verificadas no build (ArchUnit, 48 regras) |
 | Testes: unitários com 80% e de integração | ✅ 939 unitários com **100%** de linhas e ramos; 164 de integração com PostgreSQL real |
 | Documentação (arquitetura, endpoints, execução) | ✅ Este README, o relatório técnico, o Swagger, `docs/arquitetura/` e `docs/modelo-dados/` |
-| Coleção Postman | ✅ 169 requests; cobre usuários, perfis, restaurantes, catálogo geográfico, produtos e tipos de cozinha; um print por request; 343 asserções, sem falhas |
+| Coleção Postman | ✅ 187 requests, um por retorno documentado de cada endpoint; cobre usuários, perfis, restaurantes, catálogo geográfico, produtos e tipos de cozinha; um print por request; 389 asserções, sem falhas, em duas execuções seguidas |
 | Docker Compose (aplicação e banco) | ✅ Aplicação, PostgreSQL e Mailpit |
 | Repositório aberto | ✅ Público, com histórico por etapa |
-| Vídeo de apresentação (cerca de 5 minutos) | ⏳ Pendente — depende das funcionalidades acima |
+| Vídeo de apresentação (cerca de 5 minutos) | ⏳ A gravar — roteiro pronto no [relatório final](relatorios/relatorio-tech-challenge-fase02-final.md#13-vídeo-de-apresentação) |
 
 ## Endereços e catálogo de localidades
 
@@ -298,6 +300,8 @@ Vegetariana, Hamburgueria e Pizzaria), com ids fixos `c0000000-0000-4000-8000-00
 | `GET` | `/api/v1/restaurants/{restaurantId}/products/{productId}` | público | `200` |
 | `PUT` | `/api/v1/restaurants/{restaurantId}/products/{productId}` | dono do restaurante ou administrador | `200` (substitui o produto e suas opções) |
 | `DELETE` | `/api/v1/restaurants/{restaurantId}/products/{productId}` | dono do restaurante ou administrador | `204` |
+| `GET` | `/api/v1/states` | público | `200` lista das 27 unidades federativas |
+| `GET` | `/api/v1/cities?stateId=&name=&page=&size=` | público | `200` página com links de navegação |
 
 **Erros** seguem o `ProblemDetail` da RFC 9457 (`application/problem+json`), com `type`, `title`,
 `status`, `detail`, `instance` e `timestamp`. O `type` identifica a categoria e é estável — é nele
@@ -311,8 +315,8 @@ que o cliente deve se apoiar:
 | `falha-na-autenticacao` | 401 | Login ou senha incorretos (mesma resposta para os dois) |
 | `nao-autenticado` | 401 | Sem token ou token inválido/expirado |
 | `operacao-nao-permitida` | 403 | Restaurante indicado para usuário sem perfil de dono |
-| `acesso-negado` | 403 | Cadastro de outro usuário; listagem por não administrador; restaurante de outro dono |
-| `recurso-nao-encontrado` | 404 | Usuário inexistente; perfil que o usuário não tem; tipo de cozinha inexistente (também em `cuisineIds`) |
+| `acesso-negado` | 403 | Cadastro de outro usuário; listagem por não administrador; restaurante ou produto de outro dono; escrita no catálogo de tipos de cozinha por quem não é administrador |
+| `recurso-nao-encontrado` | 404 | Usuário, restaurante, produto ou cidade inexistente; perfil que o usuário não tem; tipo de cozinha inexistente (também em `cuisineIds`) |
 | `conflito-de-dados` | 409 | E-mail, login, CPF, CNPJ ou nome de tipo de cozinha já cadastrado |
 | `recurso-em-uso` | 409 | Perfil de dono de quem tem restaurante; perfil de administrador ou cadastro do último administrador; tipo de cozinha usado por restaurante |
 | `erro-inesperado` | 500 | Falha não prevista (detalhe genérico; a causa vai para o log) |
@@ -322,7 +326,7 @@ A documentação completa, com exemplos de cada resposta, está no Swagger UI.
 ## Coleção Postman
 
 [`postman/Restaurantes.postman_collection.json`](postman/Restaurantes.postman_collection.json)
-(formato v2.1) tem **169 requests em 19 pastas** (usuários, restaurantes, catálogo geográfico, produtos e tipos de cozinha): um por caso de cada endpoint — o sucesso e cada
+(formato v2.1) tem **187 requests em 19 pastas** (usuários, restaurantes, catálogo geográfico, produtos e tipos de cozinha): um por caso de cada endpoint — o sucesso e cada
 erro previsto —, na ordem em que rodam de cima a baixo. Os scripts de teste conferem o status e
 o `type` de cada erro e guardam `{{adminToken}}`, `{{token}}` e `{{userId}}` para as requisições
 seguintes; se um login ou cadastro essencial falhar, a execução para ali, com o motivo, em vez de
@@ -331,9 +335,7 @@ pela API dele, como o usuário faria.
 
 A pasta de produtos cobre o catálogo: criação, consulta, listagem paginada, substituição e
 exclusão, incluindo os status documentados para validação, autenticação, posse e recurso inexistente.
-Os 20 requests foram executados como parte de uma execução completa: **151 requests, 308
-asserções e nenhuma falha**. Prints dos casos de produtos e o resumo da execução estão em
-[`postman/prints-product/`](postman/prints-product/). Nos requests de criação e atualização,
+Nos requests de criação e atualização,
 `imagePaths` é uma lista de caminhos ou URLs de imagem (por exemplo, `/images/pizza.jpg`). Nenhum
 arquivo é enviado ou armazenado; cada referência é persistida como texto na coluna `images.content`.
 
@@ -366,10 +368,9 @@ npx newman@6 run postman/Restaurantes.postman_collection.json \
 Se as portas do host foram alteradas no `.env`, informe os valores de `APP_PORT` e
 `MAILPIT_UI_PORT` correspondentes com `--env-var baseUrl=...` e `--env-var mailpitUrl=...`.
 
-Os prints completos da coleção estão distribuídos nas pastas [`postman/prints/`](postman/prints/)
-e [`postman/prints-product/`](postman/prints-product/): a primeira contém 130 imagens e a segunda,
-com as evidências dos produtos, contém 20. Cada imagem registra o request, a resposta e os testes
-da chamada; tokens JWT aparecem abreviados.
+Os prints da coleção estão em [`postman/prints/`](postman/prints/): **um por request**, com o número
+do request no nome do arquivo (a numeração segue a ordem de execução, de 01 em diante). Cada imagem
+registra o request, a resposta e os testes da chamada; tokens JWT aparecem abreviados.
 
 Para regenerar os prints da coleção completa com a pilha no ar:
 
@@ -400,7 +401,7 @@ mvn verify    # + testes de integração (Testcontainers) + gate de 100% de cobe
   (unitários) e `target/site/jacoco-it/index.html` (integração).
 - **Arquitetura e convenções:** o ArchUnit verifica a regra de dependência (17 regras), os módulos
   da infraestrutura (24 regras) e as
-  convenções da própria suíte (7 regras: `@DisplayName` em todo teste, nome `deve…`, unitário
+  convenções da própria suíte (7 regras: `@DisplayName` em todo teste, nome `should…`/`shouldNot…` — os legados `deve…` continuam aceitos —, unitário
   sem contexto Spring, integração sem dublê de bean da aplicação…).
 
 ## Estrutura do repositório
@@ -413,6 +414,6 @@ src/main/java/com/postech/restaurantes/
   infrastructure/  módulos substituíveis: main, api/rest/spring, persistence/jpa, token/jwt, crypto, mail/smtp
 src/main/resources/db/migration/   V1–V17 (schema, catálogo, migrações e seeds; V15 a V17: tipos de cozinha)
 postman/                           coleção e prints
-relatorios/                        relatório técnico por etapa (Markdown e PDF)
+relatorios/                        relatório final consolidado e as versões v1.0 a v5.0 (histórico; a v1.0 também em PDF)
 docs/arquitetura/                  cada camada: o que as aulas ensinam, o que os autores dizem, como o projeto faz
 ```
