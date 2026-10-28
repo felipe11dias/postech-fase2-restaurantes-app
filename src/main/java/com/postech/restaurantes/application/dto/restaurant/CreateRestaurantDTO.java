@@ -9,6 +9,7 @@ public record CreateRestaurantDTO(
         UUID userId,
         AddressDTO address,
         String name,
-        List<OfficeHourDTO> officeHours
+        List<OfficeHourDTO> officeHours,
+        List<UUID> cuisineIds
 ) {
 }

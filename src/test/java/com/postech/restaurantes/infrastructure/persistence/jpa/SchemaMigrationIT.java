@@ -73,13 +73,13 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("As quatorze migrations foram aplicadas com sucesso e ficaram registradas no histórico")
+    @DisplayName("As dezessete migrations foram aplicadas com sucesso e ficaram registradas no histórico")
     void deveAplicarAsMigrations() {
         List<String> versoes = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = true AND version IS NOT NULL "
                         + "ORDER BY installed_rank", String.class);
 
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"),
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"),
                 versoes);
     }
 
@@ -90,9 +90,9 @@ class SchemaMigrationIT extends IntegrationTestSupport {
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' "
                         + "AND table_name <> 'flyway_schema_history' ORDER BY table_name", String.class);
 
-        assertEquals(List.of("addresses", "admins", "cities", "clients", "couriers", "images", "owners",
+        assertEquals(List.of("addresses", "admins", "cities", "clients", "couriers", "cuisines", "images", "owners",
                 "password_reset_tokens", "product_option_groups", "product_option_values", "products",
-                "restaurant_office_hours", "restaurants", "states", "user_addresses", "users"), tabelas);
+                "restaurant_cuisines", "restaurant_office_hours", "restaurants", "states", "user_addresses", "users"), tabelas);
     }
 
     @Test
@@ -381,6 +381,85 @@ class SchemaMigrationIT extends IntegrationTestSupport {
                     Integer.class, "a0000000-0000-4000-8000-000000000003"));
         } finally {
             jdbc.update("DELETE FROM users WHERE id = ?", outro);
+        }
+    }
+
+    @Test
+    @DisplayName("O catálogo inicial de tipos de cozinha vem da migration, com id fixo (V16)")
+    void deveSemearOCatalogoDeCozinhas() {
+        List<String> nomes = jdbc.queryForList(
+                "SELECT name FROM cuisines WHERE id::text LIKE 'c0000000-0000-4000-8000-00000000000_' ORDER BY name",
+                String.class);
+
+        assertEquals(8, nomes.size());
+        assertTrue(nomes.containsAll(List.of("Brasileira", "Italiana", "Japonesa", "Árabe")));
+    }
+
+    @Test
+    @DisplayName("O nome do tipo de cozinha ordena pela regra do português, e a seed sai com Árabe primeiro (V17)")
+    void deveOrdenarONomeDoTipoDeCozinhaEmPortugues() {
+        assertEquals("pt-BR-x-icu", jdbc.queryForObject("SELECT collation_name FROM information_schema.columns "
+                + "WHERE table_schema = 'public' AND table_name = 'cuisines' AND column_name = 'name'", String.class));
+
+        List<String> nomes = jdbc.queryForList(
+                "SELECT name FROM cuisines WHERE id::text LIKE 'c0000000-0000-4000-8000-00000000000_' ORDER BY name",
+                String.class);
+
+        assertEquals(List.of("Árabe", "Brasileira", "Hamburgueria", "Italiana", "Japonesa", "Mexicana", "Pizzaria",
+                "Vegetariana"), nomes);
+    }
+
+    @Test
+    @DisplayName("O nome do tipo de cozinha é único sem diferenciar maiúsculas (V15)")
+    void deveRecusarNomeDeCozinhaRepetidoSemDiferenciarMaiusculas() {
+        String insercao = "INSERT INTO cuisines (name, created_at, last_updated_at) VALUES (?, NOW(), NOW())";
+        String nome = "Teste" + UUID.randomUUID().toString().replace("-", "");
+        try {
+            jdbc.update(insercao, nome);
+
+            assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(insercao, nome.toUpperCase()));
+        } finally {
+            jdbc.update("DELETE FROM cuisines WHERE LOWER(name) = LOWER(?)", nome);
+        }
+    }
+
+    @Test
+    @DisplayName("Excluir o restaurante leva as ligações dele; excluir tipo de cozinha em uso é recusado (V15)")
+    void deveLigarRestauranteECozinha() {
+        UUID usuario = UUID.randomUUID();
+        UUID endereco = UUID.randomUUID();
+        UUID restaurante = UUID.randomUUID();
+        UUID cozinha = UUID.randomUUID();
+        try {
+            inserirUsuario(usuario);
+            jdbc.update("INSERT INTO owners (id, cnpj, legal_name, business_phone, created_at, last_updated_at) "
+                    + "VALUES (?, ?, 'Dono Ltda', '1131234567', NOW(), NOW())", usuario, Documentos.cnpj());
+            jdbc.update("INSERT INTO addresses (id, city_id, street, number, neighborhood, zip_code) "
+                    + "VALUES (?, (SELECT c.id FROM cities c JOIN states s ON s.id = c.state_id "
+                    + "WHERE c.name = 'São Paulo' AND s.acronym = 'SP'), 'Rua A', '1', 'Centro', '01001000')", endereco);
+            jdbc.update("INSERT INTO restaurants (id, user_id, address_id, name, created_at, last_updated_at) "
+                    + "VALUES (?, ?, ?, 'Com Cozinha', NOW(), NOW())", restaurante, usuario, endereco);
+            jdbc.update("INSERT INTO cuisines (id, name, created_at, last_updated_at) VALUES (?, ?, NOW(), NOW())",
+                    cozinha, "Teste" + cozinha.toString().replace("-", ""));
+            jdbc.update("INSERT INTO restaurant_cuisines (restaurant_id, cuisine_id) VALUES (?, ?)",
+                    restaurante, cozinha);
+
+            assertThrows(DataIntegrityViolationException.class,
+                    () -> jdbc.update("DELETE FROM cuisines WHERE id = ?", cozinha));
+            assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(
+                    "INSERT INTO restaurant_cuisines (restaurant_id, cuisine_id) VALUES (?, ?)", restaurante, cozinha),
+                    "o mesmo tipo não liga duas vezes ao mesmo restaurante");
+
+            jdbc.update("DELETE FROM restaurants WHERE id = ?", restaurante);
+
+            assertEquals(0, (int) jdbc.queryForObject("SELECT count(*) FROM restaurant_cuisines WHERE restaurant_id = ?",
+                    Integer.class, restaurante));
+            assertEquals(1, jdbc.update("DELETE FROM cuisines WHERE id = ?", cozinha), "sem restaurante, o tipo sai");
+        } finally {
+            jdbc.update("DELETE FROM restaurants WHERE id = ?", restaurante);
+            jdbc.update("DELETE FROM cuisines WHERE id = ?", cozinha);
+            jdbc.update("DELETE FROM users WHERE id = ?", usuario);
+            jdbc.update("DELETE FROM addresses WHERE id = ?", endereco);
         }
     }
 

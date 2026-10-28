@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
 import com.postech.restaurantes.domain.exception.ResourceNotFoundException;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +32,7 @@ class DeleteRestaurantUseCaseTest {
     @DisplayName("Exclui restaurante quando id existe")
     void deveExcluirQuandoExiste() {
         UUID id = UUID.randomUUID();
-        Restaurant r = Restaurant.restore(id, UUID.randomUUID(), address(), "Sabor", OFFICE_HOURS, null, null);
+        Restaurant r = Restaurant.restore(id, UUID.randomUUID(), address(), "Sabor", OFFICE_HOURS, List.of(), null, null);
         when(restaurantGateway.findById(id)).thenReturn(Optional.of(r));
 
         useCase.run(id);

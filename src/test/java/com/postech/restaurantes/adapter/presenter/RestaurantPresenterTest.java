@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.postech.restaurantes.adapter.presenter.view.RestaurantView;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.domain.entity.address.Address;
+import com.postech.restaurantes.domain.entity.cuisine.Cuisine;
 import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,11 +26,15 @@ class RestaurantPresenterTest {
     void deveConverterParaView() {
         UUID id = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
+        UUID cuisineId = UUID.randomUUID();
         Restaurant restaurant = Restaurant.restore(id, userId, ENDERECO, "Sabor", OFFICE_HOURS,
-                LocalDateTime.now(), LocalDateTime.now());
+                List.of(Cuisine.restore(cuisineId, "Italiana", null, null)), LocalDateTime.now(), LocalDateTime.now());
 
         RestaurantView view = RestaurantPresenter.toView(restaurant);
 
+        assertEquals(1, view.cuisines().size());
+        assertEquals(cuisineId, view.cuisines().get(0).id());
+        assertEquals("Italiana", view.cuisines().get(0).name());
         assertEquals(id, view.id());
         assertEquals("Sabor", view.name());
         assertEquals(ENDERECO.getId(), view.address().id());
@@ -40,7 +45,7 @@ class RestaurantPresenterTest {
     @DisplayName("Converte pagina de entidades para pagina de views")
     void deveConverterPagina() {
         UUID id = UUID.randomUUID();
-        Restaurant restaurant = Restaurant.restore(id, UUID.randomUUID(), ENDERECO, "Sabor", OFFICE_HOURS,
+        Restaurant restaurant = Restaurant.restore(id, UUID.randomUUID(), ENDERECO, "Sabor", OFFICE_HOURS, List.of(),
                 null, null);
         PageResult<Restaurant> page = new PageResult<>(List.of(restaurant), 0, 10, 1);
 

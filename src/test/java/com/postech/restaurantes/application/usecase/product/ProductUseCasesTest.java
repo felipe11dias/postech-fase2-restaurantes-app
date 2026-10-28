@@ -46,7 +46,7 @@ class ProductUseCasesTest {
         when(restaurants.findById(restaurantId)).thenReturn(Optional.of(
                 Restaurant.restore(UUID.randomUUID(), UUID.randomUUID(),
                         com.postech.restaurantes.application.usecase.UseCaseFixtures.address(),
-                        "Restaurante", com.postech.restaurantes.application.usecase.UseCaseFixtures.OFFICE_HOURS,
+                        "Restaurante", com.postech.restaurantes.application.usecase.UseCaseFixtures.OFFICE_HOURS, List.of(),
                         null, null)));
     }
 

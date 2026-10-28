@@ -59,7 +59,7 @@ class RestaurantRestControllerTest {
 
         restaurantId = UUID.randomUUID();
         userId = UUID.randomUUID();
-        view = new RestaurantView(restaurantId, userId, ADDRESS_VIEW, "Sabor", OFFICE_HOURS_VIEW,
+        view = new RestaurantView(restaurantId, userId, ADDRESS_VIEW, "Sabor", OFFICE_HOURS_VIEW, List.of(),
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
@@ -68,7 +68,7 @@ class RestaurantRestControllerTest {
     void deveCriar() {
         when(controller.create(any())).thenReturn(view);
 
-        CreateRestaurantRequest req = new CreateRestaurantRequest(userId, ADDRESS_REQUEST, "Sabor", OFFICE_HOURS_REQUEST);
+        CreateRestaurantRequest req = new CreateRestaurantRequest(userId, ADDRESS_REQUEST, "Sabor", OFFICE_HOURS_REQUEST, null);
         ResponseEntity<EntityModel<RestaurantResponse>> response =
                 restController.create(req, new AuthenticatedUser(userId, "dono", Set.of("ROLE_OWNER")));
 
@@ -91,9 +91,10 @@ class RestaurantRestControllerTest {
     void deveBuscarPaginado() {
         PageResult<RestaurantView> page = new PageResult<>(List.of(view), 0, 10, 1);
         UUID dono = UUID.randomUUID();
-        when(controller.search(eq("sabor"), eq(dono), any())).thenReturn(page);
+        UUID cozinha = UUID.randomUUID();
+        when(controller.search(eq("sabor"), eq(dono), eq(cozinha), any())).thenReturn(page);
 
-        PagedModel<EntityModel<RestaurantResponse>> response = restController.search("sabor", dono, 0, 10, "name,asc");
+        PagedModel<EntityModel<RestaurantResponse>> response = restController.search("sabor", dono, cozinha, 0, 10, "name,asc");
 
         assertNotNull(response);
     }
@@ -103,7 +104,7 @@ class RestaurantRestControllerTest {
     void deveAtualizar() {
         when(controller.update(any())).thenReturn(view);
 
-        UpdateRestaurantRequest req = new UpdateRestaurantRequest(userId, ADDRESS_REQUEST, "Sabor", OFFICE_HOURS_REQUEST);
+        UpdateRestaurantRequest req = new UpdateRestaurantRequest(userId, ADDRESS_REQUEST, "Sabor", OFFICE_HOURS_REQUEST, null);
         EntityModel<RestaurantResponse> response = restController.update(restaurantId, req);
 
         assertNotNull(response.getContent());

@@ -48,6 +48,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, ApiRoutes.AUTH + "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, ApiRoutes.USERS).permitAll()
                         .requestMatchers(HttpMethod.GET, ApiRoutes.RESTAURANTS, ApiRoutes.RESTAURANTS + "/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, ApiRoutes.CUISINES, ApiRoutes.CUISINES + "/**").permitAll()
                         .requestMatchers(HttpMethod.GET, ApiRoutes.STATES, ApiRoutes.CITIES).permitAll()
                         .requestMatchers(HttpMethod.GET, PUBLICOS_GET).permitAll()
                         .anyRequest().authenticated())

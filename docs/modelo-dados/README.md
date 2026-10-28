@@ -13,12 +13,12 @@ A adequação, com o quadro antes × v2, os enums e cada etapa, está no relató
 quadro final, tabela por tabela, com o schema real até V10, está na Etapa 25; a V11 e as tabelas
 de produtos estão documentadas na Etapa 27 do mesmo relatório.
 
-## Escopo implementado (Etapas 17 a 26)
+## Escopo implementado (Etapas 17 a 28)
 
 `users`, `user_addresses`, `password_reset_tokens`, `owners`, `clients`, `couriers`, `admins`,
-`restaurants`, `restaurant_office_hours`, `products`, `product_option_groups`,
-`product_option_values` e `images`. As tabelas `addresses` com `city_id`, `cities`, `states`,
-`cuisines` e `restaurant_cuisines` permanecem para etapas futuras.
+`restaurants`, `restaurant_office_hours`, `addresses` com `city_id`, `cities` e `states` (Etapa 26),
+`products`, `product_option_groups`, `product_option_values` e `images` (Etapa 27), e `cuisines` e
+`restaurant_cuisines` (Etapa 28).
 
 ## Enums
 
@@ -70,3 +70,16 @@ pelo modelo.
 **Auditoria:** o modelo não declara colunas de auditoria em `products` nem `images`; elas não foram
 adicionadas. `product_option_groups` e `product_option_values` incluem as quatro colunas de
 auditoria do modelo e usam `AuditableJpaEntity`.
+
+## Tipos de cozinha: modelo × schema da V15 e da V17
+
+`cuisines` é o catálogo; `restaurant_cuisines`, a ligação N:N com o restaurante (Etapa 28). Nomes de colunas,
+chave composta e direção das cascatas seguem o modelo.
+
+| Tabela | Modelo lógico | Schema físico V15 | Conformidade |
+| --- | --- | --- | --- |
+| `cuisines` | `id`, `name varchar UNIQUE NOT NULL` e auditoria | Mesmas colunas; `name varchar(100) COLLATE "pt-BR-x-icu"` (V17); unicidade por índice em `LOWER(name)`; `created_at`/`last_updated_at` `NOT NULL` | Unicidade mais forte que a do modelo: "Italiana" e "ITALIANA" são o mesmo tipo. Tamanho e auditoria obrigatória seguem o padrão do projeto; a collation faz o catálogo ordenar pela regra do português |
+| `restaurant_cuisines` | `restaurant_id`, `cuisine_id`, `PRIMARY KEY` composta, índice em `cuisine_id`; FK para `restaurants` com `CASCADE` e para `cuisines` com `RESTRICT` | Mesmas colunas, chave, índice e cascatas | Estrutura mantida; FKs não adiáveis, como nas demais tabelas (ver divergências acima) |
+
+**Catálogo inicial.** A V16 insere oito tipos com ids fixos (`c0000000-0000-4000-8000-00000000000N`); o modelo
+não traz dados.

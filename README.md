@@ -7,14 +7,14 @@ comer pela qualidade da comida, não pela do sistema.
 
 A Fase 2 reconstrói a base em **Clean Architecture**, com testes automatizados em dois níveis e
 execução em Docker Compose. O relatório técnico atual é a
-[versão 4.0](relatorios/relatorio-tech-challenge-fase02-v4.0.md), com as alterações da Etapa 27
-para o catálogo de produtos e a precisão monetária do preço. As [versões anteriores](relatorios/)
+[versão 5.0](relatorios/relatorio-tech-challenge-fase02-v5.0.md), com as alterações da Etapa 28
+para os tipos de cozinha. As [versões anteriores](relatorios/)
 foram preservadas para consulta e comparação do histórico.
 
 ## Estado da entrega
 
-Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo contempla as 27 etapas
-registradas, incluindo endereços, catálogo geográfico e catálogo de produtos.
+Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo contempla as 28 etapas
+registradas, incluindo endereços, catálogo geográfico, catálogo de produtos e tipos de cozinha.
 
 | Requisito do enunciado | Estado |
 | --- | --- |
@@ -25,15 +25,15 @@ registradas, incluindo endereços, catálogo geográfico e catálogo de produtos
 | Tipo de usuário: associar o tipo a usuários **existentes** | ✅ Incluir, alterar e remover perfil em `/api/v1/users/{id}/profiles/…`, valendo na hora |
 | Tipo de usuário: **CRUD de tipos de usuário** (campo "Nome do Tipo") | ⏳ Pendente — os perfis são fixos no modelo de dados v2 e não há catálogo editável; a forma de atender o requisito ainda será decidida |
 | Cadastro de restaurante: CRUD com nome, endereço, horário de funcionamento e dono | ✅ Implementado — endereço próprio, horário por dia da semana, dono com perfil de dono e regra de posse |
-| Cadastro de restaurante: **tipo de cozinha** | ⏳ Pendente — o modelo v2 prevê `cuisines` e `restaurant_cuisines`, ainda sem implementação |
+| Cadastro de restaurante: **tipo de cozinha** | ✅ Implementado — catálogo `/api/v1/cuisines` (leitura pública, manutenção do administrador), `cuisineIds` no restaurante e filtro `?cuisineId=` na listagem |
 | Cadastro de itens do cardápio (nome, descrição, preço, só no local e imagem) | ✅ CRUD de produtos com caminhos/URLs de imagem, grupos/valores de opção e preço decimal (`BigDecimal` / `numeric(10,2)`) |
 
 | Entregável da avaliação | Estado |
 | --- | --- |
 | Clean Architecture em camadas | ✅ Quatro camadas, verificadas no build (ArchUnit, 48 regras) |
-| Testes: unitários com 80% e de integração | ✅ 851 unitários com **100%** de linhas e ramos; testes direcionados de produto e migrations com PostgreSQL real |
+| Testes: unitários com 80% e de integração | ✅ 939 unitários com **100%** de linhas e ramos; 164 de integração com PostgreSQL real |
 | Documentação (arquitetura, endpoints, execução) | ✅ Este README, o relatório técnico, o Swagger, `docs/arquitetura/` e `docs/modelo-dados/` |
-| Coleção Postman | ✅ 151 requests; execução completa com 308 asserções aprovadas. Prints dos 20 requests de produtos em `postman/prints-product/` |
+| Coleção Postman | ✅ 169 requests; cobre usuários, perfis, restaurantes, catálogo geográfico, produtos e tipos de cozinha; um print por request; 343 asserções, sem falhas |
 | Docker Compose (aplicação e banco) | ✅ Aplicação, PostgreSQL e Mailpit |
 | Repositório aberto | ✅ Público, com histórico por etapa |
 | Vídeo de apresentação (cerca de 5 minutos) | ⏳ Pendente — depende das funcionalidades acima |
@@ -232,6 +232,9 @@ autocadastro não tem perfil de administrador.
 | `dono.restaurante` | `dono12345` | dono (CNPJ `04.252.011/0001-10`) | `ROLE_OWNER` |
 | `cliente.demo` | `cliente12345` | cliente (CPF `529.982.247-25`) | `ROLE_CLIENT` |
 
+A migration `V16` traz o catálogo inicial de tipos de cozinha (Brasileira, Italiana, Japonesa, Árabe, Mexicana,
+Vegetariana, Hamburgueria e Pizzaria), com ids fixos `c0000000-0000-4000-8000-000000000001` a `…008`.
+
 ## Autenticação e autorização
 
 1. `POST /api/v1/auth/login` com `login` e `password` devolve `{ "token", "type": "Bearer", "expiresAt" }`.
@@ -281,10 +284,15 @@ autocadastro não tem perfil de administrador.
 | `DELETE` | `/api/v1/users/{id}/profiles/{tipo}` | dono ou administrador | `204` (não o último perfil; não o de dono com restaurante; não o do último administrador) |
 | `PATCH` | `/api/v1/users/{id}/profiles/courier/status` | dono ou administrador | `200` |
 | `POST` | `/api/v1/restaurants` | dono (para si) ou administrador (para qualquer dono) | `201` + `Location` |
-| `GET` | `/api/v1/restaurants?name=&ownerId=&page=&size=&sort=` | público | `200` página com links de navegação |
+| `GET` | `/api/v1/restaurants?name=&ownerId=&cuisineId=&page=&size=&sort=` | público | `200` página com links de navegação (filtros combináveis) |
 | `GET` | `/api/v1/restaurants/{id}` | público | `200` |
 | `PUT` | `/api/v1/restaurants/{id}` | dono do restaurante (sem trocar de dono) ou administrador | `200` |
 | `DELETE` | `/api/v1/restaurants/{id}` | dono do restaurante ou administrador | `204` |
+| `GET` | `/api/v1/cuisines?name=&page=&size=&sort=` | público | `200` página com links de navegação |
+| `GET` | `/api/v1/cuisines/{id}` | público | `200` |
+| `POST` | `/api/v1/cuisines` | administrador | `201` + `Location` |
+| `PUT` | `/api/v1/cuisines/{id}` | administrador | `200` |
+| `DELETE` | `/api/v1/cuisines/{id}` | administrador | `204` (não o tipo usado por algum restaurante) |
 | `POST` | `/api/v1/restaurants/{restaurantId}/products` | dono do restaurante ou administrador | `201` + `Location` |
 | `GET` | `/api/v1/restaurants/{restaurantId}/products?page=&size=` | público | `200` página HATEOAS |
 | `GET` | `/api/v1/restaurants/{restaurantId}/products/{productId}` | público | `200` |
@@ -304,9 +312,9 @@ que o cliente deve se apoiar:
 | `nao-autenticado` | 401 | Sem token ou token inválido/expirado |
 | `operacao-nao-permitida` | 403 | Restaurante indicado para usuário sem perfil de dono |
 | `acesso-negado` | 403 | Cadastro de outro usuário; listagem por não administrador; restaurante de outro dono |
-| `recurso-nao-encontrado` | 404 | Usuário inexistente; perfil que o usuário não tem |
-| `conflito-de-dados` | 409 | E-mail, login, CPF ou CNPJ já cadastrado |
-| `recurso-em-uso` | 409 | Perfil de dono de quem tem restaurante; perfil de administrador ou cadastro do último administrador |
+| `recurso-nao-encontrado` | 404 | Usuário inexistente; perfil que o usuário não tem; tipo de cozinha inexistente (também em `cuisineIds`) |
+| `conflito-de-dados` | 409 | E-mail, login, CPF, CNPJ ou nome de tipo de cozinha já cadastrado |
+| `recurso-em-uso` | 409 | Perfil de dono de quem tem restaurante; perfil de administrador ou cadastro do último administrador; tipo de cozinha usado por restaurante |
 | `erro-inesperado` | 500 | Falha não prevista (detalhe genérico; a causa vai para o log) |
 
 A documentação completa, com exemplos de cada resposta, está no Swagger UI.
@@ -314,7 +322,7 @@ A documentação completa, com exemplos de cada resposta, está no Swagger UI.
 ## Coleção Postman
 
 [`postman/Restaurantes.postman_collection.json`](postman/Restaurantes.postman_collection.json)
-(formato v2.1) tem **151 requests em 18 pastas** (usuários, restaurantes, catálogo geográfico e produtos): um por caso de cada endpoint — o sucesso e cada
+(formato v2.1) tem **169 requests em 19 pastas** (usuários, restaurantes, catálogo geográfico, produtos e tipos de cozinha): um por caso de cada endpoint — o sucesso e cada
 erro previsto —, na ordem em que rodam de cima a baixo. Os scripts de teste conferem o status e
 o `type` de cada erro e guardam `{{adminToken}}`, `{{token}}` e `{{userId}}` para as requisições
 seguintes; se um login ou cadastro essencial falhar, a execução para ali, com o motivo, em vez de
@@ -380,14 +388,13 @@ mvn test      # unitários + regras ArchUnit — segundos, sem Docker
 mvn verify    # + testes de integração (Testcontainers) + gate de 100% de cobertura
 ```
 
-- **Unitários (851):** entidades sem mocks; casos de uso com mocks das portas; adaptadores com
+- **Unitários (939):** entidades sem mocks; casos de uso com mocks das portas; adaptadores com
   mocks das origens de dados e dos serviços; infraestrutura com lógica instanciada diretamente. Nenhum sobe
   contexto Spring nem toca em banco. Cobertura JaCoCo unitária de **100% de linhas e ramos**
-  (2519 linhas e 592 ramos).
-- **Integração:** contexto Spring completo, PostgreSQL real, migrations do Flyway, segurança JWT
-  ativa e chamadas HTTP de verdade. A validação direcionada da Etapa 27 executou 22 testes de
-  integração (`ProductCatalogIT` e `SchemaMigrationIT`) sem falhas; isso não representa a suíte
-  completa de integração.
+  (2766 linhas e 626 ramos).
+- **Integração (164):** contexto Spring completo, PostgreSQL real, migrations do Flyway,
+  segurança JWT ativa e chamadas HTTP de verdade. Nenhum bean é substituído, exceto o envio de
+  e-mail.
 - **Cobertura:** o build **falha** abaixo de 100% de linhas e ramos **dos testes unitários**. A
   integração é medida à parte, só para informação. Relatórios: `target/site/jacoco/index.html`
   (unitários) e `target/site/jacoco-it/index.html` (integração).
@@ -404,7 +411,7 @@ src/main/java/com/postech/restaurantes/
   application/     casos de uso, portas (gateways) e DTOs do núcleo
   adapter/         controllers, gateways, origens de dados, serviços externos e presenters
   infrastructure/  módulos substituíveis: main, api/rest/spring, persistence/jpa, token/jwt, crypto, mail/smtp
-src/main/resources/db/migration/   V1–V14 (schema, catálogo, migrações e seeds)
+src/main/resources/db/migration/   V1–V17 (schema, catálogo, migrações e seeds; V15 a V17: tipos de cozinha)
 postman/                           coleção e prints
 relatorios/                        relatório técnico por etapa (Markdown e PDF)
 docs/arquitetura/                  cada camada: o que as aulas ensinam, o que os autores dizem, como o projeto faz

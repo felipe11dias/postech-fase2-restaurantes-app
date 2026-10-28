@@ -27,6 +27,17 @@ public interface SpringDataRestaurantRepository extends JpaRepository<Restaurant
             + "and lower(r.name) like lower(concat('%', :name, '%'))")
     Page<UUID> findIdsByNameAndUserId(@Param("name") String name, @Param("userId") UUID userId, Pageable pageable);
 
+    /** Só os restaurantes ligados ao tipo de cozinha, pela tabela restaurant_cuisines (cada par aparece uma vez). */
+    @Query("select r.id from RestaurantJpaEntity r join r.cuisines c where c.id = :cuisineId "
+            + "and lower(r.name) like lower(concat('%', :name, '%'))")
+    Page<UUID> findIdsByNameAndCuisineId(@Param("name") String name, @Param("cuisineId") UUID cuisineId,
+                                         Pageable pageable);
+
+    @Query("select r.id from RestaurantJpaEntity r join r.cuisines c where c.id = :cuisineId and r.userId = :userId "
+            + "and lower(r.name) like lower(concat('%', :name, '%'))")
+    Page<UUID> findIdsByNameAndUserIdAndCuisineId(@Param("name") String name, @Param("userId") UUID userId,
+                                                  @Param("cuisineId") UUID cuisineId, Pageable pageable);
+
     @EntityGraph(attributePaths = {"address.city.state", "officeHours"})
     List<RestaurantJpaEntity> findByIdIn(Collection<UUID> ids, Sort sort);
 

@@ -68,6 +68,9 @@ services:
       MAIL_PORT: 1025
       MAIL_FROM: ${MAIL_FROM:-no-reply@restaurantes.postech}
       PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES: ${PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES:-30}
+      # Porta interna fixa, como as demais: o application.yml usa 8081 para a execução fora do
+      # Docker, mas aqui o mapeamento abaixo, o EXPOSE e o HEALTHCHECK do Dockerfile esperam 8080.
+      SERVER_PORT: 8080
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"
 

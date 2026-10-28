@@ -27,20 +27,20 @@ public class RestaurantModelAssembler {
     }
 
     public PagedModel<EntityModel<RestaurantResponse>> toPagedModel(PageResult<RestaurantView> page, String name,
-                                                                    UUID ownerId, String sort) {
+                                                                    UUID ownerId, UUID cuisineId, String sort) {
         List<EntityModel<RestaurantResponse>> conteudo = page.content().stream().map(this::toModel).toList();
         PagedModel.PageMetadata metadados = new PagedModel.PageMetadata(
                 page.size(), page.page(), page.totalElements(), page.totalPages());
         PagedModel<EntityModel<RestaurantResponse>> model = PagedModel.of(conteudo, metadados);
-        model.add(pageLink(page, page.page(), name, ownerId, sort, IanaLinkRelations.SELF));
-        model.add(pageLink(page, 0, name, ownerId, sort, IanaLinkRelations.FIRST));
+        model.add(pageLink(page, page.page(), name, ownerId, cuisineId, sort, IanaLinkRelations.SELF));
+        model.add(pageLink(page, 0, name, ownerId, cuisineId, sort, IanaLinkRelations.FIRST));
         if (page.hasPrevious()) {
-            model.add(pageLink(page, page.page() - 1, name, ownerId, sort, IanaLinkRelations.PREV));
+            model.add(pageLink(page, page.page() - 1, name, ownerId, cuisineId, sort, IanaLinkRelations.PREV));
         }
         if (page.hasNext()) {
-            model.add(pageLink(page, page.page() + 1, name, ownerId, sort, IanaLinkRelations.NEXT));
+            model.add(pageLink(page, page.page() + 1, name, ownerId, cuisineId, sort, IanaLinkRelations.NEXT));
         }
-        model.add(pageLink(page, Math.max(page.totalPages() - 1, 0), name, ownerId, sort, IanaLinkRelations.LAST));
+        model.add(pageLink(page, Math.max(page.totalPages() - 1, 0), name, ownerId, cuisineId, sort, IanaLinkRelations.LAST));
         model.add(restaurantsLink());
         return model;
     }
@@ -49,11 +49,12 @@ public class RestaurantModelAssembler {
         return restaurants().slash(view.id()).withSelfRel();
     }
 
-    private static Link pageLink(PageResult<?> page, int number, String name, UUID ownerId, String sort,
+    private static Link pageLink(PageResult<?> page, int number, String name, UUID ownerId, UUID cuisineId, String sort,
                                  LinkRelation rel) {
         String href = UriComponentsBuilder.fromUri(restaurants().toUri())
                 .queryParamIfPresent("name", Optional.ofNullable(name))
                 .queryParamIfPresent("ownerId", Optional.ofNullable(ownerId))
+                .queryParamIfPresent("cuisineId", Optional.ofNullable(cuisineId))
                 .queryParam("page", number)
                 .queryParam("size", page.size())
                 .queryParamIfPresent("sort", Optional.ofNullable(sort))

@@ -561,3 +561,40 @@
   execuções; 125 prints.
 - `mvn clean verify`: 775 testes unitários e 138 de integração; cobertura unitária 100% (2009 linhas,
   544 ramos, 840 métodos). Suíte também em ordem aleatória (semente 20261006), sem falhas.
+
+## Etapa 28 — Tipos de cozinha (cuisines e restaurant_cuisines)
+- Migration `V15__cuisines.sql`: catálogo `cuisines` (nome único sem diferenciar maiúsculas, índice em
+  `LOWER(name)`) e ligação N:N `restaurant_cuisines` (chave composta; `ON DELETE CASCADE` no restaurante,
+  `RESTRICT` no tipo). Migration `V16__seed_cuisines.sql`: catálogo inicial com oito tipos e ids fixos
+  (`c0000000-0000-4000-8000-00000000000N`). Migration `V17__cuisine_name_collation.sql`: a coluna `name`
+  ordena pela regra do português (`pt-BR-x-icu`) — sem ela, o banco da imagem Alpine ordenava por byte e a listagem
+  do catálogo punha "Árabe" no fim. A V15 e a V16 foram desenvolvidas como V11 e V12 na branch `feat/cuisines` e
+  renumeradas no merge com a `main`, que já usava V11 a V14 (endereços e produtos).
+- Domínio: entidade `Cuisine` (nome obrigatório); `Restaurant` passa a ter a lista de tipos
+  (`replaceCuisines`: sem nulos, sem repetir, só tipos já cadastrados, em ordem alfabética do português
+  via `Collator` `pt-BR`).
+- Casos de uso do catálogo (`Create`, `Update`, `FindById`, `Search`, `DeleteCuisineUseCase`); excluir tipo
+  em uso por restaurante é `ResourceInUseException` (409 `recurso-em-uso`). Políticas compartilhadas:
+  `application/policy/cuisine/UniqueCuisineNamePolicy` (criação e alteração) e
+  `application/policy/restaurant/ExistingCuisinesPolicy` (cadastro e atualização do restaurante; id
+  inexistente → 404).
+- Restaurante: `cuisineIds` opcional no `POST` (ausente = nenhum tipo) e no `PUT` (ausente = mantém, lista
+  vazia = tira todos); `cuisines` (id e nome) na resposta.
+- Filtro na listagem pública: `GET /api/v1/restaurants?cuisineId=` (combina com `name` e `ownerId`; a
+  navegação HATEOAS repete o filtro).
+- Adaptadores (`ICuisineDataSource`, `CuisineData`, `CuisineGateway`, `CuisinePresenter`, `CuisineView`,
+  `CuisineController`) e infraestrutura (`CuisineJpaEntity`, `SpringDataCuisineRepository`,
+  `CuisineDataSourceJpa`; `@ManyToMany` sem cascata e com `@BatchSize` em `RestaurantJpaEntity`, fora do
+  `@EntityGraph`; `CuisineRestController` em `/api/v1/cuisines` — leitura pública, escrita só do administrador).
+- Merge com a `main`: `RestaurantDataSourceJpa` recebe o `CityReferenceResolver` (endereços) e o repositório de
+  tipos; testes de produto passam a montar o restaurante com a lista de tipos; `OpenApiDocumentationIT` com 32
+  operações (20 protegidas).
+- Testes: unitários de todas as classes novas e alteradas, `CuisineLifecycleIT`, `RestaurantCuisinesIT` (7
+  casos, filtro incluído), `SchemaMigrationIT` (V15 a V17).
+- Postman: pasta "Tipos de cozinha", requests 146 a 164; 169 requests e 343 asserções,
+  sem falhas; prints regenerados da mesma execução.
+- Correção: `docker-compose.yml` fixa `SERVER_PORT: 8080` no serviço `app`. O `server.port: 8081` do
+  `application.yml` (Etapa 26) vale fora do Docker, mas dentro do container deixava a aplicação *unhealthy*
+  (o mapeamento, o `EXPOSE` e o `HEALTHCHECK` usam 8080).
+- `mvn verify`: 939 testes unitários e 164 de integração; cobertura unitária 100% (2766 linhas,
+  626 ramos).

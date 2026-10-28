@@ -81,7 +81,7 @@ public class RestaurantRestController {
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
     @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Sem perfil de dono, ou dono indicando outro usuário")
     @ErrorResponse(type = ProblemType.FORBIDDEN_OPERATION, description = "O dono indicado não tem perfil de dono")
-    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Dono ou cidade do endereço não encontrado")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Dono, cidade do endereço ou tipo de cozinha não encontrado")
     public ResponseEntity<EntityModel<RestaurantResponse>> create(@Valid @RequestBody CreateRestaurantRequest request,
                                                                   @AuthenticationPrincipal AuthenticatedUser autenticado) {
         RestaurantView criado = controller.create(request.toDTO(autenticado.id()));
@@ -100,7 +100,8 @@ public class RestaurantRestController {
 
     @GetMapping
     @Operation(summary = "Lista os restaurantes",
-            description = "Paginada, com busca por nome de restaurante e, opcionalmente, só os de um dono.")
+            description = "Paginada, com busca por nome de restaurante e, opcionalmente, só os de um dono e só os que "
+                    + "têm um tipo de cozinha.")
     @ApiResponse(responseCode = "200", description = "Página de restaurantes")
     @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Parâmetros de paginação inválidos")
     public PagedModel<EntityModel<RestaurantResponse>> search(
@@ -108,14 +109,16 @@ public class RestaurantRestController {
             @RequestParam(required = false) String name,
             @Parameter(description = "Só os restaurantes deste dono (id do usuário)")
             @RequestParam(required = false) UUID ownerId,
+            @Parameter(description = "Só os restaurantes com este tipo de cozinha (id do catálogo GET /api/v1/cuisines)")
+            @RequestParam(required = false) UUID cuisineId,
             @Parameter(description = "Página, a partir de 0", example = "0")
             @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Itens por página, de 1 a 100", example = "20")
             @RequestParam(defaultValue = "20") int size,
             @Parameter(description = "propriedade,direcao — id, name, createdAt ou lastUpdatedAt; asc ou desc", example = "name,asc")
             @RequestParam(required = false) String sort) {
-        return assembler.toPagedModel(controller.search(name, ownerId, paginacao(page, size, sort)), name, ownerId,
-                sort);
+        return assembler.toPagedModel(controller.search(name, ownerId, cuisineId, paginacao(page, size, sort)), name,
+                ownerId, cuisineId, sort);
     }
 
     @PutMapping("/{id}")
@@ -130,7 +133,7 @@ public class RestaurantRestController {
     @ErrorResponse(type = ProblemType.ACCESS_DENIED,
             description = "Restaurante de outro dono, ou troca de dono por quem não é administrador")
     @ErrorResponse(type = ProblemType.FORBIDDEN_OPERATION, description = "O dono indicado não tem perfil de dono")
-    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Restaurante, dono ou cidade do endereço não encontrado")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Restaurante, dono, cidade do endereço ou tipo de cozinha não encontrado")
     public EntityModel<RestaurantResponse> update(
             @Parameter(description = "Id do restaurante") @PathVariable UUID id,
             @Valid @RequestBody UpdateRestaurantRequest request) {

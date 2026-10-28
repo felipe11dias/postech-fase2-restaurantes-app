@@ -12,10 +12,10 @@ public interface IRestaurantGateway {
     Optional<Restaurant> findById(UUID id);
 
     /**
-     * Busca por nome (sem diferenciar maiúsculas) e, se informado, só os restaurantes de um dono. Nome nulo
-     * não filtra por nome; dono nulo não filtra por dono.
+     * Busca por nome (sem diferenciar maiúsculas) e, se informados, só os restaurantes de um dono e só os que têm um
+     * tipo de cozinha. Nome nulo não filtra por nome; dono nulo não filtra por dono; tipo nulo não filtra por tipo.
      */
-    PageResult<Restaurant> search(String name, UUID ownerId, PageRequest request);
+    PageResult<Restaurant> search(String name, UUID ownerId, UUID cuisineId, PageRequest request);
 
     /** Persiste um restaurante novo e devolve a instância com id e auditoria. */
     Restaurant insert(Restaurant restaurant);

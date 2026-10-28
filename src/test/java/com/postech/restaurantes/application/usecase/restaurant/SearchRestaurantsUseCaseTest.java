@@ -37,11 +37,11 @@ class SearchRestaurantsUseCaseTest {
     void deveExecutarBuscaPaginada() {
         PageRequest request = new PageRequest(0, 10, "name", SortDirection.ASC);
         Restaurant r = Restaurant.restore(UUID.randomUUID(), UUID.randomUUID(), address(), "Sabor",
-                OFFICE_HOURS, null, null);
+                OFFICE_HOURS, List.of(), null, null);
         PageResult<Restaurant> page = new PageResult<>(List.of(r), 0, 10, 1);
-        when(restaurantGateway.search(eq("sabor"), eq(null), any())).thenReturn(page);
+        when(restaurantGateway.search(eq("sabor"), eq(null), eq(null), any())).thenReturn(page);
 
-        PageResult<Restaurant> result = useCase.run("  sabor  ", null, request);
+        PageResult<Restaurant> result = useCase.run("  sabor  ", null, null, request);
 
         assertEquals(1, result.totalElements());
     }
@@ -51,9 +51,9 @@ class SearchRestaurantsUseCaseTest {
     void deveSanitizarOrdenacaoInvalida() {
         PageRequest request = new PageRequest(0, 10, "invalida", SortDirection.ASC);
         PageResult<Restaurant> page = new PageResult<>(List.of(), 0, 10, 0);
-        when(restaurantGateway.search(any(), any(), any())).thenReturn(page);
+        when(restaurantGateway.search(any(), any(), any(), any())).thenReturn(page);
 
-        PageResult<Restaurant> result = useCase.run(null, null, request);
+        PageResult<Restaurant> result = useCase.run(null, null, null, request);
 
         assertEquals(0, result.totalElements());
     }
@@ -61,7 +61,7 @@ class SearchRestaurantsUseCaseTest {
     @Test
     @DisplayName("Recusa requisição de página nula")
     void deveRecusarRequisicaoNula() {
-        assertThrows(IllegalArgumentException.class, () -> useCase.run("sabor", null, null));
+        assertThrows(IllegalArgumentException.class, () -> useCase.run("sabor", null, null, null));
     }
 
     @Test
@@ -69,10 +69,22 @@ class SearchRestaurantsUseCaseTest {
     void deveFiltrarPeloDono() {
         UUID dono = UUID.randomUUID();
         PageRequest request = new PageRequest(0, 10, "name", SortDirection.ASC);
-        when(restaurantGateway.search(null, dono, request)).thenReturn(new PageResult<>(List.of(), 0, 10, 0));
+        when(restaurantGateway.search(null, dono, null, request)).thenReturn(new PageResult<>(List.of(), 0, 10, 0));
 
-        useCase.run(null, dono, request);
+        useCase.run(null, dono, null, request);
 
-        verify(restaurantGateway).search(null, dono, request);
+        verify(restaurantGateway).search(null, dono, null, request);
+    }
+
+    @Test
+    @DisplayName("Repassa o tipo de cozinha para a busca só dos restaurantes que o servem")
+    void deveFiltrarPeloTipoDeCozinha() {
+        UUID cozinha = UUID.randomUUID();
+        PageRequest request = new PageRequest(0, 10, "name", SortDirection.ASC);
+        when(restaurantGateway.search(null, null, cozinha, request)).thenReturn(new PageResult<>(List.of(), 0, 10, 0));
+
+        useCase.run(null, null, cozinha, request);
+
+        verify(restaurantGateway).search(null, null, cozinha, request);
     }
 }

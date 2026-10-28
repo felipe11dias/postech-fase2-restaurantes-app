@@ -19,11 +19,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.postech.restaurantes.adapter.datasource.data.AddressData;
+import com.postech.restaurantes.adapter.datasource.data.CuisineData;
 import com.postech.restaurantes.adapter.datasource.data.OfficeHourData;
 import com.postech.restaurantes.adapter.datasource.data.RestaurantData;
 import com.postech.restaurantes.application.dto.common.PageRequest;
 import com.postech.restaurantes.application.dto.common.PageResult;
 import com.postech.restaurantes.application.dto.common.SortDirection;
+import com.postech.restaurantes.infrastructure.persistence.jpa.cuisine.CuisineJpaEntity;
+import com.postech.restaurantes.infrastructure.persistence.jpa.cuisine.SpringDataCuisineRepository;
 import com.postech.restaurantes.infrastructure.persistence.jpa.restaurant.officehour.OfficeHourJpaEntity;
 import java.time.LocalTime;
 import java.util.List;
@@ -40,6 +43,7 @@ import org.springframework.data.domain.Sort;
 class RestaurantDataSourceJpaTest {
 
     private SpringDataRestaurantRepository repository;
+    private SpringDataCuisineRepository cuisineRepository;
     private RestaurantDataSourceJpa dataSource;
 
     private UUID id;
@@ -50,10 +54,11 @@ class RestaurantDataSourceJpaTest {
     @BeforeEach
     void setUp() {
         repository = mock(SpringDataRestaurantRepository.class);
+        cuisineRepository = mock(SpringDataCuisineRepository.class);
         var resolver = mock(com.postech.restaurantes.infrastructure.persistence.jpa.location.CityReferenceResolver.class);
         when(resolver.resolve(org.mockito.ArgumentMatchers.any())).thenReturn(
                 com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.cityEntity());
-        dataSource = new RestaurantDataSourceJpa(repository, resolver);
+        dataSource = new RestaurantDataSourceJpa(repository, resolver, cuisineRepository);
 
         id = UUID.randomUUID();
         userId = UUID.randomUUID();
@@ -89,7 +94,7 @@ class RestaurantDataSourceJpaTest {
         when(repository.findIdsByName(eq("sabor"), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(id)));
         when(repository.findByIdIn(eq(List.of(id)), any())).thenReturn(List.of(entity));
 
-        PageResult<RestaurantData> result = dataSource.search("sabor", null, request);
+        PageResult<RestaurantData> result = dataSource.search("sabor", null, null, request);
 
         assertEquals(1, result.totalElements());
     }
@@ -101,7 +106,7 @@ class RestaurantDataSourceJpaTest {
         when(repository.findIdsByName(eq("sabor"), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(id)));
         when(repository.findByIdIn(eq(List.of(id)), any())).thenReturn(List.of(entity));
 
-        dataSource.search("sabor", null, request);
+        dataSource.search("sabor", null, null, request);
 
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
         verify(repository).findIdsByName(eq("sabor"), captor.capture());
@@ -116,10 +121,40 @@ class RestaurantDataSourceJpaTest {
                 .thenReturn(new PageImpl<>(List.of(id)));
         when(repository.findByIdIn(eq(List.of(id)), any())).thenReturn(List.of(entity));
 
-        PageResult<RestaurantData> result = dataSource.search(null, userId, request);
+        PageResult<RestaurantData> result = dataSource.search(null, userId, null, request);
 
         assertEquals(1, result.totalElements());
         verify(repository, never()).findIdsByName(any(), any());
+    }
+
+    @Test
+    @DisplayName("Com tipo de cozinha, a busca pagina só os ids dos restaurantes que o servem")
+    void deveBuscarSoOsRestaurantesDoTipoDeCozinha() {
+        PageRequest request = PageRequest.of(0, 10);
+        UUID cozinha = UUID.randomUUID();
+        when(repository.findIdsByNameAndCuisineId(eq(""), eq(cozinha), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(id)));
+        when(repository.findByIdIn(eq(List.of(id)), any())).thenReturn(List.of(entity));
+
+        PageResult<RestaurantData> result = dataSource.search(null, null, cozinha, request);
+
+        assertEquals(1, result.totalElements());
+        verify(repository, never()).findIdsByName(any(), any());
+    }
+
+    @Test
+    @DisplayName("Com dono e tipo de cozinha, a busca combina os dois filtros")
+    void deveBuscarPeloDonoEPeloTipoDeCozinha() {
+        PageRequest request = PageRequest.of(0, 10);
+        UUID cozinha = UUID.randomUUID();
+        when(repository.findIdsByNameAndUserIdAndCuisineId(eq("sabor"), eq(userId), eq(cozinha), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(id)));
+        when(repository.findByIdIn(eq(List.of(id)), any())).thenReturn(List.of(entity));
+
+        PageResult<RestaurantData> result = dataSource.search("sabor", userId, cozinha, request);
+
+        assertEquals(1, result.totalElements());
+        verify(repository, never()).findIdsByNameAndUserId(any(), any(), any());
     }
 
     @Test
@@ -128,7 +163,7 @@ class RestaurantDataSourceJpaTest {
         PageRequest request = PageRequest.of(0, 10);
         when(repository.findIdsByName(eq(""), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
 
-        PageResult<RestaurantData> result = dataSource.search(null, null, request);
+        PageResult<RestaurantData> result = dataSource.search(null, null, null, request);
 
         assertEquals(0, result.totalElements());
     }
@@ -137,7 +172,7 @@ class RestaurantDataSourceJpaTest {
     @DisplayName("Inserção grava o restaurante com uma linha de endereço nova, sem id")
     void deveInserirComEnderecoNovo() {
         when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        RestaurantData data = new RestaurantData(null, userId, ADDRESS_DATA, "Sabor", OFFICE_HOURS_DATA, null, null);
+        RestaurantData data = new RestaurantData(null, userId, ADDRESS_DATA, "Sabor", OFFICE_HOURS_DATA, List.of(), null, null);
 
         RestaurantData inserted = dataSource.insert(data);
 
@@ -153,7 +188,7 @@ class RestaurantDataSourceJpaTest {
         when(repository.findById(id)).thenReturn(Optional.of(entity));
         when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
         AddressData outro = new AddressData(UUID.randomUUID(), LocationFixtures.cityId("Rio", "RJ"), "Av. B", null, null, null, "20000000", LocationFixtures.cityData("Rio", "RJ"));
-        RestaurantData data = new RestaurantData(id, userId, outro, "Novo", OFFICE_HOURS_DATA, null, null);
+        RestaurantData data = new RestaurantData(id, userId, outro, "Novo", OFFICE_HOURS_DATA, List.of(), null, null);
 
         RestaurantData updated = dataSource.update(data);
 
@@ -169,7 +204,7 @@ class RestaurantDataSourceJpaTest {
         when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
         RestaurantData data = new RestaurantData(id, userId, ADDRESS_DATA, "Sabor", List.of(
                 new OfficeHourData("MONDAY", LocalTime.of(8, 0), LocalTime.of(23, 0)),
-                new OfficeHourData("TUESDAY", LocalTime.of(10, 0), LocalTime.of(14, 0))), null, null);
+                new OfficeHourData("TUESDAY", LocalTime.of(10, 0), LocalTime.of(14, 0))), List.of(), null, null);
 
         RestaurantData updated = dataSource.update(data);
 
@@ -181,10 +216,64 @@ class RestaurantDataSourceJpaTest {
     }
 
     @Test
+    @DisplayName("Os tipos de cozinha do restaurante saem no registro, vindos da ligação com o catálogo")
+    void deveTraduzirOsTiposDeCozinha() {
+        CuisineJpaEntity italiana = cuisineEntity("Italiana");
+        entity.replaceCuisines(List.of(italiana));
+        when(repository.findById(id)).thenReturn(Optional.of(entity));
+
+        RestaurantData result = dataSource.findById(id).orElseThrow();
+
+        assertEquals(List.of(new CuisineData(italiana.getId(), "Italiana", null, null)), result.cuisines());
+    }
+
+    @Test
+    @DisplayName("Gravar liga o restaurante às linhas do catálogo que já existem, pelos ids, sem copiá-las")
+    void deveLigarOsTiposDeCozinhaDoCatalogo() {
+        CuisineJpaEntity italiana = cuisineEntity("Italiana");
+        when(cuisineRepository.findAllById(List.of(italiana.getId()))).thenReturn(List.of(italiana));
+        when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        RestaurantData data = new RestaurantData(null, userId, ADDRESS_DATA, "Sabor", OFFICE_HOURS_DATA,
+                List.of(new CuisineData(italiana.getId(), "Italiana", null, null)), null, null);
+
+        RestaurantData inserted = dataSource.insert(data);
+
+        ArgumentCaptor<RestaurantJpaEntity> captor = ArgumentCaptor.forClass(RestaurantJpaEntity.class);
+        verify(repository).saveAndFlush(captor.capture());
+        assertSame(italiana, captor.getValue().getCuisines().iterator().next());
+        assertEquals("Italiana", inserted.cuisines().get(0).name());
+    }
+
+    @Test
+    @DisplayName("Atualizar troca a lista de ligações: as que saíram, saem; as novas, entram")
+    void deveTrocarOsTiposDeCozinhaNaAtualizacao() {
+        CuisineJpaEntity italiana = cuisineEntity("Italiana");
+        CuisineJpaEntity japonesa = cuisineEntity("Japonesa");
+        entity.replaceCuisines(List.of(italiana));
+        when(repository.findById(id)).thenReturn(Optional.of(entity));
+        when(cuisineRepository.findAllById(List.of(japonesa.getId()))).thenReturn(List.of(japonesa));
+        when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        RestaurantData data = new RestaurantData(id, userId, ADDRESS_DATA, "Sabor", OFFICE_HOURS_DATA,
+                List.of(new CuisineData(japonesa.getId(), "Japonesa", null, null)), null, null);
+
+        dataSource.update(data);
+
+        assertEquals(1, entity.getCuisines().size());
+        assertSame(japonesa, entity.getCuisines().iterator().next());
+    }
+
+    private static CuisineJpaEntity cuisineEntity(String name) {
+        CuisineJpaEntity cuisine = new CuisineJpaEntity();
+        cuisine.setId(UUID.randomUUID());
+        cuisine.setName(name);
+        return cuisine;
+    }
+
+    @Test
     @DisplayName("Lanca excecao ao atualizar inexistente")
     void deveLancarExcecaoAoAtualizarInexistente() {
         when(repository.findById(id)).thenReturn(Optional.empty());
-        RestaurantData data = new RestaurantData(id, userId, ADDRESS_DATA, "Sabor", OFFICE_HOURS_DATA, null, null);
+        RestaurantData data = new RestaurantData(id, userId, ADDRESS_DATA, "Sabor", OFFICE_HOURS_DATA, List.of(), null, null);
 
         assertThrows(IllegalStateException.class, () -> dataSource.update(data));
     }

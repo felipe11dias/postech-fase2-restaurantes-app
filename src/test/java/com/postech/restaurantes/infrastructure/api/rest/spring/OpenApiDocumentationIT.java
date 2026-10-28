@@ -63,7 +63,7 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Os vinte e cinco endpoints da especificação estão documentados, cada um sob a sua tag")
+    @DisplayName("Os trinta e dois endpoints da especificação estão documentados, cada um sob a sua tag")
     void deveDocumentarTodosOsEndpoints() {
         Set<String> documentados = new TreeSet<>();
         operacoes().forEach(op -> documentados.add(op.metodo() + " " + op.caminho() + " " + op.tag()));
@@ -91,6 +91,11 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
                 "GET /api/v1/restaurants/{id} Restaurantes",
                 "PUT /api/v1/restaurants/{id} Restaurantes",
                 "DELETE /api/v1/restaurants/{id} Restaurantes",
+                "POST /api/v1/cuisines Tipos de cozinha",
+                "GET /api/v1/cuisines Tipos de cozinha",
+                "GET /api/v1/cuisines/{id} Tipos de cozinha",
+                "PUT /api/v1/cuisines/{id} Tipos de cozinha",
+                "DELETE /api/v1/cuisines/{id} Tipos de cozinha",
                 "POST /api/v1/restaurants/{restaurantId}/products Produtos",
                 "GET /api/v1/restaurants/{restaurantId}/products Produtos",
                 "GET /api/v1/restaurants/{restaurantId}/products/{productId} Produtos",
@@ -118,7 +123,7 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
         }
 
         assertTrue(divergencias.isEmpty(), String.join("\n", divergencias));
-        assertEquals(17, operacoes().stream().filter(Operacao::protegida).count());
+        assertEquals(20, operacoes().stream().filter(Operacao::protegida).count());
     }
 
     @Test

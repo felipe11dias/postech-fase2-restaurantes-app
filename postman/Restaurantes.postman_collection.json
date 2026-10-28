@@ -5824,6 +5824,660 @@
           }
         }
       ]
+    },
+    {
+      "name": "19 Tipos de cozinha (/api/v1/cuisines)",
+      "description": "Catálogo de tipos de cozinha: consulta pública, manutenção só do administrador, nome único sem diferenciar maiúsculas. A pasta também exercita a escolha dos tipos pelo restaurante (cuisineIds), o filtro da listagem de restaurantes por tipo (cuisineId) e a regra de que tipo em uso não sai do catálogo. Usa o dono da seed (login na pasta 11) e não altera a seed: cria o próprio tipo e o próprio restaurante, e exclui os dois ao fim.",
+      "item": [
+        {
+          "name": "146 Administrador cadastra tipo de cozinha",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// O nome é único no catálogo, e a coleção roda várias vezes contra o mesmo banco: marca nova a cada execução.",
+                  "const marca = Math.random().toString(36).slice(2, 10);",
+                  "pm.collectionVariables.set(\"cozinhaNome\", \"Cozinha\" + marca);",
+                  "pm.collectionVariables.set(\"cozinhaNomeMaiusculo\", (\"Cozinha\" + marca).toUpperCase());",
+                  "pm.collectionVariables.set(\"cozinhaNomeNovo\", \"Cozinha\" + marca + \"Renomeada\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 Created\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code !== 201) { postman.setNextRequest(null); } else {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.collectionVariables.set(\"cuisineId\", corpo.id);",
+                  "    pm.test(\"Devolve o tipo criado, com Location\", () => {",
+                  "        pm.expect(corpo.name).to.eql(pm.collectionVariables.get(\"cozinhaNome\"));",
+                  "        pm.expect(pm.response.headers.get(\"Location\")).to.include(\"/api/v1/cuisines/\" + corpo.id);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/cuisines",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{cozinhaNome}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "147 Cadastro de tipo de cozinha sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:nao-autenticado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/cuisines",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{cozinhaNome}}Sem Token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "148 Dono de restaurante tenta cadastrar tipo de cozinha",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:acesso-negado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/cuisines",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{cozinhaNome}}Do Dono\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "149 Cadastro de tipo de cozinha com nome em branco",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida, com o campo name\", () => {",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "    pm.expect(pm.response.json().errors).to.have.property(\"name\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/cuisines",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"   \"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "150 Cadastro de tipo de cozinha com nome repetido (maiúsculas diferentes)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"ProblemDetail conflito-de-dados\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:conflito-de-dados\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/cuisines",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{cozinhaNomeMaiusculo}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "151 Consulta pública de tipo de cozinha por ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Devolve o tipo, com link self\", () => {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.expect(corpo.name).to.eql(pm.collectionVariables.get(\"cozinhaNome\"));",
+                  "    pm.expect(corpo._links).to.have.property(\"self\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/cuisines/{{cuisineId}}"
+          }
+        },
+        {
+          "name": "152 Consulta de tipo de cozinha inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/cuisines/00000000-0000-4000-8000-000000000000"
+          }
+        },
+        {
+          "name": "153 Listagem pública de tipos de cozinha com busca e paginação",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Acha só o tipo criado, com a página e os links de navegação\", () => {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.expect(corpo.page.totalElements).to.eql(1);",
+                  "    pm.expect(corpo._embedded.cuisineResponseList[0].name).to.eql(pm.collectionVariables.get(\"cozinhaNome\"));",
+                  "    pm.expect(corpo._links).to.have.property(\"first\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/cuisines?name={{cozinhaNome}}&page=0&size=10&sort=name,asc"
+          }
+        },
+        {
+          "name": "154 Administrador renomeia o tipo de cozinha",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"O tipo ganha o novo nome, no mesmo id\", () => {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.expect(corpo.name).to.eql(pm.collectionVariables.get(\"cozinhaNomeNovo\"));",
+                  "    pm.expect(corpo.id).to.eql(pm.collectionVariables.get(\"cuisineId\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/cuisines/{{cuisineId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{cozinhaNomeNovo}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "155 Dono de restaurante tenta renomear tipo de cozinha",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:acesso-negado\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/cuisines/{{cuisineId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{cozinhaNome}}Do Dono\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "156 Renomear para o nome de outro tipo de cozinha",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"ProblemDetail conflito-de-dados\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:conflito-de-dados\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/cuisines/{{cuisineId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"ITALIANA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Italiana é do catálogo inicial (migration V16). A requisição é recusada, então a seed não muda."
+          }
+        },
+        {
+          "name": "157 Dono cadastra restaurante com tipo de cozinha",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 Created\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code !== 201) { postman.setNextRequest(null); } else {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.collectionVariables.set(\"cuisineRestaurantId\", corpo.id);",
+                  "    pm.test(\"O restaurante traz o tipo de cozinha escolhido, com o nome do catálogo\", () => {",
+                  "        pm.expect(corpo.cuisines).to.have.lengthOf(1);",
+                  "        pm.expect(corpo.cuisines[0].id).to.eql(pm.collectionVariables.get(\"cuisineId\"));",
+                  "        pm.expect(corpo.cuisines[0].name).to.eql(pm.collectionVariables.get(\"cozinhaNomeNovo\"));",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Rua da Cozinha\",\n    \"number\": \"10\",\n    \"neighborhood\": \"Centro\",\n    \"zipCode\": \"01001-000\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Cozinha Postman\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ],\n  \"cuisineIds\": [\"{{cuisineId}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "158 Listagem pública de restaurantes filtrada pelo tipo de cozinha",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Acha só o restaurante que serve o tipo criado, e a navegação repete o filtro\", () => {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.expect(corpo.page.totalElements).to.eql(1);",
+                  "    pm.expect(corpo._embedded.restaurantResponseList[0].id).to.eql(pm.collectionVariables.get(\"cuisineRestaurantId\"));",
+                  "    pm.expect(corpo._links.self.href).to.include(\"cuisineId=\" + pm.collectionVariables.get(\"cuisineId\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/restaurants?cuisineId={{cuisineId}}&page=0&size=10&sort=name,asc",
+            "description": "O tipo de cozinha foi criado nesta execução e só o restaurante do request anterior o serve: o total é exatamente 1."
+          }
+        },
+        {
+          "name": "159 Cadastro de restaurante com tipo de cozinha inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => {",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\");",
+                  "    pm.expect(pm.response.json().detail).to.eql(\"Tipo de cozinha não encontrado\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Rua da Cozinha\",\n    \"number\": \"10\",\n    \"neighborhood\": \"Centro\",\n    \"zipCode\": \"01001-000\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Sem Cozinha\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ],\n  \"cuisineIds\": [\"00000000-0000-4000-8000-000000000000\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "160 Administrador tenta excluir tipo de cozinha em uso por restaurante",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"ProblemDetail recurso-em-uso\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:recurso-em-uso\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/cuisines/{{cuisineId}}"
+          }
+        },
+        {
+          "name": "161 Dono tira os tipos de cozinha do restaurante com lista vazia",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"O restaurante fica sem tipo de cozinha\", () =>",
+                  "    pm.expect(pm.response.json().cuisines).to.have.lengthOf(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{cuisineRestaurantId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"address\": {\n    \"street\": \"Rua da Cozinha\",\n    \"number\": \"10\",\n    \"neighborhood\": \"Centro\",\n    \"zipCode\": \"01001-000\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Cozinha Postman\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ],\n  \"cuisineIds\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "162 Dono exclui o restaurante de teste dos tipos de cozinha",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{cuisineRestaurantId}}"
+          }
+        },
+        {
+          "name": "163 Administrador exclui o tipo de cozinha que ninguém usa",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/cuisines/{{cuisineId}}"
+          }
+        },
+        {
+          "name": "164 Consulta de tipo de cozinha após a exclusão",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/cuisines/{{cuisineId}}"
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -5909,6 +6563,26 @@
     },
     {
       "key": "productId",
+      "value": ""
+    },
+    {
+      "key": "cuisineId",
+      "value": ""
+    },
+    {
+      "key": "cuisineRestaurantId",
+      "value": ""
+    },
+    {
+      "key": "cozinhaNome",
+      "value": ""
+    },
+    {
+      "key": "cozinhaNomeMaiusculo",
+      "value": ""
+    },
+    {
+      "key": "cozinhaNomeNovo",
       "value": ""
     },
     {

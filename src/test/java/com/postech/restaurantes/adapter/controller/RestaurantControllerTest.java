@@ -14,6 +14,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.postech.restaurantes.adapter.datasource.ICuisineDataSource;
 import com.postech.restaurantes.adapter.datasource.IRestaurantDataSource;
 import com.postech.restaurantes.adapter.datasource.IUserDataSource;
 import com.postech.restaurantes.adapter.datasource.data.AddressData;
@@ -40,6 +41,7 @@ class RestaurantControllerTest {
 
     private IRestaurantDataSource restaurantDataSource;
     private IUserDataSource userDataSource;
+    private ICuisineDataSource cuisineDataSource;
     private IUnitOfWork unitOfWork;
     private RestaurantController controller;
 
@@ -53,6 +55,7 @@ class RestaurantControllerTest {
     @SuppressWarnings("unchecked")
     void setUp() {
         restaurantDataSource = mock(IRestaurantDataSource.class);
+        cuisineDataSource = mock(ICuisineDataSource.class);
         userDataSource = mock(IUserDataSource.class);
         unitOfWork = mock(IUnitOfWork.class);
 
@@ -67,7 +70,7 @@ class RestaurantControllerTest {
             return null;
         }).when(unitOfWork).execute(any(Runnable.class));
 
-        controller = RestaurantController.create(restaurantDataSource, userDataSource, unitOfWork);
+        controller = RestaurantController.create(restaurantDataSource, userDataSource, cuisineDataSource, unitOfWork);
 
         restaurantId = UUID.randomUUID();
         userId = UUID.randomUUID();
@@ -77,7 +80,7 @@ class RestaurantControllerTest {
         userData = new UserData(userId, "Dono", "dono@x.com", "dono", "hash",
                 new OwnerData("11222333000181", "Sabor Ltda", "1131234567"), null, null, null, List.of(), null, null);
 
-        restaurantData = new RestaurantData(restaurantId, userId, addressData, "Sabor", OFFICE_HOURS_DATA,
+        restaurantData = new RestaurantData(restaurantId, userId, addressData, "Sabor", OFFICE_HOURS_DATA, List.of(),
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
@@ -87,7 +90,7 @@ class RestaurantControllerTest {
         when(userDataSource.findById(userId)).thenReturn(Optional.of(userData));
         when(restaurantDataSource.insert(any())).thenReturn(restaurantData);
 
-        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", OFFICE_HOURS_DTO);
+        CreateRestaurantDTO dto = new CreateRestaurantDTO(userId, endereco, "Sabor", OFFICE_HOURS_DTO, null);
         RestaurantView view = controller.create(dto);
 
         assertNotNull(view);
@@ -108,9 +111,9 @@ class RestaurantControllerTest {
     void deveBuscarPaginado() {
         PageRequest req = PageRequest.of(0, 10);
         PageResult<RestaurantData> page = new PageResult<>(List.of(restaurantData), 0, 10, 1);
-        when(restaurantDataSource.search(any(), any(), any())).thenReturn(page);
+        when(restaurantDataSource.search(any(), any(), any(), any())).thenReturn(page);
 
-        PageResult<RestaurantView> view = controller.search("sabor", null, req);
+        PageResult<RestaurantView> view = controller.search("sabor", null, null, req);
 
         assertNotNull(view);
     }
@@ -133,7 +136,7 @@ class RestaurantControllerTest {
         when(userDataSource.findById(userId)).thenReturn(Optional.of(userData));
         when(restaurantDataSource.update(any())).thenReturn(restaurantData);
 
-        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo", OFFICE_HOURS_DTO);
+        UpdateRestaurantDTO dto = new UpdateRestaurantDTO(restaurantId, userId, endereco, "Novo", OFFICE_HOURS_DTO, null);
         RestaurantView view = controller.update(dto);
 
         assertNotNull(view);
@@ -152,8 +155,9 @@ class RestaurantControllerTest {
     @Test
     @DisplayName("Recusa parametros nulos no construtor/fabrica")
     void deveRecusarParametrosNulos() {
-        assertThrows(IllegalArgumentException.class, () -> RestaurantController.create(null, userDataSource, unitOfWork));
-        assertThrows(IllegalArgumentException.class, () -> RestaurantController.create(restaurantDataSource, null, unitOfWork));
-        assertThrows(IllegalArgumentException.class, () -> RestaurantController.create(restaurantDataSource, userDataSource, null));
+        assertThrows(IllegalArgumentException.class, () -> RestaurantController.create(null, userDataSource, cuisineDataSource, unitOfWork));
+        assertThrows(IllegalArgumentException.class, () -> RestaurantController.create(restaurantDataSource, null, cuisineDataSource, unitOfWork));
+        assertThrows(IllegalArgumentException.class, () -> RestaurantController.create(restaurantDataSource, userDataSource, null, unitOfWork));
+        assertThrows(IllegalArgumentException.class, () -> RestaurantController.create(restaurantDataSource, userDataSource, cuisineDataSource, null));
     }
 }

@@ -12,6 +12,7 @@ public record RestaurantResponse(
         AddressResponse address,
         String name,
         List<OfficeHourResponse> officeHours,
+        List<CuisineResponse> cuisines,
         LocalDateTime createdAt,
         LocalDateTime lastUpdatedAt
 ) {
@@ -23,6 +24,7 @@ public record RestaurantResponse(
                 AddressResponse.from(view.address()),
                 view.name(),
                 view.officeHours().stream().map(OfficeHourResponse::from).toList(),
+                view.cuisines().stream().map(CuisineResponse::from).toList(),
                 view.createdAt(),
                 view.lastUpdatedAt()
         );

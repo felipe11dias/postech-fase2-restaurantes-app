@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (27 até aqui; as Etapas 17 a 25 adequaram o projeto ao Modelo de Dados v2 em
-`docs/modelo-dados/`, e a 25 traz o quadro final "modelo v2 × schema real", e a 26 integra endereços e catálogo geográfico) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
+Architecture**. O projeto está sendo entregue **etapa por etapa** (28 até aqui; as Etapas 17 a 25 adequaram o projeto ao Modelo de Dados v2 em
+`docs/modelo-dados/`, a 25 traz o quadro final "modelo v2 × schema real", a 26 integra endereços e catálogo geográfico, a 27 o catálogo de produtos e a 28 os tipos de cozinha) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
 `CHANGELOG.md`, e atualização do relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (marcar a etapa
 como ✅ no Sumário de Progresso, atualizar o contador e acrescentar a subseção
 "O que foi entregue nesta etapa" com o resultado real do build). O relatório é a
@@ -275,6 +275,19 @@ Pontos que só ficam claros lendo várias camadas:
   só do lado do restaurante, com `day_of_week` como texto (`?::day_of_week`); a atualização reconcilia por (dia,
   abertura), senão o Hibernate inseriria antes de apagar e violaria `UNIQUE (restaurant_id, day_of_week,
   start_time)`. O dia vem como texto e passa por `OfficeHour.dayOf` (mensagem do domínio).
+- **Tipos de cozinha (Etapa 28, V15 a V17).** `Cuisine` é agregado próprio (`domain/entity/cuisine`), catálogo com
+  leitura pública e escrita só do administrador (`/api/v1/cuisines`). Nome único sem diferenciar maiúsculas: índice
+  em `LOWER(name)` + `application/policy/cuisine/UniqueCuisineNamePolicy`. O restaurante guarda a lista
+  (`Restaurant.replaceCuisines`, ordem do `Collator` `pt-BR` — `CASE_INSENSITIVE_ORDER` põe "Árabe" no fim) e a
+  recebe por `cuisineIds`, conferidos pela `application/policy/restaurant/ExistingCuisinesPolicy` (404): no `POST`,
+  ausente = nenhum; no `PUT`, ausente = mantém, vazio = tira todos. Tipo em uso não sai do catálogo
+  (`ResourceInUseException` → 409; no banco, `RESTRICT`). JPA: `@ManyToMany` só em `RestaurantJpaEntity`, sem cascata,
+  com `@BatchSize`, **fora** do `@EntityGraph`; `persistence/jpa/cuisine` não conhece o restaurante, por isso
+  "está em uso?" é consulta nativa na ligação. A listagem de restaurantes filtra por `?cuisineId=` (combina com
+  `name` e `ownerId`; uma consulta paginada de ids por combinação). O catálogo inicial (8 tipos, ids
+  `c0000000-0000-4000-8000-00000000000N`) é a V16 — migration já aplicada não se edita. A V17 põe a collation
+  `pt-BR-x-icu` em `cuisines.name`: o Postgres Alpine ordena por byte e mandaria "Árabe" para o fim da listagem. Nos ITs, o nome do tipo leva
+  marca única (`criarCozinha`), porque o banco é compartilhado.
 - **Catálogo de produtos (Etapa 27, V13/V14).** `Product` é raiz; imagens guardam caminhos/URLs como
   texto em `images.content` (`varchar(2048)`); a tarefa define que o arquivo não será enviado nem
   usado nesta etapa. A API recebe `imagePaths`; grupos e valores são partes. O preço do produto é

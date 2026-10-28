@@ -100,6 +100,6 @@ class ProductControllerTest {
 
     private RestaurantData restaurantData() {
         return new RestaurantData(UUID.randomUUID(), UUID.randomUUID(), ADDRESS_DATA, "Restaurante",
-                OFFICE_HOURS_DATA, NOW, NOW);
+                OFFICE_HOURS_DATA, List.of(), NOW, NOW);
     }
 }

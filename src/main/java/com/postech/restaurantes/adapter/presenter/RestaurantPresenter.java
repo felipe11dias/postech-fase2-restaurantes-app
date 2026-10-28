@@ -22,6 +22,7 @@ public final class RestaurantPresenter {
                 restaurant.getOfficeHours().stream()
                         .map(hour -> new OfficeHourView(hour.dayOfWeek().name(), hour.startTime(), hour.endTime()))
                         .toList(),
+                restaurant.getCuisines().stream().map(CuisinePresenter::toView).toList(),
                 restaurant.getCreatedAt(),
                 restaurant.getLastUpdatedAt()
         );

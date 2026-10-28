@@ -10,7 +10,8 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Listagem paginada com busca parcial por nome de restaurante e, opcionalmente, só os de um dono.
+ * Listagem paginada com busca parcial por nome de restaurante e, opcionalmente, só os de um dono e só os que têm um
+ * tipo de cozinha.
  */
 public final class SearchRestaurantsUseCase {
 
@@ -28,9 +29,9 @@ public final class SearchRestaurantsUseCase {
         return new SearchRestaurantsUseCase(restaurantGateway);
     }
 
-    public PageResult<Restaurant> run(String name, UUID ownerId, PageRequest request) {
+    public PageResult<Restaurant> run(String name, UUID ownerId, UUID cuisineId, PageRequest request) {
         Guard.requireNonNull(request, "Paginação inválida");
-        return restaurantGateway.search(Guard.trimToNull(name), ownerId, sanitizeSort(request));
+        return restaurantGateway.search(Guard.trimToNull(name), ownerId, cuisineId, sanitizeSort(request));
     }
 
     private static PageRequest sanitizeSort(PageRequest request) {

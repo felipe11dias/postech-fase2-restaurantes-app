@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.postech.restaurantes.application.gateway.IRestaurantGateway;
 import com.postech.restaurantes.domain.entity.restaurant.Restaurant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -26,7 +27,7 @@ class FindRestaurantOwnerUseCaseTest {
         UUID id = UUID.randomUUID();
         UUID dono = UUID.randomUUID();
         when(restaurantGateway.findById(id)).thenReturn(Optional.of(Restaurant.restore(id, dono, address(), "Sabor",
-                OFFICE_HOURS, null, null)));
+                OFFICE_HOURS, List.of(), null, null)));
 
         assertEquals(Optional.of(dono), useCase.run(id));
     }

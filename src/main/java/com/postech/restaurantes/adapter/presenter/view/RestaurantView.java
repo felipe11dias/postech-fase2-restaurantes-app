@@ -11,6 +11,7 @@ public record RestaurantView(
         AddressView address,
         String name,
         List<OfficeHourView> officeHours,
+        List<CuisineView> cuisines,
         LocalDateTime createdAt,
         LocalDateTime lastUpdatedAt
 ) {
