@@ -5,15 +5,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projeto
 
 Backend Spring Boot 3.5 / Java 21 do Tech Challenge Fase 2 (Pós-Tech), construído em **Clean
-Architecture**. O projeto está sendo entregue **etapa por etapa** (26 até aqui; as Etapas 17 a 25 adequaram o projeto ao Modelo de Dados v2 em
-`docs/modelo-dados/`, a 25 traz o quadro final "modelo v2 × schema real", e a 26 os tipos de cozinha) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
+Architecture**. O projeto está sendo entregue **etapa por etapa** (28 até aqui; as Etapas 17 a 25 adequaram o projeto ao Modelo de Dados v2 em
+`docs/modelo-dados/`, a 25 traz o quadro final "modelo v2 × schema real", a 26 integra endereços e catálogo geográfico, a 27 o catálogo de produtos e a 28 os tipos de cozinha) e cada etapa tem três saídas obrigatórias: código + testes, entrada no
 `CHANGELOG.md`, e atualização do relatório técnico em `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (marcar a etapa
 como ✅ no Sumário de Progresso, atualizar o contador e acrescentar a subseção
 "O que foi entregue nesta etapa" com o resultado real do build). O relatório é a
 especificação: leia a seção da etapa antes de implementá-la e sincronize os exemplos de
 código dele com o que foi de fato escrito.
 
-Idioma do código, comentários, testes (`@DisplayName`) e documentação: português.
+Identificadores novos ou alterados do código e testes: inglês. Documentação, comentários e mensagens ao usuário podem permanecer em português. Os testes legados em português continuam aceitos, sem renomeação geral fora do escopo.
 
 ## Princípio orientador (definido pelo autor)
 
@@ -80,7 +80,7 @@ infrastructure  → qualquer camada. ÚNICO pacote que pode importar Spring, JPA
 Cada pacote tem um `package-info.java` com sua regra. Dentro de cada camada, entidades, casos de
 uso e DTOs ficam em **subpacotes por agregado/feature** (`domain/entity/user`,
 `application/usecase/auth`, `application/dto/common`...) — *screaming architecture*: uma feature
-nova (restaurante, cardápio) ganha o próprio subpacote em cada camada. Convenções também verificadas:
+nova (restaurante, produtos e opções) ganha o próprio subpacote em cada camada. Convenções também verificadas:
 classes em `application.usecase` terminam em `UseCase`; tudo em `application.gateway`,
 `adapter.datasource` e `adapter.service` são interfaces com prefixo `I`; `application.policy` só tem `*Policy`,
 usadas só por casos de uso; `domain.vo` só tem `record`s; records `*Data` e `*View` não carregam tipo do domínio
@@ -111,6 +111,7 @@ infrastructure/
     security/          SecurityConfig, BearerTokenAuthenticationFilter, 401, AuthenticatedUser,
                        UserSecurity, AuthenticatedActor, IAccessTokenReader, ICurrentRolesReader e IRestaurantOwnerReader (portas do módulo), RestaurantSecurity
   persistence/jpa/     PersistenceConfig, TransactionalUnitOfWork; audit/; um subpacote por agregado
+    product/           ProductJpaEntity e origem de dados; image/, optiongroup/ e optionvalue/ são partes unidirecionais
   token/jwt/           ITokenEncoder + IAccessTokenReader (jjwt): JwtTokenEncoder, JwtProperties, JwtConfig
   crypto/              IPasswordEncoder (BCrypt), ISecureTokenGenerator (SecureRandom)
   mail/smtp/           IMailSender (Spring Mail): SmtpMailSender, MailProperties, MailConfig
@@ -274,7 +275,7 @@ Pontos que só ficam claros lendo várias camadas:
   só do lado do restaurante, com `day_of_week` como texto (`?::day_of_week`); a atualização reconcilia por (dia,
   abertura), senão o Hibernate inseriria antes de apagar e violaria `UNIQUE (restaurant_id, day_of_week,
   start_time)`. O dia vem como texto e passa por `OfficeHour.dayOf` (mensagem do domínio).
-- **Tipos de cozinha (Etapa 26, V11 e V12).** `Cuisine` é agregado próprio (`domain/entity/cuisine`), catálogo com
+- **Tipos de cozinha (Etapa 28, V15 e V16).** `Cuisine` é agregado próprio (`domain/entity/cuisine`), catálogo com
   leitura pública e escrita só do administrador (`/api/v1/cuisines`). Nome único sem diferenciar maiúsculas: índice
   em `LOWER(name)` + `application/policy/cuisine/UniqueCuisineNamePolicy`. O restaurante guarda a lista
   (`Restaurant.replaceCuisines`, ordem do `Collator` `pt-BR` — `CASE_INSENSITIVE_ORDER` põe "Árabe" no fim) e a
@@ -284,8 +285,17 @@ Pontos que só ficam claros lendo várias camadas:
   com `@BatchSize`, **fora** do `@EntityGraph`; `persistence/jpa/cuisine` não conhece o restaurante, por isso
   "está em uso?" é consulta nativa na ligação. A listagem de restaurantes filtra por `?cuisineId=` (combina com
   `name` e `ownerId`; uma consulta paginada de ids por combinação). O catálogo inicial (8 tipos, ids
-  `c0000000-0000-4000-8000-00000000000N`) é a V12 — migration já aplicada não se edita. Nos ITs, o nome do tipo leva
+  `c0000000-0000-4000-8000-00000000000N`) é a V16 — migration já aplicada não se edita. Nos ITs, o nome do tipo leva
   marca única (`criarCozinha`), porque o banco é compartilhado.
+- **Catálogo de produtos (Etapa 27, V13/V14).** `Product` é raiz; imagens guardam caminhos/URLs como
+  texto em `images.content` (`varchar(2048)`); a tarefa define que o arquivo não será enviado nem
+  usado nesta etapa. A API recebe `imagePaths`; grupos e valores são partes. O preço do produto é
+  `BigDecimal`/`numeric(10,2)` após a V14 (o modelo lógico declara `double`);
+  `additional_price` continua decimal.
+  API aninhada em
+  `/api/v1/restaurants/{restaurantId}/products`: leitura pública, escrita por ADMIN/dono. O `PUT`
+  substitui as coleções integralmente. A paginação carrega ids e depois o grafo, evitando join-fetch
+  com paginação em memória. A divergência de `images.content` do modelo lógico está registrada no relatório.
 
 ### API REST organizada como MVC (Etapa 15, já implementada)
 
@@ -304,7 +314,9 @@ Pontos que só ficam claros lendo várias camadas:
   `SecurityConfig` e os links do assembler leem de lá. O assembler monta links com
   `BasicLinkBuilder.linkToCurrentMapping().slash(ApiRoutes.X)` — se usasse
   `linkTo(XRestController.class)`, `controller` e `assembler` formariam ciclo (o controller usa o
-  assembler) e `nenhum_ciclo_entre_pacotes` quebraria o build.
+  assembler) e   `nenhum_ciclo_entre_pacotes` quebraria o build.
+- **Produtos pertencem ao restaurante**: a rota usa `ApiRoutes.PRODUCTS`; `RestaurantSecurity`
+  autoriza as escritas pelo dono e consulta pública não expõe dados pessoais.
 
 ### Web e segurança (Etapa 7, já implementada)
 
@@ -477,8 +489,7 @@ Pontos que só ficam claros lendo várias camadas:
 ## Testes (Etapa 11, já implementada)
 
 - **`TestConventionsTest` verifica no build** (ArchUnit sobre as classes de teste): `@DisplayName`
-  em todo `@Test`/`@ParameterizedTest`; método `deve<Comportamento>[Quando<Condição>]` ou
-  `naoDeve…`; `*Test` sem Testcontainers, `spring-boot-test`, contexto de teste do Spring nem
+  em todo `@Test`/`@ParameterizedTest`; método `should<Behavior>[When<Condition>]` ou `shouldNot…` (os nomes legados `deve…`/`naoDeve…` continuam aceitos); `*Test` sem Testcontainers, `spring-boot-test`, contexto de teste do Spring nem
   JDBC; `*IT` estende `IntegrationTestSupport` ou `WebIntegrationTestSupport`; `@MockitoBean` só
   em `JavaMailSender`; nenhum `@MockitoSpyBean`; nenhum `@Testcontainers`.
 - Estrutura arrange / act / assert; casos "em branco" com `@ParameterizedTest` + `@NullAndEmptySource`.

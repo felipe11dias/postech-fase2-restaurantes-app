@@ -1,5 +1,32 @@
 # Changelog — Restaurantes (Fase 2)
 
+## Documentação — Relatório técnico v3.0
+- Criado `relatorios/relatorio-tech-challenge-fase02-v3.0.md` a partir do padrão da versão 2.0, preservando os arquivos das versões 1.0 e 2.0 para controle e histórico.
+- Consolidada a Etapa 26 com arquitetura de endereços/localidades, contrato HTTP, migrations V11/V12, testes existentes e links para os 11 prints integrados a `postman/prints/`.
+- Registrada a execução de 23/10/2026: 11 casos de endereços e 28 asserções aprovadas; a execução completa teve uma falha auxiliar de conexão no request 92, descrita separadamente.
+- README aponta para o relatório v3.0 e registra as 130 imagens atuais. Alteração documental, sem nova execução Maven/Newman ou mudança no código da aplicação.
+
+## Etapa 26 — Correção do merge e catálogo de endereços
+- Corrigidos imports, conversões de `Address`, vínculos `UserAddress` e referências ao antigo catálogo de papéis que quebravam a compilação após o merge com a main.
+- `cityId` obrigatório em `Address`, `AddressDTO`, `AddressData` e `AddressRequest`; `AddressView` exige `CityView` com id e estado válidos. Construtores alternativos que omitiam cidade foram removidos.
+- `AddressRequest` recebe apenas `cityId` e os campos do endereço; nomes de cidade/estado vêm do catálogo, com resposta `AddressView -> CityView -> StateView` e DTOs HTTP equivalentes.
+- Resolução compartilhada da cidade existente para usuários e restaurantes; id desconhecido responde 404, sem criação automática de cidades ou estados. Catálogos expõem apenas leitura, inclusive nos repositórios Spring Data.
+- Normalização movida para `V11__normalize_address_location.sql`, preservando V1–V10 da main. `V12__seed_location_catalog.sql` inclui as 27 unidades federativas, as capitais e Campinas; novas cidades entram por migrations.
+- Consultas públicas `GET /api/v1/states` e `GET /api/v1/cities`, com filtros por `stateId`/`name`, paginação e links de navegação para cidades.
+- Seed reconhece cidades legadas sem diferenciar maiúsculas/minúsculas, preservando ids sem duplicações.
+- Validação: `mvn verify` com 734 unitários e 142 de integração aprovados; cobertura de 100% (2174 linhas, 558 ramos). Após o ajuste da seed, nova execução com os 17 testes de migração e os unitários aprovada.
+- Nomes novos em inglês; documentação e coleção Postman atualizadas ao contrato obrigatório de cidade. Testes de contrato, domínio, persistência, API e atualização de banco na V10.
+## Etapa 27 — Catálogo de produtos, imagens e opções
+- Agregado `Product` com caminhos/URLs de imagem, grupos de opções e valores, validando preço, limites de seleção e obrigatoriedade.
+- CRUD e listagem paginada em `/api/v1/restaurants/{restaurantId}/products`; leitura pública e escrita restrita ao administrador ou dono do restaurante.
+- Migration Flyway `V13__product_catalog.sql` para `products`, `images`, `product_option_groups` e `product_option_values`; `images.content` guarda caminho/URL em `varchar(2048)`, conforme a descrição da tarefa, e `products.price` usa `double precision` conforme o modelo.
+- Persistência JPA de partes do agregado, paginação em duas consultas, DTOs REST, HATEOAS e documentação OpenAPI.
+- Adicionados 20 requests Postman para os caminhos felizes e erros documentados; os cenários de produto rodam antes da limpeza do segundo dono descartável. Execução Newman e geração dos prints aguardam Docker.
+- Implementação do catálogo alinhada à descrição da tarefa: o JSON recebe `imagePaths`, e o banco persiste essas referências textuais em `images.content`; `products.price` usa `double`.
+- Validação após a troca do contrato de imagem: `mvn verify` passou com 821 testes unitários e 140 de integração; JaCoCo conferiu 100% de linhas e ramos. `ProductCatalogIT` confirmou gravação e retorno de caminhos no PostgreSQL.
+- V14 converte `products.price` para `numeric(10,2)`; domínio, DTOs, records de dados, views e entidade JPA passam a usar `BigDecimal`, evitando aproximação binária em valores monetários.
+- Validação da alteração: `mvn test` passou com 851 testes unitários, 100% de cobertura (2519 linhas e 592 ramos); `mvn verify -Dit.test=ProductCatalogIT,SchemaMigrationIT -Dtest=NoSuch -Dsurefire.failIfNoSpecifiedTests=false` passou com 22 testes de integração e gate de cobertura atendido.
+
 ## Etapa 16 — Módulo de Gestão de Restaurantes (Imagem 2)
 - Criação da tabela `restaurants` via Flyway migration `V3__create_restaurant_schema.sql` com chaves estrangeiras vinculadas a `users` e `addresses`.
 - Criação da entidade de domínio `Restaurant` com verificação estrita de invariantes (nome, dono com perfil `ROLE_OWNER` ou `ROLE_ADMIN`, endereço do dono e horários de funcionamento).
@@ -535,11 +562,12 @@
 - `mvn clean verify`: 775 testes unitários e 138 de integração; cobertura unitária 100% (2009 linhas,
   544 ramos, 840 métodos). Suíte também em ordem aleatória (semente 20261006), sem falhas.
 
-## Etapa 26 — Tipos de cozinha (cuisines e restaurant_cuisines)
-- Migration `V11__cuisines.sql`: catálogo `cuisines` (nome único sem diferenciar maiúsculas, índice em
+## Etapa 28 — Tipos de cozinha (cuisines e restaurant_cuisines)
+- Migration `V15__cuisines.sql`: catálogo `cuisines` (nome único sem diferenciar maiúsculas, índice em
   `LOWER(name)`) e ligação N:N `restaurant_cuisines` (chave composta; `ON DELETE CASCADE` no restaurante,
-  `RESTRICT` no tipo). Migration `V12__seed_cuisines.sql`: catálogo inicial com oito tipos e ids fixos
-  (`c0000000-0000-4000-8000-00000000000N`), em migration própria porque a V11 já estava aplicada.
+  `RESTRICT` no tipo). Migration `V16__seed_cuisines.sql`: catálogo inicial com oito tipos e ids fixos
+  (`c0000000-0000-4000-8000-00000000000N`). Desenvolvidas como V11 e V12 na branch `feat/cuisines` e
+  renumeradas no merge com a `main`, que já usava V11 a V14 (endereços e produtos).
 - Domínio: entidade `Cuisine` (nome obrigatório); `Restaurant` passa a ter a lista de tipos
   (`replaceCuisines`: sem nulos, sem repetir, só tipos já cadastrados, em ordem alfabética do português
   via `Collator` `pt-BR`).
@@ -550,15 +578,20 @@
   inexistente → 404).
 - Restaurante: `cuisineIds` opcional no `POST` (ausente = nenhum tipo) e no `PUT` (ausente = mantém, lista
   vazia = tira todos); `cuisines` (id e nome) na resposta.
-- Filtro novo na listagem pública: `GET /api/v1/restaurants?cuisineId=` (combina com `name` e `ownerId`; a
+- Filtro na listagem pública: `GET /api/v1/restaurants?cuisineId=` (combina com `name` e `ownerId`; a
   navegação HATEOAS repete o filtro).
 - Adaptadores (`ICuisineDataSource`, `CuisineData`, `CuisineGateway`, `CuisinePresenter`, `CuisineView`,
   `CuisineController`) e infraestrutura (`CuisineJpaEntity`, `SpringDataCuisineRepository`,
   `CuisineDataSourceJpa`; `@ManyToMany` sem cascata e com `@BatchSize` em `RestaurantJpaEntity`, fora do
   `@EntityGraph`; `CuisineRestController` em `/api/v1/cuisines` — leitura pública, escrita só do administrador).
+- Merge com a `main`: `RestaurantDataSourceJpa` recebe o `CityReferenceResolver` (endereços) e o repositório de
+  tipos; testes de produto passam a montar o restaurante com a lista de tipos; `OpenApiDocumentationIT` com 32
+  operações (20 protegidas).
 - Testes: unitários de todas as classes novas e alteradas, `CuisineLifecycleIT`, `RestaurantCuisinesIT` (7
-  casos, filtro incluído), `SchemaMigrationIT` (V11 e V12) e `OpenApiDocumentationIT` (25 operações).
-- Postman: pasta 17 "Tipos de cozinha", requests 126 a 144 (o 138 é o filtro por tipo); 144 requests. Execução
-  pelo `npx newman@6`: 145 execuções (com a nova tentativa do Mailpit), 295 asserções, sem falhas; 144 prints.
-- `mvn verify`: 863 testes unitários e 153 de integração; cobertura unitária 100% (2256 linhas, 578 ramos,
-  951 métodos).
+  casos, filtro incluído), `SchemaMigrationIT` (V15 e V16).
+- Postman: pasta "Tipos de cozinha", requests 146 a 164; 169 requests e 343 asserções,
+  sem falhas; prints regenerados da mesma execução. A pilha do Compose da `main` sobe com a aplicação na
+  porta 8081 (`server.port` do `application.yml`, Etapa 26), e o Compose espera 8080: a validação usou
+  `SERVER_PORT=8080` só no container, sem alterar o repositório.
+- `mvn verify`: 939 testes unitários e 162 de integração; cobertura unitária 100% (2766 linhas,
+  626 ramos).

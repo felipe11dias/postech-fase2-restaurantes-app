@@ -51,7 +51,7 @@
 
 ```
 adapter/
-  controller/   UserController, AuthController              — o maestro
+  controller/   UserController, AuthController, ProductController — o maestro
   gateway/      UserGateway, PasswordResetTokenGateway,
                 RestaurantGateway                                     — tradutores de dados
   gateway/mapping/  AddressMapping                                 — tradução compartilhada (endereço)
@@ -88,6 +88,7 @@ o `UserController` recebe `IRestaurantDataSource` e entrega um `RestaurantGatewa
 |---|---|---|---|
 | `UserGateway` | `IUserGateway` | `IUserDataSource` | `User` ↔ `UserData` (e-mail normalizado, CEP sem máscara, cada perfil como `OwnerData`/`ClientData`/`CourierData`/`AdminData` — documentos sem máscara, tipo de veículo e status pelo nome, convertidos de volta por `CourierVehicleType.from`/`CourierStatus.from` —, endereços como `UserAddressData` com rótulo e padrão); reconstrói com `User.restore`, que **revalida** |
 | `RestaurantGateway` | `IRestaurantGateway` | `IRestaurantDataSource` | `Restaurant` ↔ `RestaurantData`, com o endereço do restaurante aninhado |
+| `ProductGateway` (Etapa 27) | `IProductGateway` | `IProductDataSource` | `Product` ↔ `ProductData`, incluindo preço `BigDecimal`, caminhos/URLs de imagem, grupos e valores de opção |
 | `PasswordResetTokenGateway` | `IPasswordResetTokenGateway` | `IPasswordResetTokenDataSource` | `PasswordResetToken` ↔ `PasswordResetTokenData` |
 | [`PasswordResetMailGateway`](../../src/main/java/com/postech/restaurantes/adapter/gateway/PasswordResetMailGateway.java) | `IMailGateway` | `IMailSender` | pedido "token + validade" → **assunto e corpo** da mensagem em português |
 | [`TokenGateway`](../../src/main/java/com/postech/restaurantes/adapter/gateway/TokenGateway.java) | `ITokenIssuer` | `ITokenEncoder` | `User` → `TokenClaimsData` (id, login, nomes dos papéis derivados dos perfis) |
@@ -176,3 +177,16 @@ Outros pontos em relação ao código das aulas:
   o commit falha), que testam o
   controller "de ponta a ponta dentro do núcleo" — origens de dados e serviços mockados, casos de
   uso, gateways e presenters reais.
+
+### Endereços e catálogo geográfico (Etapa 26)
+
+`LocationController` compõe os casos de consulta com `LocationGateway`, `ILocationDataSource`
+e `IUnitOfWork`, seguindo as mesmas fábricas dos demais controllers. `LocationMapping` traduz
+`CityData`/`StateData` para as entidades; os registros e views continuam sem tipos do domínio.
+`AddressData` exige `cityId` mesmo na escrita e inclui `CityData` na leitura. `AddressMapping`
+preserva o identificador e reconstitui os detalhes vindos da persistência.
+
+`AddressPresenter` e `LocationPresenter` produzem `AddressView(id, CityView, street, number,
+complement, neighborhood, zipCode)`, com `CityView(id, name, StateView)` e
+`StateView(id, name, acronym)`. A cidade e seus ids são obrigatórios nas views. A mesma tradução
+atende usuários e restaurantes, sem duplicar a resolução da localização.

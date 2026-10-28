@@ -1,5 +1,7 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -70,7 +72,7 @@ class TransactionalUnitOfWorkIT extends IntegrationTestSupport {
     @DisplayName("Restrição conferida só no commit chega como DataIntegrityViolationException (409), não como erro genérico")
     void deveTraduzirViolacaoAdiadaParaOCommit() {
         String login = "uow." + UUID.randomUUID().toString().substring(0, 8);
-        AddressData endereco = new AddressData(null, "Rua A", "1", null, "Centro", "São Paulo", "SP", "01001000");
+        AddressData endereco = new AddressData(null, LocationFixtures.cityId("São Paulo", "SP"), "Rua A", "1", null, "Centro", "01001000", LocationFixtures.cityData("São Paulo", "SP"));
         UserData doisPadroes = new UserData(null, "Dois Padrões", login + "@email.com", login,
                 "$2a$10$hashDeIntegracaoComTamanhoSuficiente", null, new ClientData(Documentos.cpf(), "11912345678", null), null, null,
                 List.of(new UserAddressData(null, null, true, endereco), new UserAddressData(null, null, true, endereco)),

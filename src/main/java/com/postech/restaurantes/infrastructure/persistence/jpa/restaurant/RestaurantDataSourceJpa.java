@@ -10,6 +10,7 @@ import com.postech.restaurantes.application.dto.common.SortDirection;
 import com.postech.restaurantes.infrastructure.persistence.jpa.address.AddressJpaMapping;
 import com.postech.restaurantes.infrastructure.persistence.jpa.cuisine.CuisineDataSourceJpa;
 import com.postech.restaurantes.infrastructure.persistence.jpa.cuisine.SpringDataCuisineRepository;
+import com.postech.restaurantes.infrastructure.persistence.jpa.location.CityReferenceResolver;
 import com.postech.restaurantes.infrastructure.persistence.jpa.restaurant.officehour.OfficeHourJpaEntity;
 import java.util.List;
 import java.util.Map;
@@ -36,10 +37,13 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
     private static final String DEFAULT_SORT_PROPERTY = "name";
 
     private final SpringDataRestaurantRepository restaurants;
+    private final CityReferenceResolver cityResolver;
     private final SpringDataCuisineRepository cuisines;
 
-    public RestaurantDataSourceJpa(SpringDataRestaurantRepository restaurants, SpringDataCuisineRepository cuisines) {
+    public RestaurantDataSourceJpa(SpringDataRestaurantRepository restaurants, CityReferenceResolver cityResolver,
+                                   SpringDataCuisineRepository cuisines) {
         this.restaurants = restaurants;
+        this.cityResolver = cityResolver;
         this.cuisines = cuisines;
     }
 
@@ -107,9 +111,9 @@ public class RestaurantDataSourceJpa implements IRestaurantDataSource {
     private void apply(RestaurantJpaEntity entity, RestaurantData data) {
         entity.setUserId(data.userId());
         if (entity.getAddress() == null) {
-            entity.setAddress(AddressJpaMapping.toEntity(data.address()));
+            entity.setAddress(AddressJpaMapping.toEntity(data.address(), cityResolver.resolve(data.address().cityId())));
         } else {
-            AddressJpaMapping.copy(data.address(), entity.getAddress());
+            AddressJpaMapping.copy(data.address(), entity.getAddress(), cityResolver.resolve(data.address().cityId()));
         }
         entity.setName(data.name());
         entity.replaceOfficeHours(reconcile(entity.getOfficeHours(), data.officeHours()));

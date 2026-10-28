@@ -50,6 +50,7 @@ Um caso de uso por **intenção do ator**, em subpacotes por feature:
 | Visitante, dono ou administrador — consultar restaurantes | `FindRestaurantByIdUseCase`, `SearchRestaurantsUseCase` | por id, ou paginado com busca por nome e, opcionalmente, só os de um dono e/ou só os de um tipo de cozinha | restaurante inexistente |
 | Administrador — manter o catálogo de tipos de cozinha; visitante — consultá-lo | `CreateCuisineUseCase`, `UpdateCuisineUseCase`, `FindCuisineByIdUseCase`, `SearchCuisinesUseCase`, `DeleteCuisineUseCase` | nome único sem diferenciar maiúsculas; o restaurante escolhe tipos por `cuisineIds` (`ExistingCuisinesPolicy`) | nome repetido (`DuplicateResourceException`); tipo inexistente; tipo em uso por restaurante não sai (`ResourceInUseException`) |
 | Regra de posse — saber de quem é o restaurante | `FindRestaurantOwnerUseCase` | o dono do restaurante, para a borda decidir se o requisitante pode alterar ou excluir | inexistente não tem dono (vazio, não exceção) |
+| Dono ou administrador — manter o cardápio do restaurante | `CreateProductUseCase`, `FindProductByIdUseCase`, `SearchProductsUseCase`, `UpdateProductUseCase`, `DeleteProductUseCase` (Etapa 27) | cria, consulta, pagina, substitui ou exclui produto com imagens e opções; a atualização substitui a hierarquia enviada | restaurante ou produto inexistente; invariantes de preço e seleção |
 | Usuário — trocar a senha | `ChangePasswordUseCase` | confere a atual → confirmação → novo hash | senha atual errada, confirmação divergente (`InvalidPasswordException`) |
 | Administrador — listar cadastros | `SearchUsersUseCase` | busca paginada por nome | ordenação por propriedade não permitida cai no nome |
 | Usuário — entrar | [`AuthenticateUseCase`](../../src/main/java/com/postech/restaurantes/application/usecase/auth/AuthenticateUseCase.java) | login existe, senha confere → token | credencial inválida — **mesma mensagem e mesmo tempo** para login inexistente e senha errada |
@@ -100,7 +101,7 @@ public final class RegisterUserUseCase {
 | Extensões como exceções de domínio | `DomainException` e subclasses | cada desvio do cenário principal tem nome de negócio e vira uma categoria de erro HTTP no handler |
 | Regra de negócio × regra de aplicação | entidade × caso de uso | o que vale sempre fica na entidade; o que depende do ponto de entrada fica no caso de uso |
 | Relógio e validade por parâmetro | `ForgotPasswordUseCase.create(..., validity, clock)`, `RegisterUserUseCase.create(..., clock)` | vencimento e "nascimento não futuro" testáveis com `Clock.fixed`, sem esperar o tempo passar |
-| Regra de aplicação compartilhada (Etapas 22, 25 e 26) | `application/policy/user/UniqueDocumentsPolicy` (`RegisterUserUseCase`, `SaveUserProfileUseCase`), `LastAdminPolicy` (`RemoveUserProfileUseCase`, `DeleteUserUseCase`), `application/policy/cuisine/UniqueCuisineNamePolicy` (criação e alteração do tipo) e `application/policy/restaurant/ExistingCuisinesPolicy` (cadastro e atualização do restaurante) | "CPF e CNPJ únicos", "o sistema não fica sem administrador", "nome de tipo único" e "os tipos escolhidos existem" existem uma vez só (DRY); não é caso de uso — não é objetivo do ator nem tem `run` —, então mora num pacote de políticas da camada, que depende só do domínio e das portas |
+| Regra de aplicação compartilhada (Etapas 22, 25 e 28) | `application/policy/user/UniqueDocumentsPolicy` (`RegisterUserUseCase`, `SaveUserProfileUseCase`), `LastAdminPolicy` (`RemoveUserProfileUseCase`, `DeleteUserUseCase`), `application/policy/cuisine/UniqueCuisineNamePolicy` (criação e alteração do tipo) e `application/policy/restaurant/ExistingCuisinesPolicy` (cadastro e atualização do restaurante) | "CPF e CNPJ únicos", "o sistema não fica sem administrador", "nome de tipo único" e "os tipos escolhidos existem" existem uma vez só (DRY); não é caso de uso — não é objetivo do ator nem tem `run` —, então mora num pacote de políticas da camada, que depende só do domínio e das portas |
 | Papéis atuais a cada requisição (Etapa 22) | `FindCurrentRolesUseCase` | a autorização usa os perfis gravados agora, não os do token: perfil removido deixa de valer na hora |
 
 ## 5. Desvios conscientes
@@ -123,3 +124,10 @@ public final class RegisterUserUseCase {
   `UserQueryUseCasesTest`, `SaveUserProfileUseCaseTest`, `RemoveUserProfileUseCaseTest`, `UniqueDocumentsPolicyTest`,
   `LastAdminPolicyTest`, `UniqueCuisineNamePolicyTest`, `ExistingCuisinesPolicyTest`, os testes de restaurante e de tipo de cozinha, `AuthenticateUseCaseTest`, `ForgotPasswordUseCaseTest`,
   `ResetPasswordUseCaseTest`, e `PageRequestTest`/`PageResultTest`/`DtoTest` para os DTOs.
+
+### Consultas geográficas (Etapa 26)
+
+`FindStatesUseCase` lê o catálogo das 27 unidades federativas por `ILocationGateway`.
+`SearchCitiesUseCase` normaliza o filtro de nome e exige `PageRequest`, com ordenação alfabética.
+Não há casos de uso de criação, edição ou exclusão de localidades. `AddressDTO` exige `cityId`
+no construtor e o repassa a `Address.create`; a infraestrutura verifica se a referência existe.

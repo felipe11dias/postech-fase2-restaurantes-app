@@ -63,7 +63,7 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("Os vinte e cinco endpoints da especificação estão documentados, cada um sob a sua tag")
+    @DisplayName("Os trinta e dois endpoints da especificação estão documentados, cada um sob a sua tag")
     void deveDocumentarTodosOsEndpoints() {
         Set<String> documentados = new TreeSet<>();
         operacoes().forEach(op -> documentados.add(op.metodo() + " " + op.caminho() + " " + op.tag()));
@@ -86,6 +86,8 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
                 "PATCH /api/v1/users/{id}/profiles/courier/status Usuários",
                 "POST /api/v1/restaurants Restaurantes",
                 "GET /api/v1/restaurants Restaurantes",
+                "GET /api/v1/states Localizações",
+                "GET /api/v1/cities Localizações",
                 "GET /api/v1/restaurants/{id} Restaurantes",
                 "PUT /api/v1/restaurants/{id} Restaurantes",
                 "DELETE /api/v1/restaurants/{id} Restaurantes",
@@ -93,7 +95,12 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
                 "GET /api/v1/cuisines Tipos de cozinha",
                 "GET /api/v1/cuisines/{id} Tipos de cozinha",
                 "PUT /api/v1/cuisines/{id} Tipos de cozinha",
-                "DELETE /api/v1/cuisines/{id} Tipos de cozinha")), documentados);
+                "DELETE /api/v1/cuisines/{id} Tipos de cozinha",
+                "POST /api/v1/restaurants/{restaurantId}/products Produtos",
+                "GET /api/v1/restaurants/{restaurantId}/products Produtos",
+                "GET /api/v1/restaurants/{restaurantId}/products/{productId} Produtos",
+                "PUT /api/v1/restaurants/{restaurantId}/products/{productId} Produtos",
+                "DELETE /api/v1/restaurants/{restaurantId}/products/{productId} Produtos")), documentados);
     }
 
     /**
@@ -116,7 +123,7 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
         }
 
         assertTrue(divergencias.isEmpty(), String.join("\n", divergencias));
-        assertEquals(17, operacoes().stream().filter(Operacao::protegida).count());
+        assertEquals(20, operacoes().stream().filter(Operacao::protegida).count());
     }
 
     @Test
@@ -188,10 +195,10 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
 
     @Test
     @DisplayName("O cadastro é documentado como 201, o status que de fato responde, e não 200")
-    void deveDocumentarOStatusRealDoCadastro() {
+    void shouldDocumentRegistrationStatuses() {
         JsonNode respostas = doc.at("/paths/~1api~1v1~1users/post/responses");
 
-        assertEquals(Set.of("201", "400", "409"), nomesDosCampos(respostas));
+        assertEquals(Set.of("201", "400", "404", "409"), nomesDosCampos(respostas));
     }
 
     /**
@@ -259,7 +266,10 @@ class OpenApiDocumentationIT extends WebIntegrationTestSupport {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> requisicao = new HttpEntity<>(op.metodo().equals("GET") || op.metodo().equals("DELETE")
                 ? null : "{}", headers);
-        String caminho = op.caminho().replace("{id}", UUID.randomUUID().toString()).replace("{type}", "client");
+        String caminho = op.caminho().replace("{id}", UUID.randomUUID().toString())
+                .replace("{type}", "client")
+                .replace("{restaurantId}", UUID.randomUUID().toString())
+                .replace("{productId}", UUID.randomUUID().toString());
         return HttpStatus.valueOf(rest.exchange(caminho, HttpMethod.valueOf(op.metodo()), requisicao, String.class)
                 .getStatusCode().value());
     }

@@ -1,5 +1,7 @@
 package com.postech.restaurantes.infrastructure.persistence.jpa.restaurant;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ADDRESS_DATA;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.ADDRESS_ID;
 import static com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.OFFICE_HOURS_DATA;
@@ -53,7 +55,10 @@ class RestaurantDataSourceJpaTest {
     void setUp() {
         repository = mock(SpringDataRestaurantRepository.class);
         cuisineRepository = mock(SpringDataCuisineRepository.class);
-        dataSource = new RestaurantDataSourceJpa(repository, cuisineRepository);
+        var resolver = mock(com.postech.restaurantes.infrastructure.persistence.jpa.location.CityReferenceResolver.class);
+        when(resolver.resolve(org.mockito.ArgumentMatchers.any())).thenReturn(
+                com.postech.restaurantes.infrastructure.persistence.jpa.PersistenceFixtures.cityEntity());
+        dataSource = new RestaurantDataSourceJpa(repository, resolver, cuisineRepository);
 
         id = UUID.randomUUID();
         userId = UUID.randomUUID();
@@ -182,7 +187,7 @@ class RestaurantDataSourceJpaTest {
     void deveAtualizarOEnderecoNaMesmaLinha() {
         when(repository.findById(id)).thenReturn(Optional.of(entity));
         when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        AddressData outro = new AddressData(UUID.randomUUID(), "Av. B", null, null, null, "Rio", "RJ", "20000000");
+        AddressData outro = new AddressData(UUID.randomUUID(), LocationFixtures.cityId("Rio", "RJ"), "Av. B", null, null, null, "20000000", LocationFixtures.cityData("Rio", "RJ"));
         RestaurantData data = new RestaurantData(id, userId, outro, "Novo", OFFICE_HOURS_DATA, List.of(), null, null);
 
         RestaurantData updated = dataSource.update(data);

@@ -22,6 +22,12 @@ public final class ApiRoutes {
 
     public static final String CUISINES = V1 + "/cuisines";
 
+    public static final String STATES = V1 + "/states";
+
+    public static final String CITIES = V1 + "/cities";
+
+    public static final String PRODUCTS = RESTAURANTS + "/{restaurantId}/products";
+
     private ApiRoutes() {
     }
 }

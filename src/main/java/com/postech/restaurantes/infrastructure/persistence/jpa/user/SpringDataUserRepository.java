@@ -16,24 +16,24 @@ import org.springframework.data.repository.query.Param;
 public interface SpringDataUserRepository extends JpaRepository<UserJpaEntity, UUID> {
 
     @Override
-    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address"})
+    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address.city.state"})
     Optional<UserJpaEntity> findById(UUID id);
 
-    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address"})
+    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address.city.state"})
     Optional<UserJpaEntity> findByLogin(String login);
 
-    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address"})
+    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address.city.state"})
     Optional<UserJpaEntity> findByEmail(String email);
 
     /**
      * Usuário cujo perfil de cliente ou de entregador tem o CPF. Os dois perfis do mesmo usuário têm o
      * mesmo CPF; outro usuário com ele não deveria existir, mas a lista não quebra se existir.
      */
-    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address"})
+    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address.city.state"})
     @Query("select u from UserJpaEntity u left join u.client c left join u.courier k where c.cpf = :cpf or k.cpf = :cpf")
     List<UserJpaEntity> findByCpf(@Param("cpf") String cpf);
 
-    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address"})
+    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address.city.state"})
     @Query("select u from UserJpaEntity u join u.owner o where o.cnpj = :cnpj")
     Optional<UserJpaEntity> findByCnpj(@Param("cnpj") String cnpj);
 
@@ -49,6 +49,6 @@ public interface SpringDataUserRepository extends JpaRepository<UserJpaEntity, U
     Page<UUID> findIdsByName(@Param("name") String name, Pageable pageable);
 
     /** Segundo passo: os usuários da página, com perfis e endereços. */
-    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address"})
+    @EntityGraph(attributePaths = {"owner", "client", "courier", "admin", "addresses", "addresses.address.city.state"})
     List<UserJpaEntity> findByIdIn(Collection<UUID> ids, Sort sort);
 }

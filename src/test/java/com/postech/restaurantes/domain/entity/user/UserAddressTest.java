@@ -1,5 +1,7 @@
 package com.postech.restaurantes.domain.entity.user;
 
+import com.postech.restaurantes.LocationFixtures;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -18,7 +20,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 class UserAddressTest {
 
     private static final Address ADDRESS =
-            Address.create("Rua das Flores", "100", null, "Centro", "São Paulo", "SP", "01001000");
+            Address.create(LocationFixtures.cityId("São Paulo", "SP"), "Rua das Flores", "100", null, "Centro", "01001000");
 
     @Test
     @DisplayName("Cria endereço do usuário sem id, com rótulo aparado e a marca de padrão")

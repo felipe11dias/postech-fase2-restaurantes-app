@@ -81,7 +81,7 @@ public class RestaurantRestController {
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
     @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Sem perfil de dono, ou dono indicando outro usuário")
     @ErrorResponse(type = ProblemType.FORBIDDEN_OPERATION, description = "O dono indicado não tem perfil de dono")
-    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Dono ou tipo de cozinha não encontrado")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Dono, cidade do endereço ou tipo de cozinha não encontrado")
     public ResponseEntity<EntityModel<RestaurantResponse>> create(@Valid @RequestBody CreateRestaurantRequest request,
                                                                   @AuthenticationPrincipal AuthenticatedUser autenticado) {
         RestaurantView criado = controller.create(request.toDTO(autenticado.id()));
@@ -133,7 +133,7 @@ public class RestaurantRestController {
     @ErrorResponse(type = ProblemType.ACCESS_DENIED,
             description = "Restaurante de outro dono, ou troca de dono por quem não é administrador")
     @ErrorResponse(type = ProblemType.FORBIDDEN_OPERATION, description = "O dono indicado não tem perfil de dono")
-    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Restaurante, dono ou tipo de cozinha não encontrado")
+    @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Restaurante, dono, cidade do endereço ou tipo de cozinha não encontrado")
     public EntityModel<RestaurantResponse> update(
             @Parameter(description = "Id do restaurante") @PathVariable UUID id,
             @Valid @RequestBody UpdateRestaurantRequest request) {

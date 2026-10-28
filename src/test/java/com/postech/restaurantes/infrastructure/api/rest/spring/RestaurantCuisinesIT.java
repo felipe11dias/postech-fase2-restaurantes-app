@@ -210,7 +210,7 @@ class RestaurantCuisinesIT extends WebIntegrationTestSupport {
     private static Map<String, Object> restaurante(String nome) {
         return Map.of(
                 "address", Map.of("street", "Rua da Cozinha", "number", "10", "neighborhood", "Bairro",
-                        "city", "São Paulo", "state", "SP", "zipCode", "01000-000"),
+                        "cityId", "c0000000-0000-4000-8000-000000000001", "zipCode", "01000-000"),
                 "name", nome,
                 "officeHours", List.of(Map.of("dayOfWeek", "MONDAY", "startTime", "08:00:00", "endTime", "22:00:00")));
     }
