@@ -9,7 +9,7 @@
 **Curso:** Pós-Tech — Arquitetura e Desenvolvimento Java  
 **Stack:** Java 21 · Spring Boot 3.5.x · Spring Data JPA · PostgreSQL · Flyway  
 **Arquitetura:** Clean Architecture  
-**Versão do relatório:** 3.0  
+**Versão do relatório:** 4.0  
 **Escopo desta versão:** alterações da Etapa 27 — catálogo de produtos na branch `etapa-27-product`  
 **Branch:** `etapa-27-product`  
 **Base:** `main` (`24805db`)  
