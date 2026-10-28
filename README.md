@@ -31,7 +31,7 @@ registradas, incluindo endereços, catálogo geográfico, catálogo de produtos 
 | Entregável da avaliação | Estado |
 | --- | --- |
 | Clean Architecture em camadas | ✅ Quatro camadas, verificadas no build (ArchUnit, 48 regras) |
-| Testes: unitários com 80% e de integração | ✅ 939 unitários com **100%** de linhas e ramos; 162 de integração com PostgreSQL real |
+| Testes: unitários com 80% e de integração | ✅ 939 unitários com **100%** de linhas e ramos; 164 de integração com PostgreSQL real |
 | Documentação (arquitetura, endpoints, execução) | ✅ Este README, o relatório técnico, o Swagger, `docs/arquitetura/` e `docs/modelo-dados/` |
 | Coleção Postman | ✅ 169 requests; cobre usuários, perfis, restaurantes, catálogo geográfico, produtos e tipos de cozinha; um print por request; 343 asserções, sem falhas |
 | Docker Compose (aplicação e banco) | ✅ Aplicação, PostgreSQL e Mailpit |
@@ -392,7 +392,7 @@ mvn verify    # + testes de integração (Testcontainers) + gate de 100% de cobe
   mocks das origens de dados e dos serviços; infraestrutura com lógica instanciada diretamente. Nenhum sobe
   contexto Spring nem toca em banco. Cobertura JaCoCo unitária de **100% de linhas e ramos**
   (2766 linhas e 626 ramos).
-- **Integração (162):** contexto Spring completo, PostgreSQL real, migrations do Flyway,
+- **Integração (164):** contexto Spring completo, PostgreSQL real, migrations do Flyway,
   segurança JWT ativa e chamadas HTTP de verdade. Nenhum bean é substituído, exceto o envio de
   e-mail.
 - **Cobertura:** o build **falha** abaixo de 100% de linhas e ramos **dos testes unitários**. A
@@ -411,7 +411,7 @@ src/main/java/com/postech/restaurantes/
   application/     casos de uso, portas (gateways) e DTOs do núcleo
   adapter/         controllers, gateways, origens de dados, serviços externos e presenters
   infrastructure/  módulos substituíveis: main, api/rest/spring, persistence/jpa, token/jwt, crypto, mail/smtp
-src/main/resources/db/migration/   V1–V16 (schema, catálogo, migrações e seeds; V15 e V16: tipos de cozinha)
+src/main/resources/db/migration/   V1–V17 (schema, catálogo, migrações e seeds; V15 a V17: tipos de cozinha)
 postman/                           coleção e prints
 relatorios/                        relatório técnico por etapa (Markdown e PDF)
 docs/arquitetura/                  cada camada: o que as aulas ensinam, o que os autores dizem, como o projeto faz

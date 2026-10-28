@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.postech.restaurantes.WebIntegrationTestSupport;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -142,6 +144,26 @@ class CuisineLifecycleIT extends WebIntegrationTestSupport {
                 corpoAutenticado(Map.of("name", nomeNovo()), admin), JsonNode.class).getStatusCode());
         assertEquals(HttpStatus.NOT_FOUND,
                 rest.exchange(inexistente, HttpMethod.DELETE, autenticado(admin), JsonNode.class).getStatusCode());
+    }
+
+    @Test
+    @DisplayName("A listagem do catálogo segue a ordem alfabética do português: letra acentuada junto da letra sem acento")
+    void deveListarEmOrdemAlfabeticaDoPortugues() {
+        String admin = autenticar("admin.demo", "admin12345");
+        String marca = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        for (String prefixo : new String[] {"Bahia", "Ásia", "avenida"}) {
+            assertEquals(HttpStatus.CREATED, rest.exchange(CUISINES, HttpMethod.POST,
+                    corpoAutenticado(Map.of("name", prefixo + " " + marca), admin), JsonNode.class).getStatusCode());
+        }
+
+        JsonNode pagina = rest.getForEntity(CUISINES + "?name=" + marca + "&sort=name,asc", JsonNode.class).getBody();
+
+        List<String> nomes = new ArrayList<>();
+        pagina.at("/_embedded/cuisineResponseList").forEach(tipo -> nomes.add(tipo.get("name").asText()));
+        assertEquals(List.of("Ásia " + marca, "avenida " + marca, "Bahia " + marca), nomes,
+                "por byte, o Á iria para o fim e o a minúsculo depois do B");
+        pagina.at("/_embedded/cuisineResponseList").forEach(tipo -> rest.exchange(
+                URI.create(tipo.at("/_links/self/href").asText()), HttpMethod.DELETE, autenticado(admin), Void.class));
     }
 
     private static String nomeNovo() {

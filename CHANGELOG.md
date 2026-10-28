@@ -566,7 +566,9 @@
 - Migration `V15__cuisines.sql`: catálogo `cuisines` (nome único sem diferenciar maiúsculas, índice em
   `LOWER(name)`) e ligação N:N `restaurant_cuisines` (chave composta; `ON DELETE CASCADE` no restaurante,
   `RESTRICT` no tipo). Migration `V16__seed_cuisines.sql`: catálogo inicial com oito tipos e ids fixos
-  (`c0000000-0000-4000-8000-00000000000N`). Desenvolvidas como V11 e V12 na branch `feat/cuisines` e
+  (`c0000000-0000-4000-8000-00000000000N`). Migration `V17__cuisine_name_collation.sql`: a coluna `name`
+  ordena pela regra do português (`pt-BR-x-icu`) — sem ela, o banco da imagem Alpine ordenava por byte e a listagem
+  do catálogo punha "Árabe" no fim. A V15 e a V16 foram desenvolvidas como V11 e V12 na branch `feat/cuisines` e
   renumeradas no merge com a `main`, que já usava V11 a V14 (endereços e produtos).
 - Domínio: entidade `Cuisine` (nome obrigatório); `Restaurant` passa a ter a lista de tipos
   (`replaceCuisines`: sem nulos, sem repetir, só tipos já cadastrados, em ordem alfabética do português
@@ -588,11 +590,11 @@
   tipos; testes de produto passam a montar o restaurante com a lista de tipos; `OpenApiDocumentationIT` com 32
   operações (20 protegidas).
 - Testes: unitários de todas as classes novas e alteradas, `CuisineLifecycleIT`, `RestaurantCuisinesIT` (7
-  casos, filtro incluído), `SchemaMigrationIT` (V15 e V16).
+  casos, filtro incluído), `SchemaMigrationIT` (V15 a V17).
 - Postman: pasta "Tipos de cozinha", requests 146 a 164; 169 requests e 343 asserções,
   sem falhas; prints regenerados da mesma execução.
 - Correção: `docker-compose.yml` fixa `SERVER_PORT: 8080` no serviço `app`. O `server.port: 8081` do
   `application.yml` (Etapa 26) vale fora do Docker, mas dentro do container deixava a aplicação *unhealthy*
   (o mapeamento, o `EXPOSE` e o `HEALTHCHECK` usam 8080).
-- `mvn verify`: 939 testes unitários e 162 de integração; cobertura unitária 100% (2766 linhas,
+- `mvn verify`: 939 testes unitários e 164 de integração; cobertura unitária 100% (2766 linhas,
   626 ramos).

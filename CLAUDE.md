@@ -275,7 +275,7 @@ Pontos que só ficam claros lendo várias camadas:
   só do lado do restaurante, com `day_of_week` como texto (`?::day_of_week`); a atualização reconcilia por (dia,
   abertura), senão o Hibernate inseriria antes de apagar e violaria `UNIQUE (restaurant_id, day_of_week,
   start_time)`. O dia vem como texto e passa por `OfficeHour.dayOf` (mensagem do domínio).
-- **Tipos de cozinha (Etapa 28, V15 e V16).** `Cuisine` é agregado próprio (`domain/entity/cuisine`), catálogo com
+- **Tipos de cozinha (Etapa 28, V15 a V17).** `Cuisine` é agregado próprio (`domain/entity/cuisine`), catálogo com
   leitura pública e escrita só do administrador (`/api/v1/cuisines`). Nome único sem diferenciar maiúsculas: índice
   em `LOWER(name)` + `application/policy/cuisine/UniqueCuisineNamePolicy`. O restaurante guarda a lista
   (`Restaurant.replaceCuisines`, ordem do `Collator` `pt-BR` — `CASE_INSENSITIVE_ORDER` põe "Árabe" no fim) e a
@@ -285,7 +285,8 @@ Pontos que só ficam claros lendo várias camadas:
   com `@BatchSize`, **fora** do `@EntityGraph`; `persistence/jpa/cuisine` não conhece o restaurante, por isso
   "está em uso?" é consulta nativa na ligação. A listagem de restaurantes filtra por `?cuisineId=` (combina com
   `name` e `ownerId`; uma consulta paginada de ids por combinação). O catálogo inicial (8 tipos, ids
-  `c0000000-0000-4000-8000-00000000000N`) é a V16 — migration já aplicada não se edita. Nos ITs, o nome do tipo leva
+  `c0000000-0000-4000-8000-00000000000N`) é a V16 — migration já aplicada não se edita. A V17 põe a collation
+  `pt-BR-x-icu` em `cuisines.name`: o Postgres Alpine ordena por byte e mandaria "Árabe" para o fim da listagem. Nos ITs, o nome do tipo leva
   marca única (`criarCozinha`), porque o banco é compartilhado.
 - **Catálogo de produtos (Etapa 27, V13/V14).** `Product` é raiz; imagens guardam caminhos/URLs como
   texto em `images.content` (`varchar(2048)`); a tarefa define que o arquivo não será enviado nem

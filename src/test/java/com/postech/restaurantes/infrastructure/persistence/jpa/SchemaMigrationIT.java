@@ -73,13 +73,13 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("As dezesseis migrations foram aplicadas com sucesso e ficaram registradas no histórico")
+    @DisplayName("As dezessete migrations foram aplicadas com sucesso e ficaram registradas no histórico")
     void deveAplicarAsMigrations() {
         List<String> versoes = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = true AND version IS NOT NULL "
                         + "ORDER BY installed_rank", String.class);
 
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"),
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"),
                 versoes);
     }
 
@@ -393,6 +393,20 @@ class SchemaMigrationIT extends IntegrationTestSupport {
 
         assertEquals(8, nomes.size());
         assertTrue(nomes.containsAll(List.of("Brasileira", "Italiana", "Japonesa", "Árabe")));
+    }
+
+    @Test
+    @DisplayName("O nome do tipo de cozinha ordena pela regra do português, e a seed sai com Árabe primeiro (V17)")
+    void deveOrdenarONomeDoTipoDeCozinhaEmPortugues() {
+        assertEquals("pt-BR-x-icu", jdbc.queryForObject("SELECT collation_name FROM information_schema.columns "
+                + "WHERE table_schema = 'public' AND table_name = 'cuisines' AND column_name = 'name'", String.class));
+
+        List<String> nomes = jdbc.queryForList(
+                "SELECT name FROM cuisines WHERE id::text LIKE 'c0000000-0000-4000-8000-00000000000_' ORDER BY name",
+                String.class);
+
+        assertEquals(List.of("Árabe", "Brasileira", "Hamburgueria", "Italiana", "Japonesa", "Mexicana", "Pizzaria",
+                "Vegetariana"), nomes);
     }
 
     @Test

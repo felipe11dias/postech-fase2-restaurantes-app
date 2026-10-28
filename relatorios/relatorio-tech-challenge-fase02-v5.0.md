@@ -12,7 +12,7 @@
 **Versão do relatório:** 5.0  
 **Escopo desta versão:** alterações da Etapa 28 — tipos de cozinha na branch `etapa-28-cuisines`  
 **Branch:** `etapa-28-cuisines` (desenvolvida em `feat/cuisines` e atualizada com a `main` em `784cada`)  
-**Migrations da etapa:** `V15__cuisines.sql` e `V16__seed_cuisines.sql`
+**Migrations da etapa:** `V15__cuisines.sql`, `V16__seed_cuisines.sql` e `V17__cuisine_name_collation.sql`
 
 ## Objetivo
 
@@ -71,6 +71,11 @@ A `V16__seed_cuisines.sql` traz o catálogo inicial (Brasileira, Italiana, Japon
 Vegetariana, Hamburgueria e Pizzaria), com ids fixos `c0000000-0000-4000-8000-00000000000N`, para que o
 restaurante possa escolher tipos logo depois do `docker compose up`.
 
+A `V17__cuisine_name_collation.sql` define a collation `pt-BR-x-icu` na coluna `cuisines.name`. Sem ela, o
+PostgreSQL da imagem Alpine ordena por byte, e a listagem do catálogo (`GET /api/v1/cuisines`) punha "Árabe"
+depois de "Vegetariana" e as minúsculas depois de todas as maiúsculas. Com a regra do português no schema,
+todo `ORDER BY name` fica na mesma ordem que o `Collator` do domínio usa na lista do restaurante.
+
 Na JPA, `persistence/jpa/cuisine` não conhece o restaurante: o `@ManyToMany` fica só em
 `RestaurantJpaEntity`, sem cascata (o tipo é do catálogo), com `@BatchSize` e fora do `@EntityGraph` —
 um `Set` carregado junto da lista de horários repetiria os horários. Por isso, "algum restaurante usa este
@@ -99,6 +104,7 @@ V14). No merge:
 | Nome único **sem diferenciar maiúsculas**: índice em `LOWER(name)` e `UniqueCuisineNamePolicy` | Machado/Date: a unicidade é garantida pelo banco, contra duas requisições simultâneas, e a aplicação confere antes para devolver a mensagem certa — como CPF e CNPJ (Etapa 22). |
 | `Cuisine` como agregado próprio; a regra do conjunto (`replaceCuisines`) na raiz do restaurante | Martin, *Clean Architecture*: a invariante que vale sempre mora na entidade; a regra sobre a lista mora na raiz, como os horários (Etapa 24). O restaurante se liga ao tipo, mas não é dono dele. |
 | Ordem do `Collator` `pt-BR` | `String.CASE_INSENSITIVE_ORDER` compara códigos de caractere e mandava "Árabe" para o fim da lista. O teste que encontrou o problema ficou como proteção. |
+| Collation `pt-BR-x-icu` em `cuisines.name` (V17) | A ordem é regra de apresentação do dado e mora no schema, que é do Flyway: uma regra só para todo `ORDER BY name`, sem código de ordenação na consulta. Consistência com a ordem que o domínio já aplica (princípio orientador do projeto). |
 | Políticas em `application/policy/cuisine` e `application/policy/restaurant` | Regra de aplicação compartilhada por dois casos de uso fica num lugar só (DRY), como na Etapa 22. |
 | Tipo em uso não sai do catálogo (`ResourceInUseException` → 409) | Cockburn: um objetivo do ator por caso de uso; o recurso de que outro depende não sai, como o dono com restaurante. |
 | Leitura pública, escrita só do administrador | O catálogo é de todos os restaurantes, e não de um dono (Etapa 7). |
@@ -110,11 +116,11 @@ V14). No merge:
 Foram adicionados testes unitários de todas as classes novas e alteradas (entidade, políticas, casos de
 uso, gateway, presenter, controller de adaptação, origem JPA, assembler e controller REST) e os testes
 de integração `CuisineLifecycleIT` e `RestaurantCuisinesIT` (7 casos, incluindo o filtro), além dos casos
-de V15 e V16 no `SchemaMigrationIT`.
+de V15 a V17 no `SchemaMigrationIT`.
 
 | Verificação executada | Resultado |
 | --- | --- |
-| `mvn verify` | **939 testes unitários** e **162 de integração**, sem falhas; cobertura unitária **100%** — 2766/2766 linhas e 626/626 ramos. |
+| `mvn verify` | **939 testes unitários** e **164 de integração**, sem falhas; cobertura unitária **100%** — 2766/2766 linhas e 626/626 ramos. |
 | Regras de arquitetura | 48 regras ArchUnit sem violação; nenhuma regra nova foi necessária. |
 | Postman (`npx newman@6`) | **169 requests e 343 asserções, sem falhas**, contra a pilha do Docker Compose; prints regenerados da mesma execução. |
 

@@ -71,14 +71,14 @@ pelo modelo.
 adicionadas. `product_option_groups` e `product_option_values` incluem as quatro colunas de
 auditoria do modelo e usam `AuditableJpaEntity`.
 
-## Tipos de cozinha: modelo × schema da V15
+## Tipos de cozinha: modelo × schema da V15 e da V17
 
 `cuisines` é o catálogo; `restaurant_cuisines`, a ligação N:N com o restaurante (Etapa 28). Nomes de colunas,
 chave composta e direção das cascatas seguem o modelo.
 
 | Tabela | Modelo lógico | Schema físico V15 | Conformidade |
 | --- | --- | --- | --- |
-| `cuisines` | `id`, `name varchar UNIQUE NOT NULL` e auditoria | Mesmas colunas; `name varchar(100)`; unicidade por índice em `LOWER(name)`; `created_at`/`last_updated_at` `NOT NULL` | Unicidade mais forte que a do modelo: "Italiana" e "ITALIANA" são o mesmo tipo. Tamanho e auditoria obrigatória seguem o padrão do projeto |
+| `cuisines` | `id`, `name varchar UNIQUE NOT NULL` e auditoria | Mesmas colunas; `name varchar(100) COLLATE "pt-BR-x-icu"` (V17); unicidade por índice em `LOWER(name)`; `created_at`/`last_updated_at` `NOT NULL` | Unicidade mais forte que a do modelo: "Italiana" e "ITALIANA" são o mesmo tipo. Tamanho e auditoria obrigatória seguem o padrão do projeto; a collation faz o catálogo ordenar pela regra do português |
 | `restaurant_cuisines` | `restaurant_id`, `cuisine_id`, `PRIMARY KEY` composta, índice em `cuisine_id`; FK para `restaurants` com `CASCADE` e para `cuisines` com `RESTRICT` | Mesmas colunas, chave, índice e cascatas | Estrutura mantida; FKs não adiáveis, como nas demais tabelas (ver divergências acima) |
 
 **Catálogo inicial.** A V16 insere oito tipos com ids fixos (`c0000000-0000-4000-8000-00000000000N`); o modelo
