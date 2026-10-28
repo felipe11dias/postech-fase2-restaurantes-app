@@ -1,43 +1,13 @@
 # Changelog — Restaurantes (Fase 2)
 
-## Documentação — Relatório técnico v3.0
-- Criado `relatorios/relatorio-tech-challenge-fase02-v3.0.md` a partir do padrão da versão 2.0, preservando os arquivos das versões 1.0 e 2.0 para controle e histórico.
-- Consolidada a Etapa 26 com arquitetura de endereços/localidades, contrato HTTP, migrations V11/V12, testes existentes e links para os 11 prints integrados a `postman/prints/`.
-- Registrada a execução de 23/10/2026: 11 casos de endereços e 28 asserções aprovadas; a execução completa teve uma falha auxiliar de conexão no request 92, descrita separadamente.
-- README aponta para o relatório v3.0 e registra as 130 imagens atuais. Alteração documental, sem nova execução Maven/Newman ou mudança no código da aplicação.
-
-## Etapa 26 — Correção do merge e catálogo de endereços
-- Corrigidos imports, conversões de `Address`, vínculos `UserAddress` e referências ao antigo catálogo de papéis que quebravam a compilação após o merge com a main.
-- `cityId` obrigatório em `Address`, `AddressDTO`, `AddressData` e `AddressRequest`; `AddressView` exige `CityView` com id e estado válidos. Construtores alternativos que omitiam cidade foram removidos.
-- `AddressRequest` recebe apenas `cityId` e os campos do endereço; nomes de cidade/estado vêm do catálogo, com resposta `AddressView -> CityView -> StateView` e DTOs HTTP equivalentes.
-- Resolução compartilhada da cidade existente para usuários e restaurantes; id desconhecido responde 404, sem criação automática de cidades ou estados. Catálogos expõem apenas leitura, inclusive nos repositórios Spring Data.
-- Normalização movida para `V11__normalize_address_location.sql`, preservando V1–V10 da main. `V12__seed_location_catalog.sql` inclui as 27 unidades federativas, as capitais e Campinas; novas cidades entram por migrations.
-- Consultas públicas `GET /api/v1/states` e `GET /api/v1/cities`, com filtros por `stateId`/`name`, paginação e links de navegação para cidades.
-- Seed reconhece cidades legadas sem diferenciar maiúsculas/minúsculas, preservando ids sem duplicações.
-- Validação: `mvn verify` com 734 unitários e 142 de integração aprovados; cobertura de 100% (2174 linhas, 558 ramos). Após o ajuste da seed, nova execução com os 17 testes de migração e os unitários aprovada.
-- Nomes novos em inglês; documentação e coleção Postman atualizadas ao contrato obrigatório de cidade. Testes de contrato, domínio, persistência, API e atualização de banco na V10.
-## Etapa 27 — Catálogo de produtos, imagens e opções
-- Agregado `Product` com caminhos/URLs de imagem, grupos de opções e valores, validando preço, limites de seleção e obrigatoriedade.
-- CRUD e listagem paginada em `/api/v1/restaurants/{restaurantId}/products`; leitura pública e escrita restrita ao administrador ou dono do restaurante.
-- Migration Flyway `V13__product_catalog.sql` para `products`, `images`, `product_option_groups` e `product_option_values`; `images.content` guarda caminho/URL em `varchar(2048)`, conforme a descrição da tarefa, e `products.price` usa `double precision` conforme o modelo.
-- Persistência JPA de partes do agregado, paginação em duas consultas, DTOs REST, HATEOAS e documentação OpenAPI.
-- Adicionados 20 requests Postman para os caminhos felizes e erros documentados; os cenários de produto rodam antes da limpeza do segundo dono descartável. Execução Newman e geração dos prints aguardam Docker.
-- Implementação do catálogo alinhada à descrição da tarefa: o JSON recebe `imagePaths`, e o banco persiste essas referências textuais em `images.content`; `products.price` usa `double`.
-- Validação após a troca do contrato de imagem: `mvn verify` passou com 821 testes unitários e 140 de integração; JaCoCo conferiu 100% de linhas e ramos. `ProductCatalogIT` confirmou gravação e retorno de caminhos no PostgreSQL.
-- V14 converte `products.price` para `numeric(10,2)`; domínio, DTOs, records de dados, views e entidade JPA passam a usar `BigDecimal`, evitando aproximação binária em valores monetários.
-- Validação da alteração: `mvn test` passou com 851 testes unitários, 100% de cobertura (2519 linhas e 592 ramos); `mvn verify -Dit.test=ProductCatalogIT,SchemaMigrationIT -Dtest=NoSuch -Dsurefire.failIfNoSpecifiedTests=false` passou com 22 testes de integração e gate de cobertura atendido.
-
-## Etapa 16 — Módulo de Gestão de Restaurantes (Imagem 2)
-- Criação da tabela `restaurants` via Flyway migration `V3__create_restaurant_schema.sql` com chaves estrangeiras vinculadas a `users` e `addresses`.
-- Criação da entidade de domínio `Restaurant` com verificação estrita de invariantes (nome, dono com perfil `ROLE_OWNER` ou `ROLE_ADMIN`, endereço do dono e horários de funcionamento).
-- Casos de uso: `CreateRestaurantUseCase`, `FindRestaurantByIdUseCase`, `SearchRestaurantsUseCase`, `UpdateRestaurantUseCase` e `DeleteRestaurantUseCase`.
-- Adaptadores de interface: `RestaurantController`, `RestaurantGateway`, `RestaurantPresenter` e `RestaurantView`.
-- Infraestrutura: `RestaurantJpaEntity`, `SpringDataRestaurantRepository`, `RestaurantDataSourceJpa`, `RestaurantRestController` (`/api/v1/restaurants`), DTOs REST, HATEOAS `RestaurantModelAssembler`, documentação OpenAPI e registro em `CompositionConfig`.
-- Teste de integração de ciclo de vida completo `RestaurantLifecycleIT` com PostgreSQL via Testcontainers.
-- Testes unitários cobrindo 100% de linhas e ramos no JaCoCo.
-- Documentação acadêmica detalhada em `docs/relatorio-academico-modulo-restaurantes.md`.
+Uma seção por etapa, em ordem crescente (1 → 29). Abaixo do título de cada etapa: autor(es), PR(s) e
+data, conferidos no histórico do git. Os números de testes, requests e prints de cada etapa são os
+daquela entrega; o estado atual está na Etapa 29 e no relatório final
+(`relatorios/relatorio-tech-challenge-fase02-final.md`).
 
 ## Etapa 1 — Setup do Projeto e Estrutura de Pacotes
+*Felipe Dias Mac Dowell · PR #1 · 16/09/2026*
+
 - Projeto Maven (Spring Boot 3.5.11, Java 21) com Spring Web, Validation, HATEOAS, Actuator,
   Data JPA, PostgreSQL, Flyway, Security, jjwt, Mail, springdoc; Testcontainers, ArchUnit,
   JaCoCo, Surefire (unitários) e Failsafe (`*IT`, integração).
@@ -50,6 +20,8 @@
   Actuator), Dockerfile multi-stage, `docker-compose.yml`, `.env.example`.
 
 ## Etapa 2 — Camada de Entidades (domínio)
+*Felipe Dias Mac Dowell · PR #2 · 16/09/2026*
+
 - `Guard` (invariantes), VOs `Email` e `ZipCode` (records normalizados), `RoleName`, `Role`
   (igualdade por nome), `Address`, `User` (raiz do agregado, `create`/`restore`),
   `PasswordResetToken` (instante por parâmetro, uso único).
@@ -59,6 +31,8 @@
   `stream().noneMatch(Objects::isNull)`, pois coleções imutáveis lançam NPE.
 
 ## Etapa 3 — Camada de Casos de Uso e Gateways
+*Felipe Dias Mac Dowell · PRs #3 e #4 · 16 e 17/09/2026*
+
 - DTOs de aplicação: `PageRequest`/`PageResult` (paginação própria, sem Spring), `AddressDTO`
   (com conversão para o domínio), `NewUserDTO`, `UpdateUserDTO`, `ChangePasswordDTO`,
   `CredentialsDTO`, `ResetPasswordDTO`, `IssuedToken`, `SortDirection`.
@@ -81,6 +55,8 @@
   de uso de escrita (login com espaços nas bordas era aceito no cadastro e recusado no login).
 
 ## Etapa 4 — Adaptadores de Interface
+*Felipe Dias Mac Dowell · entregue no PR #6 · 18/09/2026*
+
 - Porta `IUnitOfWork` em `application/gateway`: o controller de adaptação envolve cada caso de uso;
   implementação transacional fica para a infraestrutura.
 - `adapter/datasource`: `IUserDataSource`, `IRoleDataSource`, `IPasswordResetTokenDataSource` e os
@@ -93,6 +69,8 @@
 - 45 testes unitários; cobertura acumulada 100% (487 linhas, 126 ramos).
 
 ## Etapa 5 — Persistência com JPA (infraestrutura)
+*Felipe Dias Mac Dowell · PR #6 · 22/09/2026*
+
 - Entidades JPA separadas do domínio: `UserJpaEntity`, `RoleJpaEntity`,
   `PasswordResetTokenJpaEntity` (`infrastructure/persistence/user`) e `AddressJpaEntity`
   (`infrastructure/persistence/address`), com `@OneToMany` cascade/orphanRemoval, `@ManyToMany`
@@ -118,6 +96,8 @@
   (670 linhas, 140 ramos, 300 métodos, 60 classes) em 290 testes.
 
 ## Etapa 6 — Migrations e Seeds (Flyway)
+*Felipe Dias Mac Dowell · entregue no PR #7 · 22/09/2026*
+
 - `V1__create_schema.sql`: DDL de `roles`, `users`, `user_roles`, `addresses` e
   `password_reset_tokens` — PKs `UUID` com `DEFAULT gen_random_uuid()`, colunas de auditoria,
   FKs com `ON DELETE CASCADE`, índice funcional `LOWER(name)` para a busca paginada e os dois
@@ -135,6 +115,8 @@
   permanece 100% (670 linhas, 140 ramos).
 
 ## Etapa 7 — API REST, Segurança e JWT (infraestrutura)
+*Felipe Dias Mac Dowell · PR #7 · 24 e 25/09/2026*
+
 - `infrastructure/web/user` e `infrastructure/web/auth`: `UserRestController` e
   `AuthRestController` (`/api/v1`), DTOs `*Request`/`*Response` com Bean Validation e
   `UserModelAssembler` (HATEOAS, `EntityModel`/`PagedModel`).
@@ -179,6 +161,8 @@
     linhas, 196 ramos).
 
 ## Etapa 8 — Tratamento de Erros (ProblemDetail)
+*Felipe Dias Mac Dowell · PR #8 · 25/09/2026*
+
 - `infrastructure/web/error`: `GlobalExceptionHandler` (`@RestControllerAdvice` estendendo
   `ResponseEntityExceptionHandler`), `ProblemDetailFactory` e o catálogo `ProblemType` — toda
   resposta de erro sai em ProblemDetail (RFC 9457) com `type` próprio por categoria
@@ -199,6 +183,8 @@
   cobertura unitária 100% (930 linhas, 204 ramos).
 
 ## Etapa 9 — Documentação Swagger
+*Felipe Dias Mac Dowell · PR #9 · 25 e 26/09/2026*
+
 - `OpenApiConfig`: título, versão, instruções de autenticação com os usuários de
   demonstração, tags e o esquema de segurança Bearer JWT (botão Authorize).
 - `@ErrorResponse(type = ProblemType.X, …)` documenta cada erro pela categoria; o código HTTP
@@ -217,6 +203,8 @@
   100% (998 linhas, 222 ramos).
 
 ## Etapa 10 — Execução com Docker Compose
+*Felipe Dias Mac Dowell · PR #10 · 25 e 26/09/2026*
+
 - `docker-compose.yml`: `name: restaurantes-fase2` e sem `container_name`, para não
   compartilhar volume nem colidir nome de container com a Fase 1.
 - Serviço `mailpit` (`axllent/mailpit:v1.31.2`): SMTP de testes com interface em
@@ -251,6 +239,8 @@
     222 ramos). Pilha verificada de novo contra os containers, em portas alternativas.
 
 ## Etapa 11 — Testes: unitários (100% de cobertura) e de integração
+*Felipe Dias Mac Dowell · PR #11 · 26/09/2026*
+
 - Auditoria da suíte contra a especificação da etapa; tabelas do relatório reescritas com as
   classes e suítes reais.
 - Gate de cobertura passa a medir **só os testes unitários**: agentes do JaCoCo separados para
@@ -274,6 +264,8 @@
   (1016 linhas, 226 ramos, 427 métodos).
 
 ## Etapa 12 — Entregáveis (Postman, README)
+*Felipe Dias Mac Dowell · PRs #12 e #13 · 26 e 27/09/2026*
+
 - `postman/Restaurantes.postman_collection.json` (v2.1): 52 requests em 9 pastas, um por caso de
   cada endpoint (sucesso e cada erro previsto), com testes de status e `type` do ProblemDetail;
   guarda `adminToken`, `token` e `userId` e lê o token de redefinição no Mailpit. Cria os
@@ -292,6 +284,8 @@
 - Newman: 52 requests, 108 asserções, nenhuma falha, duas execuções seguidas contra o Compose.
 
 ## Etapa 13 — Infraestrutura em módulos substituíveis
+*Felipe Dias Mac Dowell · PR #14 · 27/09/2026*
+
 - `infrastructure/` reorganizada por papel/tecnologia: `main` (composição), `web` (`api`, `error`,
   `doc`, `validation`, `security`), `persistence/jpa` (`audit`, `user`), `token/jwt`, `crypto`,
   `mail/smtp`. 62 classes movidas com `git mv`; `config/` deixou de existir; cada módulo habilita a
@@ -312,6 +306,8 @@
   linhas, 226 ramos). Newman: 52 requests, 108 asserções, nenhuma falha.
 
 ## Etapa 14 — Revisão de conformidade e documentação da arquitetura
+*Felipe Dias Mac Dowell · PR #15 · 27/09/2026*
+
 - Revisão do relatório e da arquitetura contra as referências (Martin, Cockburn, Freeman, Date,
   Machado) e as Aulas 01 a 07 da Fase 2.
 - Gateways de serviço no adaptador (Aulas 02, 05 e 06: o gateway traduz, a infraestrutura
@@ -343,6 +339,8 @@
   linhas, 232 ramos). Newman: 52 requests, 108 asserções, nenhuma falha; e-mail no Mailpit idêntico.
 
 ## Etapa 15 — API REST em api/rest/spring, organizada como MVC
+*Felipe Dias Mac Dowell · PR #16 · 28/09/2026*
+
 - `infrastructure/web` → `infrastructure/api/rest/spring` (papel, estilo e tecnologia, como os demais
   módulos), organizada por papel da classe: `controller`, `dto/request`, `dto/response`, `assembler`,
   `route`, `config`, `exception` (antes `error`), `doc`, `security`, `validation`. 53 classes movidas
@@ -357,21 +355,26 @@
 - `mvn clean verify`: 465 testes unitários e 91 de integração; cobertura unitária 100% (1066
   linhas, 232 ramos). Newman: 52 requests, 108 asserções, nenhuma falha.
 
-## Relatório v2.0 — Modelo de Dados v2 (planejamento)
-- Documentos do novo modelo no projeto, como referência (fora de `db/migration`):
-  `docs/modelo-dados/postech-2-restaurantes.sql` e `.pdf`, com `docs/modelo-dados/README.md`
-  (escopo, divergências modelo → schema físico, observações sobre as tabelas de cardápio).
-- `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (a v1.0 fica como estava): histórico de
-  versões; seção da Etapa 16 (restaurantes), que faltava, com as pendências frente às convenções;
-  seção "Modelo de Dados v2 — adequação planejada" com o quadro atual × v2, diagrama ER, enums
-  (`courier_vehicle_type`, `courier_status`, `day_of_week`), divergências e política de migração;
-  Etapas 17 a 25 planejadas para `users`, `user_addresses`, `password_reset_tokens`, `owners`,
-  `clients`, `couriers`, `admins`, `restaurants` e `restaurant_office_hours`.
-- Ponto de atenção registrado no escopo: o modelo v2 fixa os tipos de usuário no schema, o que
-  conflita com o requisito de CRUD do catálogo de tipos.
-- Nenhuma mudança de código ou de migration.
+## Etapa 16 — Módulo de Gestão de Restaurantes
+*Francisco Ferreira de Araujo · PRs #17, #18 e #19 · 28/09 a 01/10/2026*
+
+- Antes do módulo (PR #17): `arquitetura-logica.md` e `docs/arquitetura-logica.png`, diagrama lógico da
+  Clean Architecture do sistema.
+- Criação da tabela `restaurants` via Flyway migration `V3__create_restaurant_schema.sql` com chaves estrangeiras vinculadas a `users` e `addresses`.
+- Criação da entidade de domínio `Restaurant` com verificação estrita de invariantes (nome, dono com perfil `ROLE_OWNER` ou `ROLE_ADMIN`, endereço do dono e horários de funcionamento).
+- Casos de uso: `CreateRestaurantUseCase`, `FindRestaurantByIdUseCase`, `SearchRestaurantsUseCase`, `UpdateRestaurantUseCase` e `DeleteRestaurantUseCase`.
+- Adaptadores de interface: `RestaurantController`, `RestaurantGateway`, `RestaurantPresenter` e `RestaurantView`.
+- Infraestrutura: `RestaurantJpaEntity`, `SpringDataRestaurantRepository`, `RestaurantDataSourceJpa`, `RestaurantRestController` (`/api/v1/restaurants`), DTOs REST, HATEOAS `RestaurantModelAssembler`, documentação OpenAPI e registro em `CompositionConfig`.
+- Teste de integração de ciclo de vida completo `RestaurantLifecycleIT` com PostgreSQL via Testcontainers.
+- Testes unitários cobrindo 100% de linhas e ramos no JaCoCo.
+- Documentação acadêmica detalhada em `docs/relatorio-academico-modulo-restaurantes.md`.
+- Coleção Postman (PR #19): requests de restaurante e 67 prints de evidência.
+- Pendências que ficaram para a Etapa 17: `SchemaMigrationIT` e `OpenApiDocumentationIT` não conheciam a V3
+  nem os endpoints novos, e faltavam testes de ramos do módulo.
 
 ## Etapa 17 — Reorganização dos pacotes do agregado de usuário
+*Felipe Dias Mac Dowell · PR #20 (Etapas 17 a 25 no mesmo PR) · 05/10/2026*
+
 - Domínio: `Role`/`RoleName` em `domain/entity/role` e `PasswordResetToken` em
   `domain/entity/password`, com `package-info`; `user` passa a conter só `User`.
 - Persistência: `persistence/jpa/user/{address,role,password}` espelhando o domínio, cada um com
@@ -388,7 +391,23 @@
 - `mvn clean verify`: 530 testes unitários e 92 de integração; cobertura unitária 100% (1346
   linhas, 268 ramos, 560 métodos). Newman: 67 requests, 124 asserções, nenhuma falha.
 
+### Planejamento (relatório v2.0 e Modelo de Dados v2)
+- Documentos do novo modelo no projeto, como referência (fora de `db/migration`):
+  `docs/modelo-dados/postech-2-restaurantes.sql` e `.pdf`, com `docs/modelo-dados/README.md`
+  (escopo, divergências modelo → schema físico, observações sobre as tabelas de cardápio).
+- `relatorios/relatorio-tech-challenge-fase02-v2.0.md` (a v1.0 fica como estava): histórico de
+  versões; seção da Etapa 16 (restaurantes), que faltava, com as pendências frente às convenções;
+  seção "Modelo de Dados v2 — adequação planejada" com o quadro atual × v2, diagrama ER, enums
+  (`courier_vehicle_type`, `courier_status`, `day_of_week`), divergências e política de migração;
+  Etapas 17 a 25 planejadas para `users`, `user_addresses`, `password_reset_tokens`, `owners`,
+  `clients`, `couriers`, `admins`, `restaurants` e `restaurant_office_hours`.
+- Ponto de atenção registrado no escopo: o modelo v2 fixa os tipos de usuário no schema, o que
+  conflita com o requisito de CRUD do catálogo de tipos.
+- Nenhuma mudança de código ou de migration.
+
 ## Etapa 18 — Endereços via user_addresses e endereço próprio do restaurante
+*Felipe Dias Mac Dowell · PR #20 · 05/10/2026*
+
 - Migration `V4__user_addresses.sql`: tabela `user_addresses` (rótulo, `is_default`, auditoria;
   `address_id` único; "um padrão por usuário" como restrição de exclusão adiada para o commit);
   endereços existentes viram vínculos (o de menor id é o padrão); cada restaurante ganha uma cópia
@@ -413,6 +432,8 @@
   linhas, 292 ramos, 597 métodos). Newman: 67 requests, 126 asserções, nenhuma falha.
 
 ## Etapa 19 — Token de redefinição único por usuário
+*Felipe Dias Mac Dowell · PR #20 · 05/10/2026*
+
 - Migration `V5__one_reset_token_per_user.sql`: mantém só o token de validade mais distante de cada
   usuário (empate pelo id), cria `UNIQUE (user_id)` e remove o índice simples, redundante.
 - Domínio: `PasswordResetToken.reissue(hash, validade, agora)` — hash e validade novos, uso zerado,
@@ -425,6 +446,8 @@
   linhas, 294 ramos, 600 métodos). Newman: 67 requests, 126 asserções, nenhuma falha.
 
 ## Etapa 20 — Perfis de usuário no domínio
+*Felipe Dias Mac Dowell · PR #20 · 05/10/2026*
+
 - VOs `Cpf` e `Cnpj` (verificadores conferidos; CNPJ também no formato alfanumérico da Receita, em
   vigor desde julho de 2026), `Phone` (10 a 13 dígitos), `LicensePlate` (padrão antigo ou Mercosul)
   e `DriverLicense` (CNH, 11 dígitos).
@@ -439,6 +462,8 @@
   unitária 100% (1600 linhas, 354 ramos, 666 métodos).
 
 ## Etapa 21 — Usuário composto por perfis (papel derivado)
+*Felipe Dias Mac Dowell · PR #20 · 05/10/2026*
+
 - Migration `V6__user_profiles.sql`: tipos `courier_vehicle_type` e `courier_status`; tabelas
   `owners`, `clients`, `couriers` e `admins` (chave primária = usuário, `ON DELETE CASCADE`,
   auditoria), com o `CHECK` de CNH e placa por veículo; perfis dos usuários da seed; falha com
@@ -465,6 +490,8 @@
   linhas, 424 ramos, 737 métodos).
 
 ## Etapa 22 — Perfis em usuário existente e status do entregador
+*Felipe Dias Mac Dowell · PR #20 · 05 e 06/10/2026*
+
 - Endpoints novos em `/api/v1/users/{id}/profiles`: `PUT owner`, `PUT client`, `PUT courier` (o
   próprio usuário ou um administrador), `PUT admin` (só administrador), `DELETE {tipo}` e
   `PATCH courier/status`. Os papéis do token valem a partir do próximo login.
@@ -484,7 +511,7 @@
 - `mvn clean verify`: 725 testes unitários e 122 de integração; cobertura unitária 100% (1877
   linhas, 474 ramos, 784 métodos).
 
-### Etapa 22 — correções da revisão de código
+### Correções da revisão de código
 - Autorização com os papéis do cadastro a cada requisição (`FindCurrentRolesUseCase`,
   `AuthController.currentRoles`, porta `ICurrentRolesReader` no filtro): perfil removido deixa de
   autorizar na hora, com o mesmo token.
@@ -502,6 +529,8 @@
   linhas, 502 ramos, 795 métodos).
 
 ## Etapa 23 — Restaurante alinhado ao modelo v2 e à regra de posse
+*Felipe Dias Mac Dowell · PR #20 · 06/10/2026*
+
 - Posse do restaurante no `@PreAuthorize` (`@restaurantSecurity.isOwner`, porta `IRestaurantOwnerReader`
   ligada em `main` ao `RestaurantController.ownerOf` / `FindRestaurantOwnerUseCase`): o dono altera e
   exclui só os próprios restaurantes; o administrador, qualquer um.
@@ -520,6 +549,8 @@
   linhas, 516 ramos, 804 métodos).
 
 ## Etapa 24 — Horário de funcionamento por dia
+*Felipe Dias Mac Dowell · PR #20 · 06/10/2026*
+
 - Migration `V9__restaurant_office_hours.sql`: tipo `day_of_week`; tabela `restaurant_office_hours`
   (`ON DELETE CASCADE`, auditoria, `UNIQUE (restaurant_id, day_of_week, start_time)`, abertura ≠
   fechamento); o horário único de cada restaurante vira sete linhas, uma por dia; saem
@@ -540,6 +571,8 @@
   linhas, 544 ramos, 836 métodos).
 
 ## Etapa 25 — Revisão de conformidade do modelo de dados v2
+*Felipe Dias Mac Dowell · PR #20 · 06 e 07/10/2026*
+
 - Quadro final "modelo v2 × schema real" no relatório, a partir do schema extraído das migrations V1 a
   V9 (`pg_dump`) e comparado tabela por tabela com o DDL de `docs/modelo-dados/`; divergências
   justificadas, inclusive as chaves não adiáveis e as garantias além do modelo.
@@ -562,7 +595,55 @@
 - `mvn clean verify`: 775 testes unitários e 138 de integração; cobertura unitária 100% (2009 linhas,
   544 ramos, 840 métodos). Suíte também em ordem aleatória (semente 20261006), sem falhas.
 
+## Etapa 26 — Endereços normalizados por cidade e estado (catálogo geográfico)
+*Rafael Brandão Silva · PRs #21 e #25 · 11 a 27/10/2026*
+
+### Versão original (PR #21)
+- `City` e `State` no domínio, nas origens de dados e na JPA; endereço ligado a uma cidade do catálogo, com
+  `cityId` ainda opcional. Migration `V4__normalize_address_location.sql` na branch (o número colidiu com a
+  V4 da `main`, `user_addresses`, e a normalização foi refeita como V11 na correção abaixo).
+
+### Correção do merge e catálogo de endereços (PR #25)
+- Corrigidos imports, conversões de `Address`, vínculos `UserAddress` e referências ao antigo catálogo de papéis que quebravam a compilação após o merge com a main.
+- `cityId` obrigatório em `Address`, `AddressDTO`, `AddressData` e `AddressRequest`; `AddressView` exige `CityView` com id e estado válidos. Construtores alternativos que omitiam cidade foram removidos.
+- `AddressRequest` recebe apenas `cityId` e os campos do endereço; nomes de cidade/estado vêm do catálogo, com resposta `AddressView -> CityView -> StateView` e DTOs HTTP equivalentes.
+- Resolução compartilhada da cidade existente para usuários e restaurantes; id desconhecido responde 404, sem criação automática de cidades ou estados. Catálogos expõem apenas leitura, inclusive nos repositórios Spring Data.
+- Normalização movida para `V11__normalize_address_location.sql`, preservando V1–V10 da main. `V12__seed_location_catalog.sql` inclui as 27 unidades federativas, as capitais e Campinas; novas cidades entram por migrations.
+- Consultas públicas `GET /api/v1/states` e `GET /api/v1/cities`, com filtros por `stateId`/`name`, paginação e links de navegação para cidades.
+- Seed reconhece cidades legadas sem diferenciar maiúsculas/minúsculas, preservando ids sem duplicações.
+- Validação: `mvn verify` com 734 unitários e 142 de integração aprovados; cobertura de 100% (2174 linhas, 558 ramos). Após o ajuste da seed, nova execução com os 17 testes de migração e os unitários aprovada.
+- Nomes novos em inglês; documentação e coleção Postman atualizadas ao contrato obrigatório de cidade. Testes de contrato, domínio, persistência, API e atualização de banco na V10.
+- Refatoração dos presenters: validações de `CityView` em `LocationPresenter` e de `AddressView` em
+  `AddressPresenter`.
+- Postman: 11 prints dos cenários de endereço, depois unificados em `postman/prints/` com nomes padronizados.
+
+### Relatório técnico v3.0
+- Criado `relatorios/relatorio-tech-challenge-fase02-v3.0.md` a partir do padrão da versão 2.0, preservando os arquivos das versões 1.0 e 2.0 para controle e histórico.
+- Consolidada a Etapa 26 com arquitetura de endereços/localidades, contrato HTTP, migrations V11/V12, testes existentes e links para os 11 prints integrados a `postman/prints/`.
+- Registrada a execução de 23/10/2026: 11 casos de endereços e 28 asserções aprovadas; a execução completa teve uma falha auxiliar de conexão no request 92, descrita separadamente.
+- README aponta para o relatório v3.0 e registra as 130 imagens atuais. Alteração documental, sem nova execução Maven/Newman ou mudança no código da aplicação.
+
+## Etapa 27 — Catálogo de produtos, imagens e opções
+*Rodrigo do Carmo Cruz · PR #24 (e PR #27, de Felipe Dias Mac Dowell, que unificou os prints) · 25 a 28/10/2026*
+
+- Agregado `Product` com caminhos/URLs de imagem, grupos de opções e valores, validando preço, limites de seleção e obrigatoriedade.
+- CRUD e listagem paginada em `/api/v1/restaurants/{restaurantId}/products`; leitura pública e escrita restrita ao administrador ou dono do restaurante.
+- Migration Flyway `V13__product_catalog.sql` para `products`, `images`, `product_option_groups` e `product_option_values`; `images.content` guarda caminho/URL em `varchar(2048)`, conforme a descrição da tarefa. `products.price` nasceu `double precision`, como no modelo lógico, e passou a `numeric(10,2)` na V14 (abaixo).
+- Persistência JPA de partes do agregado, paginação em duas consultas, DTOs REST, HATEOAS e documentação OpenAPI.
+- Adicionados 20 requests Postman para os caminhos felizes e erros documentados; os cenários de produto rodam antes da limpeza do segundo dono descartável. 20 prints gerados da execução Newman.
+- O JSON recebe `imagePaths`, e o banco persiste essas referências textuais em `images.content`: a tarefa define que o arquivo da foto não é enviado nem usado nesta fase.
+- Validação após a troca do contrato de imagem: `mvn verify` passou com 821 testes unitários e 140 de integração; JaCoCo conferiu 100% de linhas e ramos. `ProductCatalogIT` confirmou gravação e retorno de caminhos no PostgreSQL.
+- V14 converte `products.price` para `numeric(10,2)`; domínio, DTOs, records de dados, views e entidade JPA passam a usar `BigDecimal`, evitando aproximação binária em valores monetários.
+- Validação da alteração: `mvn test` passou com 851 testes unitários, 100% de cobertura (2519 linhas e 592 ramos); `mvn verify -Dit.test=ProductCatalogIT,SchemaMigrationIT -Dtest=NoSuch -Dsurefire.failIfNoSpecifiedTests=false` passou com 22 testes de integração e gate de cobertura atendido.
+- Relatório da etapa em `relatorios/relatorio-tech-challenge-fase02-v4.0.md` (criado como v3.0 e renomeado
+  por colisão com o relatório de endereços).
+- Depois do merge (PR #27): os 20 prints de produto saíram de `postman/prints-product/` para `postman/prints/`.
+
 ## Etapa 28 — Tipos de cozinha (cuisines e restaurant_cuisines)
+*Ana Melissa · PR #28 · 24 a 28/10/2026*
+
+- Desenvolvida em paralelo com as Etapas 26 e 27; os primeiros commits da branch a chamavam de "Etapa 26" e
+  foram renumerados no merge com a `main`.
 - Migration `V15__cuisines.sql`: catálogo `cuisines` (nome único sem diferenciar maiúsculas, índice em
   `LOWER(name)`) e ligação N:N `restaurant_cuisines` (chave composta; `ON DELETE CASCADE` no restaurante,
   `RESTRICT` no tipo). Migration `V16__seed_cuisines.sql`: catálogo inicial com oito tipos e ids fixos
@@ -591,10 +672,44 @@
   operações (20 protegidas).
 - Testes: unitários de todas as classes novas e alteradas, `CuisineLifecycleIT`, `RestaurantCuisinesIT` (7
   casos, filtro incluído), `SchemaMigrationIT` (V15 a V17).
-- Postman: pasta "Tipos de cozinha", requests 146 a 164; 169 requests e 343 asserções,
+- Postman: pasta "Tipos de cozinha", requests 146 a 164 (numeração da época; a Etapa 29 renumerou a coleção); 169 requests e 343 asserções,
   sem falhas; prints regenerados da mesma execução.
 - Correção: `docker-compose.yml` fixa `SERVER_PORT: 8080` no serviço `app`. O `server.port: 8081` do
   `application.yml` (Etapa 26) vale fora do Docker, mas dentro do container deixava a aplicação *unhealthy*
   (o mapeamento, o `EXPOSE` e o `HEALTHCHECK` usam 8080).
 - `mvn verify`: 939 testes unitários e 164 de integração; cobertura unitária 100% (2766 linhas,
   626 ramos).
+- Relatório da etapa em `relatorios/relatorio-tech-challenge-fase02-v5.0.md`; quadro de `cuisines` e
+  `restaurant_cuisines` em `docs/modelo-dados/README.md`.
+
+## Etapa 29 — Revisão final da entrega
+*Felipe Dias Mac Dowell · branch `etapa-29-revisao-final` · 28/10/2026*
+
+- Relatório final consolidado em `relatorios/relatorio-tech-challenge-fase02-final.md`: as 29 etapas com o
+  conceito de cada decisão, a conformidade com o enunciado e os nove fatores de avaliação, a participação de
+  cada integrante (etapas, PRs, commits e linhas), as decisões técnicas, os desvios conscientes — entre eles
+  o tipo de usuário atendido pelos perfis, com a justificativa —, os endpoints e o roteiro do vídeo. As
+  versões v1.0 a v5.0 ficam como histórico.
+- Coleção Postman auditada contra cada `@ErrorResponse` e cada recusa implícita: 18 requests novos (400 de id
+  que não é UUID nos `GET`/`DELETE` de restaurante e de tipo de cozinha e nos `DELETE` de usuário e produto;
+  400 de paginação e de `ownerId` inválido na listagem de restaurantes e de tipos; 400, 401 e 404 do `PUT` e
+  401, 403 e 404 do `DELETE` de tipo de cozinha; 400 de campo inválido no `PUT` de restaurante; 404 do `PUT` e
+  do `DELETE` de restaurante pelo administrador, o único que alcança esse retorno). Conferência do `type` acrescentada nos 10 requests de
+  restaurante e de tipo de cozinha que só conferiam o status. Pasta do catálogo geográfico em português.
+- Coleção renumerada pela posição de execução (pastas 01 a 19, requests 01 a 187): os números 126 a 130 se
+  repetiam entre produtos e localidades, e a numeração saía da ordem a partir do 146. Prints regenerados,
+  um por request, sem nome repetido.
+- OpenAPI: `@ErrorResponse` de 400 (id que não é UUID) nos quatro `DELETE` (usuário, restaurante, produto,
+  tipo de cozinha), e o 400 da listagem de restaurantes descreve também `ownerId`/`cuisineId` inválidos — a
+  documentação diz tudo o que a API responde.
+- CHANGELOG reorganizado por etapa (1 → 29), com autor, PR e data; corrigidas a contradição do preço
+  (`double` × `BigDecimal`) e a pendência obsoleta do Newman da Etapa 27; registradas as contribuições que não
+  tinham entrada (diagrama e Postman da Etapa 16, versão original e refatorações da Etapa 26, relatórios v4.0 e
+  v5.0, PR #27).
+- Documentação sincronizada: README (relatório final, tipo de usuário, estados e cidades na tabela de
+  endpoints, totais da coleção e dos prints, link quebrado de `prints-product/`), `docs/arquitetura/` (entidades,
+  31 casos de uso, adaptadores, módulos de persistência, V1–V17, totais de testes), `docs/modelo-dados/README.md`
+  (quadro de localidades V11/V12; V13, e não V11, para produtos), `arquitetura-logica.md` (diagrama no estado
+  atual), nota de documento histórico no relatório da Etapa 16 e `CLAUDE.md`.
+- `mvn clean verify`: 939 testes unitários e 164 de integração, sem falhas; cobertura unitária 100% (2766
+  linhas, 626 ramos). Newman: 187 requests e 389 asserções, sem falhas, em duas execuções seguidas.
