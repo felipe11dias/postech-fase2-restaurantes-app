@@ -10,14 +10,15 @@ São **documentos de referência**, não migrations: o Flyway só executa o que 
 A adequação, com o quadro antes × v2, os enums e cada etapa, está no relatório técnico — seção
 "Modelo de Dados v2 — adequação" de
 [`relatorio-tech-challenge-fase02-v2.0.md`](../../relatorios/relatorio-tech-challenge-fase02-v2.0.md); o
-quadro final, tabela por tabela, com o schema real (V1 a V10), está na Etapa 25 do mesmo relatório.
+quadro final, tabela por tabela, com o schema real até V10, está na Etapa 25; a V11 e as tabelas
+de produtos estão documentadas na Etapa 27 do mesmo relatório.
 
-## Escopo da adequação (Etapas 17 a 25)
+## Escopo implementado (Etapas 17 a 26)
 
 `users`, `user_addresses`, `password_reset_tokens`, `owners`, `clients`, `couriers`, `admins`,
-`restaurants` e `restaurant_office_hours`. As demais tabelas (`addresses` com `city_id`, `cities`,
-`states`, `cuisines`, `restaurant_cuisines`, `products`, `product_option_groups`,
-`product_option_values`, `images`) ficam para etapas futuras.
+`restaurants`, `restaurant_office_hours`, `products`, `product_option_groups`,
+`product_option_values` e `images`. As tabelas `addresses` com `city_id`, `cities`, `states`,
+`cuisines` e `restaurant_cuisines` permanecem para etapas futuras.
 
 ## Enums
 
@@ -39,9 +40,33 @@ quadro final, tabela por tabela, com o schema real (V1 a V10), está na Etapa 25
 | Chaves estrangeiras `DEFERRABLE INITIALLY IMMEDIATE` | Não adiáveis: o efeito é o mesmo (conferidas a cada comando), e nenhuma transação precisa adiá-las |
 | — (não está no modelo) | Garantias a mais no schema: `CHECK` de CNH e placa por tipo de veículo, `CHECK` de abertura ≠ fechamento, gatilho "um CPF, uma pessoa" entre `clients` e `couriers`, gatilho "ao menos um administrador" em `admins`, `restaurants.user_id → owners` |
 
-## Observações para as tabelas fora do escopo
+## Produtos: diagrama do modelo × schema da V13
 
-- `products.price double`: no PostgreSQL é `double precision`; valor monetário pede `numeric(10,2)`,
-  como `product_option_values.additional_price`.
-- `images.content blob`: no PostgreSQL, `bytea`.
-- `products` e `images` não têm colunas de auditoria, ao contrário das demais tabelas.
+As quatro tabelas abaixo foram conferidas no diagrama PDF fornecido e no DDL exportado do modelo.
+Os nomes das colunas e as relações foram mantidos, com uma decisão alinhada à descrição da tarefa:
+como o arquivo da foto não será enviado nem utilizado nesta etapa, `images.content` guarda somente
+o caminho/URL como texto, não o blob do modelo lógico. O schema acrescenta limites e restrições
+físicas para reforçar as invariantes.
+
+| Tabela | Modelo lógico | Schema físico V13 | Conformidade |
+| --- | --- | --- | --- |
+| `products` | `id`, `restaurant_id`, `name`, `description`, `price double`, `is_dine_in_only` | Mesmas colunas; `price numeric(10,2)`; FK `restaurant_id → restaurants` com `ON DELETE CASCADE` | Desvio físico intencional: precisão decimal para valor monetário |
+| `images` | `id`, `product_id`, `content blob` | Mesmas colunas; `content varchar(2048)`; FK para `products` com cascata | Desvio intencional para atender à tarefa: persiste referência textual; API recebe/devolve `imagePaths` |
+| `product_option_groups` | `id`, `product_id`, `name`, `is_required`, `min_selections`, `max_selections` e auditoria | Mesmas colunas e FK para `products` com cascata; timestamps obrigatórios | Estrutura mantida; timestamps `NOT NULL` seguem o padrão de auditoria do projeto |
+| `product_option_values` | `id`, `option_group_id`, `name`, `additional_price numeric(10,2)` e auditoria | Mesmas colunas e FK para `product_option_groups` com cascata | Estrutura, relação e precisão monetária mantidas |
+
+**Tipos monetários.** O modelo lógico declara `products.price` como `double`, mas a implementação
+usa `BigDecimal` no domínio e nas fronteiras, com `numeric(10,2)` no PostgreSQL após a V14. A
+migration converte os valores existentes; o domínio aceita valores não negativos com até oito
+dígitos inteiros e duas casas decimais. `additional_price` permanece `BigDecimal`/`numeric(10,2)`,
+como definido pelo modelo.
+
+**Complementos físicos.** O DDL original deixa `varchar` sem limite e os campos de auditoria
+anuláveis. A V11 limita nomes/descrições, acrescenta `CHECK`s para preços e limites de seleção,
+e torna `created_at`/`last_updated_at` obrigatórios nas tabelas auditáveis. O índice em
+`products.restaurant_id` atende à listagem por restaurante. As FKs mantêm as cascatas declaradas
+pelo modelo.
+
+**Auditoria:** o modelo não declara colunas de auditoria em `products` nem `images`; elas não foram
+adicionadas. `product_option_groups` e `product_option_values` incluem as quatro colunas de
+auditoria do modelo e usam `AuditableJpaEntity`.

@@ -6,15 +6,15 @@ plataforma única, em vez de manter sistemas individuais caros, para que o clien
 comer pela qualidade da comida, não pela do sistema.
 
 A Fase 2 reconstrói a base em **Clean Architecture**, com testes automatizados em dois níveis e
-execução completa em Docker Compose. O relatório técnico atual é a
-[versão 3.0](relatorios/relatorio-tech-challenge-fase02-v3.0.md), que consolida a entrega de
-endereços e suas evidências. As [versões anteriores](relatorios/) foram preservadas para
-consulta e comparação do histórico.
+execução em Docker Compose. O relatório técnico atual é a
+[versão 4.0](relatorios/relatorio-tech-challenge-fase02-v4.0.md), com as alterações da Etapa 27
+para o catálogo de produtos e a precisão monetária do preço. As [versões anteriores](relatorios/)
+foram preservadas para consulta e comparação do histórico.
 
 ## Estado da entrega
 
-Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo contempla as 26 etapas
-registradas no relatório técnico v3.0, incluindo endereços e catálogo geográfico.
+Referência: o enunciado da Fase 2 (Tech Challenge). A situação abaixo contempla as 27 etapas
+registradas, incluindo endereços, catálogo geográfico e catálogo de produtos.
 
 | Requisito do enunciado | Estado |
 | --- | --- |
@@ -26,14 +26,14 @@ registradas no relatório técnico v3.0, incluindo endereços e catálogo geogr�
 | Tipo de usuário: **CRUD de tipos de usuário** (campo "Nome do Tipo") | ⏳ Pendente — os perfis são fixos no modelo de dados v2 e não há catálogo editável; a forma de atender o requisito ainda será decidida |
 | Cadastro de restaurante: CRUD com nome, endereço, horário de funcionamento e dono | ✅ Implementado — endereço próprio, horário por dia da semana, dono com perfil de dono e regra de posse |
 | Cadastro de restaurante: **tipo de cozinha** | ⏳ Pendente — o modelo v2 prevê `cuisines` e `restaurant_cuisines`, ainda sem implementação |
-| Cadastro de itens de cardápio (nome, descrição, preço, só no local, caminho da foto) | ⏳ Pendente — nenhuma entidade, tabela ou endpoint |
+| Cadastro de itens do cardápio (nome, descrição, preço, só no local e imagem) | ✅ CRUD de produtos com caminhos/URLs de imagem, grupos/valores de opção e preço decimal (`BigDecimal` / `numeric(10,2)`) |
 
 | Entregável da avaliação | Estado |
 | --- | --- |
 | Clean Architecture em camadas | ✅ Quatro camadas, verificadas no build (ArchUnit, 48 regras) |
-| Testes: unitários com 80% e de integração | ✅ 734 unitários com **100%** de linhas e ramos; 142 de integração com PostgreSQL real |
+| Testes: unitários com 80% e de integração | ✅ 851 unitários com **100%** de linhas e ramos; testes direcionados de produto e migrations com PostgreSQL real |
 | Documentação (arquitetura, endpoints, execução) | ✅ Este README, o relatório técnico, o Swagger, `docs/arquitetura/` e `docs/modelo-dados/` |
-| Coleção Postman | 130 requests e 130 prints; os 11 casos de endereços têm 28 asserções aprovadas. A ressalva da execução completa no request 92 está registrada no relatório v3.0 |
+| Coleção Postman | ✅ 151 requests; execução completa com 308 asserções aprovadas. Prints dos 20 requests de produtos em `postman/prints-product/` |
 | Docker Compose (aplicação e banco) | ✅ Aplicação, PostgreSQL e Mailpit |
 | Repositório aberto | ✅ Público, com histórico por etapa |
 | Vídeo de apresentação (cerca de 5 minutos) | ⏳ Pendente — depende das funcionalidades acima |
@@ -60,6 +60,19 @@ A resposta traz `address.city: {id, name, state: {id, name, acronym}}` e o CEP s
 Cidade ausente ou nula resulta em 400; id de cidade inexistente, em 404. Atualize os clientes que enviavam apenas
 `city`/`state`: esses nomes não substituem o id obrigatório. As migrations V11 e V12 preservam
 os endereços e vínculos já existentes em um banco na V10; o Flyway as aplica na inicialização.
+
+## Catálogo de produtos
+
+Cada restaurante tem um catálogo em `/api/v1/restaurants/{restaurantId}/products`. As consultas
+são públicas; criação, atualização e exclusão exigem o dono do restaurante ou um administrador.
+O corpo inclui nome, descrição, preço, indicador `dineInOnly`, caminhos/URLs de imagens em
+`imagePaths` e grupos de opções com limites de seleção e preços adicionais. O `PUT` substitui
+integralmente o produto, suas imagens e opções.
+
+Esta etapa não envia nem armazena arquivos: `imagePaths` contém referências textuais persistidas
+em `images.content`. O preço do produto é enviado como número decimal JSON e representado por
+`BigDecimal` na aplicação; a V14 converte `products.price` para `numeric(10,2)`. São aceitos
+valores não negativos com até oito dígitos inteiros e duas casas decimais.
 
 ## Arquitetura
 
@@ -235,6 +248,10 @@ autocadastro não tem perfil de administrador.
      ou trocar o dono é do administrador. Excluir um usuário exclui os restaurantes dele.
    - O restaurante tem horários por dia da semana (`officeHours`: dia, abertura, fechamento), ao menos
      um e sem sobreposição; fechamento antes da abertura é expediente que vira a meia-noite.
+   - Produtos pertencem a um restaurante: a consulta do catálogo é pública; criação, atualização
+     e exclusão exigem administrador ou o dono daquele restaurante. Imagens são referências
+     textuais (`imagePaths`), sem upload de arquivos. O preço usa `BigDecimal` na API e no domínio,
+     limitado a duas casas decimais.
    - Perfis de um cadastro existente se incluem, alteram e removem em `/api/v1/users/{id}/profiles/…`
      (o próprio usuário ou um administrador; o perfil de administrador, só um administrador). A
      autorização lê os perfis do cadastro a cada requisição: incluir ou remover perfil vale na hora,
@@ -268,6 +285,11 @@ autocadastro não tem perfil de administrador.
 | `GET` | `/api/v1/restaurants/{id}` | público | `200` |
 | `PUT` | `/api/v1/restaurants/{id}` | dono do restaurante (sem trocar de dono) ou administrador | `200` |
 | `DELETE` | `/api/v1/restaurants/{id}` | dono do restaurante ou administrador | `204` |
+| `POST` | `/api/v1/restaurants/{restaurantId}/products` | dono do restaurante ou administrador | `201` + `Location` |
+| `GET` | `/api/v1/restaurants/{restaurantId}/products?page=&size=` | público | `200` página HATEOAS |
+| `GET` | `/api/v1/restaurants/{restaurantId}/products/{productId}` | público | `200` |
+| `PUT` | `/api/v1/restaurants/{restaurantId}/products/{productId}` | dono do restaurante ou administrador | `200` (substitui o produto e suas opções) |
+| `DELETE` | `/api/v1/restaurants/{restaurantId}/products/{productId}` | dono do restaurante ou administrador | `204` |
 
 **Erros** seguem o `ProblemDetail` da RFC 9457 (`application/problem+json`), com `type`, `title`,
 `status`, `detail`, `instance` e `timestamp`. O `type` identifica a categoria e é estável — é nele
@@ -292,12 +314,20 @@ A documentação completa, com exemplos de cada resposta, está no Swagger UI.
 ## Coleção Postman
 
 [`postman/Restaurantes.postman_collection.json`](postman/Restaurantes.postman_collection.json)
-(formato v2.1) tem **130 requests em 17 pastas** (usuários, restaurantes e catálogo geográfico): um por caso de cada endpoint — o sucesso e cada
+(formato v2.1) tem **151 requests em 18 pastas** (usuários, restaurantes, catálogo geográfico e produtos): um por caso de cada endpoint — o sucesso e cada
 erro previsto —, na ordem em que rodam de cima a baixo. Os scripts de teste conferem o status e
 o `type` de cada erro e guardam `{{adminToken}}`, `{{token}}` e `{{userId}}` para as requisições
 seguintes; se um login ou cadastro essencial falhar, a execução para ali, com o motivo, em vez de
 seguir falhando em cascata. A pasta de recuperação de senha lê o token **na caixa do Mailpit**,
 pela API dele, como o usuário faria.
+
+A pasta de produtos cobre o catálogo: criação, consulta, listagem paginada, substituição e
+exclusão, incluindo os status documentados para validação, autenticação, posse e recurso inexistente.
+Os 20 requests foram executados como parte de uma execução completa: **151 requests, 308
+asserções e nenhuma falha**. Prints dos casos de produtos e o resumo da execução estão em
+[`postman/prints-product/`](postman/prints-product/). Nos requests de criação e atualização,
+`imagePaths` é uma lista de caminhos ou URLs de imagem (por exemplo, `/images/pizza.jpg`). Nenhum
+arquivo é enviado ou armazenado; cada referência é persistida como texto na coluna `images.content`.
 
 A coleção cria os próprios usuários — um cliente, um segundo cadastro descartável (alvo dos
 casos de acesso negado), um dono e um entregador — e os exclui ao fim. CPF, CNPJ e CNH são únicos
@@ -316,17 +346,24 @@ quiser contra o mesmo banco.
 npx newman@6 run postman/Restaurantes.postman_collection.json
 ```
 
-Se você mudou as portas no `.env`, sobrescreva as variáveis:
-`--env-var baseUrl=http://localhost:8081 --env-var mailpitUrl=http://localhost:8026`.
-Para o pré-request do caso 92, ajuste também `baseUrl` nas variáveis da própria coleção:
-ele lê esse valor diretamente, mesmo quando há uma variável de ambiente com o mesmo nome.
+Com a pilha no Docker Compose, a coleção usa `http://localhost:8080` para a API e
+`http://localhost:8025` para o Mailpit. Ao executar a aplicação fora do Compose, o padrão da API
+é `http://localhost:8081`; nesse caso, sobrescreva a URL da API:
 
-Os **130 prints** estão em [`postman/prints/`](postman/prints/), numerados na ordem da coleção.
-Os 11 casos de endereços vieram da execução de 23/10/2026 na porta 8081: seis imagens foram
-atualizadas e cinco acrescentadas, mantendo as outras 119 evidências. O relatório v3.0 traz
-os links desses casos e a ressalva da falha auxiliar no request 92. Cada imagem mostra o
-request, a resposta e os testes daquela chamada (tokens JWT aparecem abreviados).
-Para regenerar a coleção completa, com a pilha no ar:
+```bash
+npx newman@6 run postman/Restaurantes.postman_collection.json \
+  --env-var baseUrl=http://localhost:8081
+```
+
+Se as portas do host foram alteradas no `.env`, informe os valores de `APP_PORT` e
+`MAILPIT_UI_PORT` correspondentes com `--env-var baseUrl=...` e `--env-var mailpitUrl=...`.
+
+Os prints completos da coleção estão distribuídos nas pastas [`postman/prints/`](postman/prints/)
+e [`postman/prints-product/`](postman/prints-product/): a primeira contém 130 imagens e a segunda,
+com as evidências dos produtos, contém 20. Cada imagem registra o request, a resposta e os testes
+da chamada; tokens JWT aparecem abreviados.
+
+Para regenerar os prints da coleção completa com a pilha no ar:
 
 ```bash
 npx newman@6 run postman/Restaurantes.postman_collection.json --reporters cli,json --reporter-json-export target/newman.json
@@ -334,7 +371,7 @@ node postman/gerar-prints.js target/newman.json postman/Restaurantes.postman_col
 ```
 
 O script usa o Chrome em modo headless; fora do Windows, aponte `CHROME_PATH` para o executável.
-Os prints antigos só são substituídos depois que todos os novos forem gerados.
+Os prints existentes só são substituídos depois que todos os novos forem gerados.
 
 ## Testes
 
@@ -343,12 +380,14 @@ mvn test      # unitários + regras ArchUnit — segundos, sem Docker
 mvn verify    # + testes de integração (Testcontainers) + gate de 100% de cobertura
 ```
 
-- **Unitários (465):** entidades sem mocks; casos de uso com mocks das portas; adaptadores com
+- **Unitários (851):** entidades sem mocks; casos de uso com mocks das portas; adaptadores com
   mocks das origens de dados e dos serviços; infraestrutura com lógica instanciada diretamente. Nenhum sobe
-  contexto Spring nem toca em banco.
-- **Integração (91):** contexto Spring completo, PostgreSQL real, migrations do Flyway,
-  segurança JWT ativa e chamadas HTTP de verdade. Nenhum bean é substituído, exceto o envio de
-  e-mail.
+  contexto Spring nem toca em banco. Cobertura JaCoCo unitária de **100% de linhas e ramos**
+  (2519 linhas e 592 ramos).
+- **Integração:** contexto Spring completo, PostgreSQL real, migrations do Flyway, segurança JWT
+  ativa e chamadas HTTP de verdade. A validação direcionada da Etapa 27 executou 22 testes de
+  integração (`ProductCatalogIT` e `SchemaMigrationIT`) sem falhas; isso não representa a suíte
+  completa de integração.
 - **Cobertura:** o build **falha** abaixo de 100% de linhas e ramos **dos testes unitários**. A
   integração é medida à parte, só para informação. Relatórios: `target/site/jacoco/index.html`
   (unitários) e `target/site/jacoco-it/index.html` (integração).
@@ -365,7 +404,7 @@ src/main/java/com/postech/restaurantes/
   application/     casos de uso, portas (gateways) e DTOs do núcleo
   adapter/         controllers, gateways, origens de dados, serviços externos e presenters
   infrastructure/  módulos substituíveis: main, api/rest/spring, persistence/jpa, token/jwt, crypto, mail/smtp
-src/main/resources/db/migration/   V1 (schema) e V2 (seed de demonstração)
+src/main/resources/db/migration/   V1–V14 (schema, catálogo, migrações e seeds)
 postman/                           coleção e prints
 relatorios/                        relatório técnico por etapa (Markdown e PDF)
 docs/arquitetura/                  cada camada: o que as aulas ensinam, o que os autores dizem, como o projeto faz

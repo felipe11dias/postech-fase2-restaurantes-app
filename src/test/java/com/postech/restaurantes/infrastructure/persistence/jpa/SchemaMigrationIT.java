@@ -73,13 +73,14 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("As migrations foram aplicadas com sucesso e ficaram registradas no histórico")
+    @DisplayName("As quatorze migrations foram aplicadas com sucesso e ficaram registradas no histórico")
     void deveAplicarAsMigrations() {
         List<String> versoes = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = true AND version IS NOT NULL "
                         + "ORDER BY installed_rank", String.class);
 
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"), versoes);
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"),
+                versoes);
     }
 
     @Test
@@ -89,8 +90,67 @@ class SchemaMigrationIT extends IntegrationTestSupport {
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' "
                         + "AND table_name <> 'flyway_schema_history' ORDER BY table_name", String.class);
 
-        assertEquals(List.of("addresses", "admins", "cities", "clients", "couriers",
-                "owners", "password_reset_tokens", "restaurant_office_hours", "restaurants", "states", "user_addresses", "users"), tabelas);
+        assertEquals(List.of("addresses", "admins", "cities", "clients", "couriers", "images", "owners",
+                "password_reset_tokens", "product_option_groups", "product_option_values", "products",
+                "restaurant_office_hours", "restaurants", "states", "user_addresses", "users"), tabelas);
+    }
+
+    @Test
+    @DisplayName("Produtos e caminhos de imagem usam os tipos e colunas definidos pela implementação")
+    void deveMapearOsTiposDeProdutoDoModelo() {
+        assertEquals("numeric", tipoDaColuna("products", "price"));
+        assertEquals(10, precisaoDaColuna("products", "price"));
+        assertEquals(2, escalaDaColuna("products", "price"));
+        assertEquals("character varying", tipoDaColuna("images", "content"));
+        assertEquals(2048, comprimentoDaColuna("images", "content"));
+        assertEquals(List.of("id", "product_id", "content"), colunas("images"));
+        assertEquals(List.of("id", "option_group_id", "name", "additional_price",
+                        "created_at", "last_updated_at", "created_by", "last_updated_by"),
+                colunas("product_option_values"));
+    }
+
+    private String tipoDaColuna(String tabela, String coluna) {
+        return jdbc.queryForObject("SELECT data_type FROM information_schema.columns "
+                + "WHERE table_schema = 'public' AND table_name = ? AND column_name = ?",
+                String.class, tabela, coluna);
+    }
+
+    private Integer comprimentoDaColuna(String tabela, String coluna) {
+        return jdbc.queryForObject("SELECT character_maximum_length FROM information_schema.columns "
+                + "WHERE table_schema = 'public' AND table_name = ? AND column_name = ?",
+                Integer.class, tabela, coluna);
+    }
+
+    private Integer precisaoDaColuna(String tabela, String coluna) {
+        return jdbc.queryForObject("SELECT numeric_precision FROM information_schema.columns "
+                + "WHERE table_schema = 'public' AND table_name = ? AND column_name = ?",
+                Integer.class, tabela, coluna);
+    }
+
+    private Integer escalaDaColuna(String tabela, String coluna) {
+        return jdbc.queryForObject("SELECT numeric_scale FROM information_schema.columns "
+                + "WHERE table_schema = 'public' AND table_name = ? AND column_name = ?",
+                Integer.class, tabela, coluna);
+    }
+
+    private List<String> colunas(String tabela) {
+        return jdbc.queryForList("SELECT column_name FROM information_schema.columns "
+                + "WHERE table_schema = 'public' AND table_name = ? ORDER BY ordinal_position",
+                String.class, tabela);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({
+            "courier_vehicle_type, ON_FOOT;BICYCLE;MOTORCYCLE;CAR",
+            "courier_status,       OFFLINE;AVAILABLE;BUSY",
+            "day_of_week,          MONDAY;TUESDAY;WEDNESDAY;THURSDAY;FRIDAY;SATURDAY;SUNDAY"
+    })
+    @DisplayName("Os tipos ENUM do modelo têm os valores do modelo, na ordem do modelo")
+    void deveCriarOsEnums(String tipo, String valores) {
+        List<String> rotulos = jdbc.queryForList("SELECT e.enumlabel FROM pg_enum e JOIN pg_type t "
+                + "ON t.oid = e.enumtypid WHERE t.typname = ? ORDER BY e.enumsortorder", String.class, tipo);
+
+        assertEquals(List.of(valores.split(";")), rotulos);
     }
 
     @Test
