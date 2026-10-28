@@ -189,6 +189,7 @@ public class UserRestController {
                     + "endereço de cada um). O último administrador não é excluído. Só o próprio usuário ou um "
                     + "administrador.")
     @ApiResponse(responseCode = "204", description = "Cadastro excluído")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Id não é um UUID")
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
     @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Cadastro de outro usuário")
     @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Usuário não encontrado")

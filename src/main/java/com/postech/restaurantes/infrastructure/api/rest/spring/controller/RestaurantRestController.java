@@ -103,7 +103,8 @@ public class RestaurantRestController {
             description = "Paginada, com busca por nome de restaurante e, opcionalmente, só os de um dono e só os que "
                     + "têm um tipo de cozinha.")
     @ApiResponse(responseCode = "200", description = "Página de restaurantes")
-    @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Parâmetros de paginação inválidos")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST,
+            description = "Parâmetros de paginação inválidos, ou ownerId/cuisineId que não é um UUID")
     public PagedModel<EntityModel<RestaurantResponse>> search(
             @Parameter(description = "Trecho do nome do restaurante", example = "Sabor")
             @RequestParam(required = false) String name,
@@ -147,6 +148,7 @@ public class RestaurantRestController {
     @Operation(summary = "Exclui um restaurante",
             description = "O dono exclui só os próprios restaurantes; o administrador (ROLE_ADMIN), qualquer um.")
     @ApiResponse(responseCode = "204", description = "Restaurante excluído")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Id não é um UUID")
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
     @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Restaurante de outro dono")
     @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Restaurante não encontrado")

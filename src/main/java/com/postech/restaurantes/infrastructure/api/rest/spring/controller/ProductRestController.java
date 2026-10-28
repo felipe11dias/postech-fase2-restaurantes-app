@@ -113,6 +113,7 @@ public class ProductRestController {
     @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
     @Operation(summary = "Exclui um produto e suas imagens e opções")
     @ApiResponse(responseCode = "204", description = "Produto excluído")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Id não é um UUID")
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
     @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Apenas o dono do restaurante ou administrador")
     @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Produto não encontrado")
