@@ -590,8 +590,9 @@
 - Testes: unitários de todas as classes novas e alteradas, `CuisineLifecycleIT`, `RestaurantCuisinesIT` (7
   casos, filtro incluído), `SchemaMigrationIT` (V15 e V16).
 - Postman: pasta "Tipos de cozinha", requests 146 a 164; 169 requests e 343 asserções,
-  sem falhas; prints regenerados da mesma execução. A pilha do Compose da `main` sobe com a aplicação na
-  porta 8081 (`server.port` do `application.yml`, Etapa 26), e o Compose espera 8080: a validação usou
-  `SERVER_PORT=8080` só no container, sem alterar o repositório.
+  sem falhas; prints regenerados da mesma execução.
+- Correção: `docker-compose.yml` fixa `SERVER_PORT: 8080` no serviço `app`. O `server.port: 8081` do
+  `application.yml` (Etapa 26) vale fora do Docker, mas dentro do container deixava a aplicação *unhealthy*
+  (o mapeamento, o `EXPOSE` e o `HEALTHCHECK` usam 8080).
 - `mvn verify`: 939 testes unitários e 162 de integração; cobertura unitária 100% (2766 linhas,
   626 ramos).

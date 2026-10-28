@@ -118,11 +118,12 @@ de V15 e V16 no `SchemaMigrationIT`.
 | Regras de arquitetura | 48 regras ArchUnit sem violação; nenhuma regra nova foi necessária. |
 | Postman (`npx newman@6`) | **169 requests e 343 asserções, sem falhas**, contra a pilha do Docker Compose; prints regenerados da mesma execução. |
 
-**Achado na verificação (fora do escopo desta etapa).** A `main` traz `server.port: 8081` no
-`application.yml` (commit `52e3507`, Etapa 26), mas o `docker-compose.yml` publica e confere a saúde na
-porta 8080: com isso, o `docker compose up` deixa a aplicação *unhealthy* e inacessível pela porta publicada.
-A coleção foi validada numa pilha descartável do Compose com `SERVER_PORT=8080` passado só ao container,
-sem alterar o repositório; a correção fica para a etapa dona da configuração.
+**Correção feita na verificação.** A `main` traz `server.port: 8081` no `application.yml` (commit `52e3507`,
+Etapa 26) para a execução fora do Docker, mas o `docker-compose.yml`, o `EXPOSE` e o `HEALTHCHECK` do
+`Dockerfile` esperam 8080: o `docker compose up` deixava a aplicação *unhealthy* e inacessível. O
+`docker-compose.yml` passou a fixar `SERVER_PORT: 8080` no serviço `app` (porta interna fixa, como as demais).
+Com isso, a pilha do Compose sobe *healthy* e a coleção roda nela sem ajustes; fora do Docker a aplicação
+continua na 8081.
 
 ## Documentação e coleção Postman
 
