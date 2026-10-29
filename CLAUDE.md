@@ -10,13 +10,13 @@ Architecture**. O projeto foi entregue **etapa por etapa** (29 até aqui; as Eta
 `CHANGELOG.md` (uma seção por etapa, em ordem crescente, com autor, PR e data abaixo do título), e atualização do
 relatório técnico vigente, `relatorios/relatorio-tech-challenge-fase02-final.md` (marcar a etapa como ✅ no Sumário de
 Progresso, atualizar o contador, acrescentar a subseção da etapa com o conceito de cada decisão e o resultado real do
-build, e atualizar a conformidade com o enunciado e a participação de cada integrante). As versões v1.0 a v5.0 em
+build, e atualizar a conformidade com o enunciado). As versões v1.0 a v5.0 em
 `relatorios/` são histórico: não se editam, e trazem os exemplos de código de cada etapa na época.
 
-O enunciado da fase (`ADJ_Fase 2 - Tech Challenge`) é a régua da entrega. O único requisito atendido por desvio
-consciente é o CRUD de "tipo de usuário": o tipo é o perfil (dono, cliente, entregador, administrador), com tabela,
-campos e regras próprios, associado ao usuário pelos endpoints `/users/{id}/profiles/…`; a justificativa está na
-seção 8 do relatório final. Não criar um catálogo editável de tipos sem rever essa decisão.
+O enunciado da fase (`ADJ_Fase 2 - Tech Challenge`) é a régua da entrega. O CRUD de "tipo de usuário" é atendido
+pelos perfis: o tipo é o perfil (dono, cliente, entregador, administrador), com nome, tabela, campos e regras próprios,
+associado ao usuário pelos endpoints `/users/{id}/profiles/…`; a justificativa está na seção 3 do relatório final
+("Tipo de usuário: como o requisito é atendido"). Não criar um catálogo editável de tipos sem rever essa decisão.
 
 Identificadores novos ou alterados do código e testes: inglês. Documentação, comentários e mensagens ao usuário podem permanecer em português. Os testes legados em português continuam aceitos, sem renomeação geral fora do escopo.
 

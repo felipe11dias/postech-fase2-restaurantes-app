@@ -7,8 +7,9 @@ comer pela qualidade da comida, não pela do sistema.
 
 A Fase 2 reconstrói a base em **Clean Architecture**, com testes automatizados em dois níveis e
 execução em Docker Compose. O documento de referência da entrega é o
-[relatório final](relatorios/relatorio-tech-challenge-fase02-final.md), que consolida as 29 etapas,
-a conformidade com o enunciado, a participação de cada integrante e o roteiro do vídeo. As
+[relatório final](relatorios/relatorio-tech-challenge-fase02-final.md) (também em
+[PDF](relatorios/relatorio-tech-challenge-fase02-final.pdf)), que consolida as 29 etapas,
+a conformidade com o enunciado, o diagrama do sistema e o roteiro do vídeo. As
 [versões anteriores](relatorios/) (v1.0 a v5.0) foram preservadas como histórico detalhado de cada
 etapa, com os exemplos de código da época.
 
@@ -25,7 +26,7 @@ revisão final da entrega.
 | Recuperação de senha por e-mail (token de uso único com validade) | ✅ Implementado |
 | Tipo de usuário: distinguir "Dono de Restaurante" e "Cliente" | ✅ Perfis `owner`, `client`, `courier` e `admin`, em tabelas próprias; o papel é derivado do perfil |
 | Tipo de usuário: associar o tipo a usuários **existentes** | ✅ Incluir, alterar e remover perfil em `/api/v1/users/{id}/profiles/…`, valendo na hora |
-| Tipo de usuário: **CRUD de tipos de usuário** (campo "Nome do Tipo") | ⚠️ Atendido pelos perfis, como desvio consciente — o "tipo" é o perfil (dono, cliente, entregador, administrador), com tabela e campos próprios; incluir, alterar, consultar e remover o tipo de um usuário é feito nos endpoints de perfil. Não há catálogo editável só de nomes: a justificativa está no [relatório final](relatorios/relatorio-tech-challenge-fase02-final.md#8-desvios-conscientes) |
+| Tipo de usuário: **CRUD de tipos de usuário** (campo "Nome do Tipo") | ✅ Atendido pelos perfis — o "tipo" é o perfil (dono, cliente, entregador, administrador), com nome, tabela e campos próprios; incluir, consultar, alterar e remover o tipo de um usuário é feito em `/api/v1/users/{id}/profiles/…`. Detalhes e justificativa no [relatório final](relatorios/relatorio-tech-challenge-fase02-final.md#tipo-de-usuário-como-o-requisito-é-atendido) |
 | Cadastro de restaurante: CRUD com nome, endereço, horário de funcionamento e dono | ✅ Implementado — endereço próprio, horário por dia da semana, dono com perfil de dono e regra de posse |
 | Cadastro de restaurante: **tipo de cozinha** | ✅ Implementado — catálogo `/api/v1/cuisines` (leitura pública, manutenção do administrador), `cuisineIds` no restaurante e filtro `?cuisineId=` na listagem |
 | Cadastro de itens do cardápio (nome, descrição, preço, só no local e imagem) | ✅ CRUD de produtos com caminhos/URLs de imagem, grupos/valores de opção e preço decimal (`BigDecimal` / `numeric(10,2)`) |
@@ -38,7 +39,7 @@ revisão final da entrega.
 | Coleção Postman | ✅ 187 requests, um por retorno documentado de cada endpoint; cobre usuários, perfis, restaurantes, catálogo geográfico, produtos e tipos de cozinha; um print por request; 389 asserções, sem falhas, em duas execuções seguidas |
 | Docker Compose (aplicação e banco) | ✅ Aplicação, PostgreSQL e Mailpit |
 | Repositório aberto | ✅ Público, com histórico por etapa |
-| Vídeo de apresentação (cerca de 5 minutos) | ⏳ A gravar — roteiro pronto no [relatório final](relatorios/relatorio-tech-challenge-fase02-final.md#13-vídeo-de-apresentação) |
+| Vídeo de apresentação (cerca de 5 minutos) | ⏳ A gravar — roteiro pronto no [relatório final](relatorios/relatorio-tech-challenge-fase02-final.md#12-vídeo-de-apresentação) |
 
 ## Endereços e catálogo de localidades
 
@@ -414,6 +415,6 @@ src/main/java/com/postech/restaurantes/
   infrastructure/  módulos substituíveis: main, api/rest/spring, persistence/jpa, token/jwt, crypto, mail/smtp
 src/main/resources/db/migration/   V1–V17 (schema, catálogo, migrações e seeds; V15 a V17: tipos de cozinha)
 postman/                           coleção e prints
-relatorios/                        relatório final consolidado e as versões v1.0 a v5.0 (histórico; a v1.0 também em PDF)
+relatorios/                        relatório final (Markdown e PDF, gerado por gerar-pdf.js) e as versões v1.0 a v5.0 (histórico)
 docs/arquitetura/                  cada camada: o que as aulas ensinam, o que os autores dizem, como o projeto faz
 ```

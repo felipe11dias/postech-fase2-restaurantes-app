@@ -4,34 +4,34 @@
 
 **Grupo:**
 
-| Integrante | RM | Principal contribuição |
-| --- | --- | --- |
-| Felipe Dias Mac Dowell | `@rm375442` | Etapas 1 a 15, 17 a 25 e 29 — base do sistema, arquitetura, Modelo de Dados v2, revisão final |
-| Francisco Ferreira de Araujo | `@RM a preencher` | Etapa 16 — primeiro módulo de restaurantes, diagrama lógico, coleção de restaurantes |
-| Rafael Brandão Silva | `@RM a preencher` | Etapa 26 — endereços normalizados por cidade e estado (catálogo geográfico) |
-| Rodrigo do Carmo Cruz | `@RM a preencher` | Etapa 27 — catálogo de produtos (itens do cardápio) |
-| Ana Melissa | `@RM a preencher` | Etapa 28 — tipos de cozinha |
+| Integrante | RM |
+| --- | --- |
+| Felipe Dias Mac Dowell | `@rm375442` |
+| Francisco Ferreira de Araujo | `@RM a preencher` |
+| Rafael Brandão Silva | `@RM a preencher` |
+| Rodrigo do Carmo Cruz | `@RM a preencher` |
+| Ana Melissa | `@RM a preencher` |
 
-**Curso:** Pós-Tech — Arquitetura e Desenvolvimento Java
-**Repositório:** <https://github.com/felipe11dias/postech-fase2-restaurantes-app> (público)
-**Stack:** Java 21 · Spring Boot 3.5.11 · Spring Data JPA · PostgreSQL 16 · Flyway · Docker Compose
-**Arquitetura:** Clean Architecture (Robert C. Martin)
-**Versão do relatório:** final (Etapa 29), 28/10/2026 — código de referência: branch `etapa-29-revisao-final`
+- **Curso:** Pós-Tech — Arquitetura e Desenvolvimento Java
+- **Repositório:** <https://github.com/felipe11dias/postech-fase2-restaurantes-app> (público)
+- **Stack:** Java 21 · Spring Boot 3.5.11 · Spring Data JPA · PostgreSQL 16 · Flyway · Docker Compose
+- **Arquitetura:** Clean Architecture (Robert C. Martin)
+- **Versão do relatório:** final (Etapa 29), 28/10/2026 — código de referência: branch `etapa-29-revisao-final`
 
 > Este é o documento de referência da entrega. Ele consolida as 29 etapas, a conformidade com o
-> enunciado, a participação de cada integrante e o roteiro do vídeo. As versões anteriores ficam em
+> enunciado, a arquitetura e o roteiro do vídeo. As versões anteriores ficam em
 > [`relatorios/`](./) como histórico detalhado — com os exemplos de código e as tabelas de cada etapa
 > na época em que foi feita:
 >
-> | Versão | Escopo | Autoria |
-> | --- | --- | --- |
-> | [v1.0](relatorio-tech-challenge-fase02-v1.0.md) (também em PDF) | Etapas 1 a 15 e a primeira versão da 26 | Felipe Dias Mac Dowell, com acréscimos de Francisco e Rafael |
-> | [v2.0](relatorio-tech-challenge-fase02-v2.0.md) (cabeçalho 2.2) | Etapas 1 a 25 e 27; Modelo de Dados v2 | Felipe Dias Mac Dowell, com acréscimos de Rafael e Rodrigo |
-> | [v3.0](relatorio-tech-challenge-fase02-v3.0.md) | v2.0 + Etapa 26 completa | Rafael Brandão Silva |
-> | [v4.0](relatorio-tech-challenge-fase02-v4.0.md) | Etapa 27 | Rodrigo do Carmo Cruz |
-> | [v5.0](relatorio-tech-challenge-fase02-v5.0.md) | Etapa 28 | Ana Melissa |
+> | Versão | Escopo |
+> | --- | --- |
+> | [v1.0](relatorio-tech-challenge-fase02-v1.0.md) (também em PDF) | Etapas 1 a 15 e a primeira versão da 26 |
+> | [v2.0](relatorio-tech-challenge-fase02-v2.0.md) (cabeçalho 2.2) | Etapas 1 a 25 e 27; Modelo de Dados v2 |
+> | [v3.0](relatorio-tech-challenge-fase02-v3.0.md) | v2.0 + Etapa 26 completa |
+> | [v4.0](relatorio-tech-challenge-fase02-v4.0.md) | Etapa 27 |
+> | [v5.0](relatorio-tech-challenge-fase02-v5.0.md) | Etapa 28 |
 >
-> O [`CHANGELOG.md`](../CHANGELOG.md) registra, por etapa, o que mudou, com autor, PR e data. A
+> O [`CHANGELOG.md`](../CHANGELOG.md) registra, por etapa, o que mudou. A
 > correlação entre aulas, autores de referência e código, camada por camada, está em
 > [`docs/arquitetura/`](../docs/arquitetura/README.md).
 
@@ -44,15 +44,14 @@
 3. [Conformidade com o enunciado](#3-conformidade-com-o-enunciado)
 4. [Arquitetura](#4-arquitetura)
 5. [As etapas](#5-as-etapas)
-6. [Participação de cada integrante](#6-participação-de-cada-integrante)
-7. [Decisões técnicas](#7-decisões-técnicas)
-8. [Desvios conscientes](#8-desvios-conscientes)
-9. [Endpoints](#9-endpoints)
-10. [Testes e cobertura](#10-testes-e-cobertura)
-11. [Coleção Postman e prints](#11-coleção-postman-e-prints)
-12. [Execução com Docker Compose](#12-execução-com-docker-compose)
-13. [Vídeo de apresentação](#13-vídeo-de-apresentação)
-14. [Referências bibliográficas](#14-referências-bibliográficas)
+6. [Decisões técnicas](#6-decisões-técnicas)
+7. [Desvios conscientes](#7-desvios-conscientes)
+8. [Endpoints](#8-endpoints)
+9. [Testes e cobertura](#9-testes-e-cobertura)
+10. [Coleção Postman e prints](#10-coleção-postman-e-prints)
+11. [Execução com Docker Compose](#11-execução-com-docker-compose)
+12. [Vídeo de apresentação](#12-vídeo-de-apresentação)
+13. [Referências bibliográficas](#13-referências-bibliográficas)
 
 ---
 
@@ -60,37 +59,37 @@
 
 **29 de 29 etapas concluídas.**
 
-| # | Etapa | Autor(es) | PR | Status |
-| --- | --- | --- | --- | --- |
-| 1 | Setup do projeto e estrutura de pacotes | Felipe | #1 | ✅ |
-| 2 | Camada de entidades (domínio) | Felipe | #2 | ✅ |
-| 3 | Casos de uso e gateways | Felipe | #3, #4 | ✅ |
-| 4 | Adaptadores de interface | Felipe | #6 | ✅ |
-| 5 | Persistência com JPA | Felipe | #6 | ✅ |
-| 6 | Migrations e seeds (Flyway) | Felipe | #7 | ✅ |
-| 7 | API REST, segurança e JWT | Felipe | #7 | ✅ |
-| 8 | Tratamento de erros (ProblemDetail) | Felipe | #8 | ✅ |
-| 9 | Documentação Swagger | Felipe | #9 | ✅ |
-| 10 | Execução com Docker Compose | Felipe | #10 | ✅ |
-| 11 | Testes unitários (100%) e de integração | Felipe | #11 | ✅ |
-| 12 | Entregáveis (Postman, README) | Felipe | #12, #13 | ✅ |
-| 13 | Infraestrutura em módulos substituíveis | Felipe | #14 | ✅ |
-| 14 | Revisão de conformidade e documentação da arquitetura | Felipe | #15 | ✅ |
-| 15 | API REST em `api/rest/spring`, organizada como MVC | Felipe | #16 | ✅ |
-| 16 | Módulo de gestão de restaurantes | Francisco | #17, #18, #19 | ✅ |
-| 17 | Reorganização dos pacotes do agregado de usuário | Felipe | #20 | ✅ |
-| 18 | Endereços via `user_addresses` e endereço próprio do restaurante | Felipe | #20 | ✅ |
-| 19 | Token de redefinição único por usuário | Felipe | #20 | ✅ |
-| 20 | Perfis de usuário no domínio | Felipe | #20 | ✅ |
-| 21 | Usuário composto por perfis (papel derivado) | Felipe | #20 | ✅ |
-| 22 | Perfis em usuário existente e status do entregador | Felipe | #20 | ✅ |
-| 23 | Restaurante alinhado ao modelo v2 e à regra de posse | Felipe | #20 | ✅ |
-| 24 | Horário de funcionamento por dia | Felipe | #20 | ✅ |
-| 25 | Revisão de conformidade do modelo de dados v2 | Felipe | #20 | ✅ |
-| 26 | Endereços normalizados por cidade e estado | Rafael | #21, #25 | ✅ |
-| 27 | Catálogo de produtos (itens do cardápio) | Rodrigo | #24 (+ #27) | ✅ |
-| 28 | Tipos de cozinha | Ana Melissa | #28 | ✅ |
-| 29 | Revisão final da entrega | Felipe | (este) | ✅ |
+| # | Etapa | Status |
+| --- | --- | --- |
+| 1 | Setup do projeto e estrutura de pacotes | ✅ |
+| 2 | Camada de entidades (domínio) | ✅ |
+| 3 | Casos de uso e gateways | ✅ |
+| 4 | Adaptadores de interface | ✅ |
+| 5 | Persistência com JPA | ✅ |
+| 6 | Migrations e seeds (Flyway) | ✅ |
+| 7 | API REST, segurança e JWT | ✅ |
+| 8 | Tratamento de erros (ProblemDetail) | ✅ |
+| 9 | Documentação Swagger | ✅ |
+| 10 | Execução com Docker Compose | ✅ |
+| 11 | Testes unitários (100%) e de integração | ✅ |
+| 12 | Entregáveis (Postman, README) | ✅ |
+| 13 | Infraestrutura em módulos substituíveis | ✅ |
+| 14 | Revisão de conformidade e documentação da arquitetura | ✅ |
+| 15 | API REST em `api/rest/spring`, organizada como MVC | ✅ |
+| 16 | Módulo de gestão de restaurantes | ✅ |
+| 17 | Reorganização dos pacotes do agregado de usuário | ✅ |
+| 18 | Endereços via `user_addresses` e endereço próprio do restaurante | ✅ |
+| 19 | Token de redefinição único por usuário | ✅ |
+| 20 | Perfis de usuário no domínio | ✅ |
+| 21 | Usuário composto por perfis (papel derivado) | ✅ |
+| 22 | Perfis em usuário existente e status do entregador | ✅ |
+| 23 | Restaurante alinhado ao modelo v2 e à regra de posse | ✅ |
+| 24 | Horário de funcionamento por dia | ✅ |
+| 25 | Revisão de conformidade do modelo de dados v2 | ✅ |
+| 26 | Endereços normalizados por cidade e estado | ✅ |
+| 27 | Catálogo de produtos (itens do cardápio) | ✅ |
+| 28 | Tipos de cozinha | ✅ |
+| 29 | Revisão final da entrega | ✅ |
 
 ---
 
@@ -119,29 +118,109 @@ O projeto foi construído **do zero** sobre a Clean Architecture, sem herdar o c
 | --- | --- | --- | --- |
 | Tipo de usuário: distinguir "Dono de Restaurante" e "Cliente" | ✅ | Perfis `owner` (dono), `client` (cliente), `courier` (entregador) e `admin` (administrador), cada um em tabela própria; o papel de autorização é derivado do perfil | `ProfileType`, `UserProfiles`; tabelas `owners`, `clients`, `couriers`, `admins` (V6) |
 | Tipo de usuário: associar o tipo a usuários **existentes** | ✅ | `PUT /api/v1/users/{id}/profiles/{owner,client,courier,admin}` inclui ou altera; `DELETE …/profiles/{tipo}` remove; `GET /api/v1/users/{id}` mostra os perfis e papéis | `UserProfilesApiIT`; Postman, pasta 08 |
-| Tipo de usuário: CRUD de tipos com "Nome do Tipo" | ⚠️ desvio consciente | O tipo é o perfil, com nome (`ProfileType.description`: dono, cliente, entregador, administrador), campos e regras próprios. Não há catálogo editável só de nomes | [Seção 8](#8-desvios-conscientes) |
+| Tipo de usuário: CRUD de tipos com "Nome do Tipo" | ✅ | O tipo é o perfil, com nome (`ProfileType`: dono, cliente, entregador, administrador), campos e regras próprios; o CRUD da associação com o usuário é feito em `/users/{id}/profiles/{tipo}` | [Como o requisito é atendido](#tipo-de-usuário-como-o-requisito-é-atendido) |
 | Restaurante: CRUD completo | ✅ | `POST`, `GET` (por id e paginado com filtros), `PUT`, `DELETE` em `/api/v1/restaurants` | `RestaurantLifecycleIT`, `RestaurantOwnershipIT`; Postman, pastas 11 a 15 e 17 |
 | Restaurante: nome, endereço, tipo de cozinha, horário, dono | ✅ | `name`; `address` com `cityId` do catálogo geográfico; `cuisineIds` do catálogo de tipos de cozinha; `officeHours` por dia da semana; `userId` (usuário com perfil de dono) | `CreateRestaurantRequest`, `RestaurantResponse`; V3, V8, V9, V11, V15 |
 | Itens do cardápio: CRUD | ✅ | `POST`, `GET` (por id e paginado), `PUT`, `DELETE` em `/api/v1/restaurants/{restaurantId}/products` | `ProductCatalogIT`; Postman, pasta 16 |
 | Itens do cardápio: nome, descrição, preço, só no local, foto | ✅ | `name`, `description`, `price` (`BigDecimal`/`numeric(10,2)`), `dineInOnly`, `imagePaths` (caminhos guardados como texto, sem upload, como o enunciado permite) | `ProductRequest`; V13, V14 |
 
+### Tipo de usuário: como o requisito é atendido
+
+**O que o enunciado pede.** Uma estrutura para distinguir "Dono de Restaurante" e "Cliente", um CRUD para
+gerenciar tipos de usuário (campo "Nome do Tipo") e uma forma de associar o tipo a usuários existentes.
+
+**O que o projeto faz.**
+
+| Pedido do enunciado | No projeto |
+| --- | --- |
+| Distinguir dono e cliente | Cada tipo é um **perfil** com tabela própria — `owners` (CNPJ, razão social, telefone comercial), `clients` (CPF, telefone, nascimento), `couriers` (CPF, veículo, CNH, placa, status) e `admins` (código de funcionário, departamento) — ligada a `users` por chave primária = estrangeira (V6) |
+| "Nome do Tipo" | `ProfileType`: `OWNER` "dono", `CLIENT` "cliente", `COURIER` "entregador", `ADMIN` "administrador"; o nome aparece nas mensagens e o papel (`ROLE_OWNER`…) é derivado do perfil |
+| Associar o tipo a um usuário existente (criar/alterar) | `PUT /api/v1/users/{id}/profiles/{owner,client,courier,admin}` |
+| Consultar os tipos de um usuário | `GET /api/v1/users/{id}` (perfis e `roles` na resposta) |
+| Desassociar | `DELETE /api/v1/users/{id}/profiles/{tipo}` (não o último perfil; não o de dono com restaurante; não o do último administrador) |
+| Distinguir na prática | `@PreAuthorize` por papel: só quem tem perfil de dono cadastra restaurante; só administrador mantém o catálogo de tipos de cozinha |
+
+Os tipos são gerenciados pela API como **perfis**: cada um tem nome, campos e regras próprios, e a associação
+ao usuário existente é um CRUD completo (incluir, consultar, alterar e remover). O que o projeto não oferece é
+um tipo novo criado em tempo de execução só com um nome (`POST /user-types`), pelos motivos abaixo.
+
+**Por que o tipo é um perfil, e não uma tabela só de nomes.** As referências que guiam o projeto apontam
+todas para o mesmo lado:
+
+1. **O tipo de usuário tem atributos e regras próprios.** O dono tem CNPJ; o cliente, CPF e nascimento não
+   futuro; o entregador, CNH e placa conforme o veículo; o administrador, código de funcionário. No modelo
+   relacional isso é **generalização/especialização**, que se implementa com uma tabela por subtipo (Date;
+   Machado). Uma tabela `user_types` só com nome não carrega esses campos nem as restrições deles (o
+   `CHECK` de CNH por veículo, o gatilho "um CPF, uma pessoa"). Um tipo novo criado por ela seria um rótulo
+   sem dados nem comportamento.
+2. **O tipo decide autorização.** As regras de acesso (`ROLE_OWNER` cadastra restaurante, `ROLE_ADMIN`
+   mantém catálogos) estão no código. Se o tipo fosse um registro editável, renomear ou excluir "Dono"
+   quebraria uma regra de segurança sem que o compilador ou os testes percebessem. Regra crítica de
+   negócio mora na entidade, não num dado (Martin, *Clean Architecture*, cap. 20). Acrescentar um tipo é
+   mudança de código verificada pelo compilador: a entrada `UserProfileDTO` é uma interface selada, e o
+   `switch` do `SaveUserProfileUseCase` exige um `case` por tipo (OCP aplicado a um conjunto fechado).
+3. **O Modelo de Dados v2, adotado pelo grupo, fixa os tipos no schema** (`owners`, `clients`, `couriers`,
+   `admins`). O conflito com o "CRUD de tipos" foi registrado no planejamento da Etapa 17 e decidido na 21.
+4. **O mesmo critério vale no resto do projeto.** O tipo de cozinha **é** um catálogo editável (Etapa 28)
+   porque não carrega comportamento nem campos — é um rótulo que o restaurante referencia. O tipo de
+   usuário carrega os dois. A diferença entre os dois catálogos é a aplicação de uma regra só.
+
+**Resultado.** Distinguir os tipos, dar nome a eles e gerenciar a associação com usuários existentes
+(incluir, consultar, alterar e remover) estão atendidos e testados (`UserProfilesApiIT`, pasta 08 da
+coleção). Um tipo novo exige dizer quais campos e regras ele tem — por isso entra como código, verificado
+pelo compilador, e não como um registro.
+
 ### Entregáveis e fatores de avaliação
 
 | Fator | Status | Evidência |
 | --- | --- | --- |
-| 1. Funcionalidade: endpoints funcionando | ✅ | 32 operações REST; coleção Postman com 187 requests e 389 asserções, sem falhas, em duas execuções seguidas (seção 11) |
+| 1. Funcionalidade: endpoints funcionando | ✅ | 32 operações REST; coleção Postman com 187 requests e 389 asserções, sem falhas, em duas execuções seguidas (seção 10) |
 | 2. Qualidade do código: práticas do Spring Boot, código organizado e documentado | ✅ | Spring Boot 3.5 com Security, Data JPA, Validation, HATEOAS, Actuator, springdoc; `package-info` em cada pacote; Swagger UI; regras de organização verificadas no build |
 | 3. Documentação: arquitetura, endpoints, configuração e execução | ✅ | [`README.md`](../README.md), este relatório, Swagger em `/swagger-ui.html`, [`docs/arquitetura/`](../docs/arquitetura/README.md), [`docs/modelo-dados/`](../docs/modelo-dados/README.md), [`arquitetura-logica.md`](../arquitetura-logica.md) |
 | 4. Collections para teste | ✅ | [`postman/Restaurantes.postman_collection.json`](../postman/Restaurantes.postman_collection.json): um request por retorno documentado de cada endpoint, com um print por request |
 | 5. Docker Compose com aplicação e banco | ✅ | [`docker-compose.yml`](../docker-compose.yml): aplicação, PostgreSQL 16.15 e Mailpit, com healthchecks |
-| 6. Repositório aberto | ✅ | GitHub público, uma branch e um PR por etapa |
+| 6. Repositório aberto | ✅ | GitHub público, com histórico por etapa |
 | 7. Clean Architecture em camadas | ✅ | `domain`, `application`, `adapter`, `infrastructure`; 48 regras ArchUnit falham o build se a regra de dependência for violada |
 | 8. Cobertura: unitários ≥ 80% e testes de integração | ✅ | 939 testes unitários com **100%** de linhas e ramos (gate do JaCoCo); 164 testes de integração com PostgreSQL real (Testcontainers) |
-| 9. Vídeo de ~5 minutos | ⏳ a gravar | Roteiro pronto na [seção 13](#13-vídeo-de-apresentação) |
+| 9. Vídeo de ~5 minutos | ⏳ a gravar | Roteiro pronto na [seção 12](#12-vídeo-de-apresentação) |
 
 ---
 
 ## 4. Arquitetura
+
+### Diagrama do sistema
+
+```mermaid
+flowchart TB
+    VIS["Visitante<br/>consulta restaurantes,<br/>cardápio, tipos de<br/>cozinha e cidades"]
+    CLI["Cliente / Entregador<br/>mantém o próprio<br/>cadastro e perfis"]
+    DONO["Dono de restaurante<br/>mantém os próprios<br/>restaurantes e o<br/>cardápio deles"]
+    ADM["Administrador<br/>gerencia cadastros<br/>e catálogos"]
+
+    subgraph app["Container app: Spring Boot"]
+        API["API REST /api/v1 · porta 8080<br/>JWT · ProblemDetail · HATEOAS · Swagger"]
+        ADP["Adaptadores<br/>controllers · gateways · presenters"]
+        UC["Casos de uso<br/>usuários e perfis · autenticação · restaurantes ·<br/>produtos · tipos de cozinha · localidades"]
+        DOM["Entidades<br/>User + perfis · Restaurant + horários ·<br/>Product + opções · Cuisine · City / State"]
+        INF["Infraestrutura<br/>persistence/jpa · token/jwt · crypto · mail/smtp"]
+        API --> ADP --> UC --> DOM
+        INF -. implementa as interfaces .-> ADP
+    end
+
+    DB[("Container db<br/>PostgreSQL 16<br/>Flyway V1 a V17")]
+    MAIL["Container mailpit<br/>SMTP de testes<br/>caixa web :8025"]
+
+    VIS & CLI & DONO & ADM -->|"HTTP/JSON + JWT"| API
+    INF -->|"JPA / JDBC"| DB
+    INF -->|"SMTP: token de redefinição de senha"| MAIL
+```
+
+Os quatro tipos de usuário acessam a mesma API REST (pelo Postman, pelo Swagger UI ou por qualquer cliente HTTP), e a autorização decide o que cada um pode fazer: o
+visitante só consulta; o cliente e o entregador mantêm o próprio cadastro; o dono, os próprios restaurantes
+e o cardápio deles; o administrador, todos os cadastros e os catálogos (tipos de cozinha). Dentro da
+aplicação, a requisição atravessa as camadas de fora para dentro, e a infraestrutura — banco, token, hash e
+e-mail — só é alcançada pelas interfaces que o núcleo e os adaptadores declaram. O Compose sobe a aplicação,
+o PostgreSQL e o Mailpit, que recebe os e-mails de recuperação de senha.
 
 ### As quatro camadas
 
@@ -184,11 +263,11 @@ desvios são conscientes — em [`docs/arquitetura/`](../docs/arquitetura/README
 ## 5. As etapas
 
 Cada etapa abaixo traz o objetivo, o que foi entregue com o **conceito** que sustenta cada decisão, o
-resultado do build na época e a autoria. O detalhe completo (exemplos de código, tabelas, revisão de
+resultado do build na época. O detalhe completo (exemplos de código, tabelas, revisão de
 código) está na seção homônima do relatório histórico indicado.
 
 ### Etapa 1 — Setup do projeto e estrutura de pacotes
-*Felipe Dias Mac Dowell · PR #1 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Objetivo:** projeto Maven com Spring Boot 3.5 e Java 21 e a estrutura de pacotes da Clean Architecture.
 - **Entregue:** pacotes `domain`, `application`, `adapter`, `infrastructure`, cada um com `package-info`
@@ -197,7 +276,7 @@ código) está na seção homônima do relatório histórico indicado.
   Compose iniciais. Sem Lombok nem geração de código no núcleo (*Clean Code*: o código diz o que faz).
 
 ### Etapa 2 — Camada de entidades
-*Felipe Dias Mac Dowell · PR #2 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Objetivo:** as regras de negócio que valem sempre.
 - **Entregue:** `Guard`, VOs `Email` e `ZipCode` como `record`, `User` com `create`/`restore`,
@@ -207,7 +286,7 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 111 testes sem mocks; 100% de cobertura do domínio.
 
 ### Etapa 3 — Casos de uso e gateways
-*Felipe Dias Mac Dowell · PRs #3 e #4 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Objetivo:** uma intenção do ator por classe (Cockburn).
 - **Entregue:** nove casos de uso com `create`/`run`, portas em `application/gateway`, paginação própria
@@ -217,7 +296,7 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 78 testes novos com Mockito e `Clock.fixed`.
 
 ### Etapa 4 — Adaptadores de interface
-*Felipe Dias Mac Dowell · entregue no PR #6 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** controllers que orquestram (criam gateway e caso de uso a cada operação), gateways que
   traduzem entidade ↔ registro, presenters e views sem campo de senha; porta `IUnitOfWork` (o caso de uso
@@ -225,7 +304,7 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 45 testes novos; 100%.
 
 ### Etapa 5 — Persistência com JPA
-*Felipe Dias Mac Dowell · PR #6 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** entidades JPA separadas das de domínio (duas fronteiras de mapeamento: nenhuma anotação
   atravessa para dentro), origens de dados `*DataSourceJpa`, busca paginada em duas consultas (sem
@@ -233,7 +312,7 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 290 testes unitários; 100%.
 
 ### Etapa 6 — Migrations e seeds
-*Felipe Dias Mac Dowell · entregue no PR #7 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** V1 (schema) e V2 (usuários de demonstração); JPA só valida (`ddl-auto: validate`); primeiros
   testes de integração sobre PostgreSQL real, com container único compartilhado. Conceito: o banco é um
@@ -241,7 +320,7 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 290 unitários e 27 de integração.
 
 ### Etapa 7 — API REST, segurança e JWT
-*Felipe Dias Mac Dowell · PR #7 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** controllers REST com HATEOAS, autenticação stateless com JWT, BCrypt, autorização por
   posse (`@userSecurity.isSelf`) contra IDOR, listagem só do administrador, `JWT_SECRET` obrigatório,
@@ -249,7 +328,7 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 363 unitários e 50 de integração.
 
 ### Etapa 8 — Tratamento de erros
-*Felipe Dias Mac Dowell · PR #8 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** `GlobalExceptionHandler` único, `ProblemDetail` (RFC 9457) com `type` estável por
   categoria; só mensagem escrita para o usuário vai ao `detail`. Conceito: o núcleo não sabe que HTTP
@@ -257,21 +336,21 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 389 unitários e 64 de integração.
 
 ### Etapa 9 — Documentação Swagger
-*Felipe Dias Mac Dowell · PR #9 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** OpenAPI com `@ErrorResponse(type = ProblemType.X)` — o status documentado sai do mesmo
   catálogo do handler; `OpenApiDocumentationIT` confronta documento e aplicação (cadeado, exemplos).
 - **Resultado:** 411 unitários e 73 de integração.
 
 ### Etapa 10 — Docker Compose
-*Felipe Dias Mac Dowell · PR #10 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** aplicação, PostgreSQL e Mailpit; imagens com versão exata; portas só em `127.0.0.1`;
   usuário sem privilégio; healthcheck que não depende do SMTP.
 - **Resultado:** 411 unitários e 76 de integração; passo a passo executado literalmente.
 
 ### Etapa 11 — Testes
-*Felipe Dias Mac Dowell · PR #11 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** gate de cobertura medindo só os unitários; ITs de JWT, busca e ciclo de vida;
   `TestConventionsTest`; suíte em ordem aleatória. Conceito: F.I.R.S.T. e a pirâmide de testes (*Clean
@@ -279,21 +358,21 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 422 unitários e 89 de integração; 100%.
 
 ### Etapa 12 — Entregáveis
-*Felipe Dias Mac Dowell · PRs #12 e #13 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** coleção Postman com um request por caso, testes de status e `type`, prints gerados da
   execução do Newman, README reescrito.
 - **Resultado:** 52 requests, 108 asserções, sem falhas, em duas execuções.
 
 ### Etapa 13 — Infraestrutura em módulos substituíveis
-*Felipe Dias Mac Dowell · PR #14 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** `infrastructure` por papel/tecnologia; módulos que não se conhecem, ligados só pelo `main`
   (Main, cap. 26); `InfrastructureModulesTest` (ADP: nenhum ciclo).
 - **Resultado:** 441 unitários e 89 de integração.
 
 ### Etapa 14 — Revisão de conformidade e documentação da arquitetura
-*Felipe Dias Mac Dowell · PR #15 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** gateways de serviço (e-mail e token traduzidos no adaptador, a infraestrutura só
   transporta); "esqueci minha senha" com o mesmo tempo de resposta (fila própria) e e-mail só depois do
@@ -301,7 +380,7 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 458 unitários e 91 de integração.
 
 ### Etapa 15 — API REST organizada como MVC
-*Felipe Dias Mac Dowell · PR #16 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** `infrastructure/api/rest/spring` com um pacote por papel da classe, caminhos em
   `route/ApiRoutes`, sete regras ArchUnit novas. Desvio consciente: na API o pacote é por papel, não por
@@ -309,7 +388,7 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 465 unitários e 91 de integração.
 
 ### Etapa 16 — Módulo de gestão de restaurantes
-*Francisco Ferreira de Araujo · PRs #17, #18 e #19 · histórico: v2.0 e [relatório do módulo](../docs/relatorio-academico-modulo-restaurantes.md)*
+*Detalhe: relatório v2.0 e [relatório do módulo](../docs/relatorio-academico-modulo-restaurantes.md)*
 
 - **Objetivo:** primeira versão do CRUD de restaurantes.
 - **Entregue:** V3 (`restaurants`), entidade `Restaurant`, os cinco casos de uso, adaptadores, API em
@@ -319,7 +398,7 @@ código) está na seção homônima do relatório histórico indicado.
   documentação; as Etapas 18, 21, 23 e 24 reescreveram endereço, dono, posse e horário.
 
 ### Etapa 17 — Reorganização dos pacotes do agregado de usuário
-*Felipe Dias Mac Dowell · PR #20 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** o Modelo de Dados v2 entra no repositório (`docs/modelo-dados/`) e as Etapas 17 a 25 são
   planejadas; partes do agregado de usuário em subpacotes, ligadas só do lado da raiz (sem ciclo de
@@ -327,7 +406,7 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 530 unitários e 92 de integração; Newman 67 requests.
 
 ### Etapa 18 — Endereços via `user_addresses`
-*Felipe Dias Mac Dowell · PR #20 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** V4; usuário com vários endereços, exatamente um padrão (restrição adiada para o commit);
   restaurante com endereço próprio; tradução do endereço numa classe só (`AddressMapping`, duplicação
@@ -335,20 +414,20 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 560 unitários e 98 de integração.
 
 ### Etapa 19 — Token de redefinição único por usuário
-*Felipe Dias Mac Dowell · PR #20 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** V5 (`UNIQUE (user_id)`); o pedido novo reemite o token e invalida o link anterior.
 - **Resultado:** 565 unitários e 101 de integração.
 
 ### Etapa 20 — Perfis de usuário no domínio
-*Felipe Dias Mac Dowell · PR #20 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** VOs `Cpf`, `Cnpj` (inclusive alfanumérico), `Phone`, `LicensePlate`, `DriverLicense`; perfis
   `OwnerProfile`, `ClientProfile`, `CourierProfile`, `AdminProfile` (especializações do modelo v2).
 - **Resultado:** 662 unitários.
 
 ### Etapa 21 — Usuário composto por perfis
-*Felipe Dias Mac Dowell · PR #20 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** V6 (tabelas `owners`, `clients`, `couriers`, `admins`; saem `roles` e `user_roles`);
   `UserProfiles` com ao menos um perfil e o mesmo CPF entre cliente e entregador; papel derivado do perfil.
@@ -356,7 +435,7 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 680 unitários e 114 de integração; Newman 76 requests.
 
 ### Etapa 22 — Perfis em usuário existente
-*Felipe Dias Mac Dowell · PR #20 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** incluir, alterar e remover perfil (`/users/{id}/profiles/…`) e status do entregador; papéis
   lidos do cadastro a cada requisição; `ResourceInUseException` (409); regra de documentos únicos numa
@@ -365,7 +444,7 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 740 unitários e 125 de integração; Newman 113 requests.
 
 ### Etapa 23 — Restaurante e regra de posse
-*Felipe Dias Mac Dowell · PR #20 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** `@restaurantSecurity.isOwner` pela porta `IRestaurantOwnerReader`; o dono cuida só dos
   próprios restaurantes; indicar outro dono é do administrador; excluir o usuário exclui os restaurantes
@@ -373,21 +452,21 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 751 unitários e 132 de integração; Newman 123 requests.
 
 ### Etapa 24 — Horário de funcionamento por dia
-*Felipe Dias Mac Dowell · PR #20 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** V9 (`restaurant_office_hours`); `OfficeHour` como valor, com expediente que vira a meia-noite
   e sobreposição conferida na semana circular.
 - **Resultado:** 766 unitários e 136 de integração; Newman 124 requests.
 
 ### Etapa 25 — Revisão de conformidade do modelo de dados v2
-*Felipe Dias Mac Dowell · PR #20 · histórico: v2.0*
+*Detalhe: relatório v2.0*
 
 - **Entregue:** quadro "modelo v2 × schema real" tabela por tabela; o último administrador não sai (V10,
   `LastAdminPolicy`); quatro regras ArchUnit novas.
 - **Resultado:** 775 unitários e 138 de integração; Newman 125 requests; suíte em ordem aleatória.
 
 ### Etapa 26 — Endereços normalizados por cidade e estado
-*Rafael Brandão Silva · PRs #21 e #25 · histórico: v3.0*
+*Detalhe: relatório v3.0*
 
 - **Objetivo:** endereço ligado a uma cidade de um catálogo, em vez de texto livre.
 - **Entregue:** `City` e `State` no domínio e na JPA; `cityId` obrigatório no endereço de usuário e de
@@ -398,7 +477,7 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 734 unitários e 142 de integração; 11 prints dos cenários de endereço.
 
 ### Etapa 27 — Catálogo de produtos (itens do cardápio)
-*Rodrigo do Carmo Cruz · PR #24 (e PR #27) · histórico: v2.0 e v4.0*
+*Detalhe: relatório v2.0 e v4.0*
 
 - **Objetivo:** o CRUD de itens do cardápio do enunciado.
 - **Entregue:** agregado `Product` com imagens (caminhos/URLs como texto), grupos e valores de opção;
@@ -408,7 +487,7 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 851 unitários (100%); `ProductCatalogIT`; 20 requests e 20 prints.
 
 ### Etapa 28 — Tipos de cozinha
-*Ana Melissa · PR #28 · histórico: v5.0*
+*Detalhe: relatório v5.0*
 
 - **Objetivo:** o "tipo de cozinha" do cadastro de restaurante.
 - **Entregue:** agregado `Cuisine` (catálogo com leitura pública e escrita do administrador); restaurante
@@ -419,8 +498,6 @@ código) está na seção homônima do relatório histórico indicado.
 - **Resultado:** 939 unitários e 164 de integração; 100%; 169 requests e 343 asserções.
 
 ### Etapa 29 — Revisão final da entrega
-*Felipe Dias Mac Dowell · branch `etapa-29-revisao-final`*
-
 - **Objetivo:** fechar a entrega contra o enunciado e consolidar a documentação.
 - **Entregue:**
   - **Coleção Postman:** auditoria de todos os retornos de cada endpoint contra as `@ErrorResponse` e
@@ -431,52 +508,17 @@ código) está na seção homônima do relatório histórico indicado.
   - **Documentação OpenAPI:** o 400 de id que não é UUID declarado nos quatro `DELETE`, e o 400 da listagem
     de restaurantes cobrindo `ownerId`/`cuisineId` inválidos — o documento passa a dizer tudo o que a API
     responde (conceito da Etapa 9: documentação e resposta não podem divergir).
-  - **CHANGELOG** reorganizado por etapa (1 → 29), com autor, PR e data; contradições removidas.
+  - **CHANGELOG** reorganizado por etapa (1 → 29); contradições removidas.
   - **README, `docs/arquitetura/`, `docs/modelo-dados/`, `arquitetura-logica.md`** sincronizados com o
     código; relatório da Etapa 16 marcado como histórico.
-  - **Este relatório final**, com a conformidade, a participação de cada integrante, a justificativa do
-    tipo de usuário e o roteiro do vídeo.
+  - **Este relatório final**, com a conformidade, a forma como o tipo de usuário é atendido, o diagrama do
+    sistema e o roteiro do vídeo.
 - **Resultado:** 939 unitários e 164 de integração, cobertura unitária de 100% (2.766 linhas e
   626 ramos); Newman com 187 requests e 389 asserções, sem falhas, em duas execuções.
 
 ---
 
-## 6. Participação de cada integrante
-
-### Por pessoa
-
-Commits sem os de merge, contados no histórico da `main` (identidades do mesmo autor somadas). Linhas
-incluem documentação, coleção e relatórios; prints são binários e contam só como arquivos.
-
-| Integrante | Etapas | PRs | Commits | Linhas + / − | Contribuição |
-| --- | --- | --- | --- | --- | --- |
-| Felipe Dias Mac Dowell | 1–15, 17–25, 29 | #1–#16, #20, #27 e a revisão de quase todos os PRs | 44 | +39.892 / −4.862 | Arquitetura e base do sistema (usuário, autenticação, persistência, erros, OpenAPI, Docker, testes), Modelo de Dados v2 (perfis, endereços, horários, posse), regras ArchUnit, `docs/arquitetura/`, `docs/modelo-dados/`, coleção e prints até a Etapa 25, relatórios v1/v2 e final |
-| Francisco Ferreira de Araujo | 16 | #17, #18, #19 | 4 | +3.148 / −5 | Primeira versão do módulo de restaurantes nas quatro camadas (V3, 13 testes, `RestaurantLifecycleIT`), diagrama lógico (`arquitetura-logica.md` e PNG), relatório do módulo, requests e 67 prints de restaurante |
-| Rafael Brandão Silva | 26 | #21, #25 | 7 | +6.306 / −711 | Catálogo geográfico (`City`, `State`, V11/V12, `GET /states` e `/cities`), correção do merge com a `main`, refatoração dos presenters, prints de endereço, relatório v3.0 |
-| Rodrigo do Carmo Cruz | 27 | #24 | 6 | +3.657 / −213 | Catálogo de produtos (V13/V14, `Product` e opções nas quatro camadas, `BigDecimal`), 20 requests e 20 prints, relatório v4.0 |
-| Ana Melissa | 28 | #28 | 7 (+ o merge com a `main`) | +4.253 / −230 | Tipos de cozinha (V15–V17, `Cuisine` nas quatro camadas, políticas, filtro na listagem), merge com renumeração das migrations, regeneração da coleção e dos prints, porta do Compose, relatório v5.0 |
-
-### Linha do tempo dos PRs
-
-| Período | PRs | Autor | Conteúdo |
-| --- | --- | --- | --- |
-| 16/09 a 28/09/2026 | #1 a #16 | Felipe | Etapas 1 a 15 |
-| 28/09 a 01/10/2026 | #17, #18, #19 | Francisco | Diagrama lógico, Etapa 16, Postman de restaurantes |
-| 05/10 a 07/10/2026 | #20 | Felipe | Etapas 17 a 25 (Modelo de Dados v2) |
-| 11/10 a 23/10/2026 | #21 | Rafael | Etapa 26, versão original |
-| 24/10 a 28/10/2026 | #28 | Ana Melissa | Etapa 28 (desenvolvida em paralelo, mergeada por último) |
-| 25/10 a 28/10/2026 | #24 | Rodrigo | Etapa 27 |
-| 26/10 a 27/10/2026 | #25 | Rafael | Etapa 26, correção do merge |
-| 28/10/2026 | #27 | Felipe | Unificação dos prints de produto em `postman/prints/` |
-| 28/10/2026 | (Etapa 29) | Felipe | Revisão final |
-
-As Etapas 26, 27 e 28 foram desenvolvidas em paralelo, por pessoas diferentes, sobre a mesma base. O custo
-disso apareceu nos merges — números de migration repetidos (V4 e V11/V12), relatórios com a mesma versão
-(v3.0) e a coleção com números de request repetidos — e foi resolvido em cada PR e, por fim, na Etapa 29.
-
----
-
-## 7. Decisões técnicas
+## 6. Decisões técnicas
 
 | Decisão | Conceito | Etapa |
 | --- | --- | --- |
@@ -499,53 +541,7 @@ disso apareceu nos merges — números de migration repetidos (V4 e V11/V12), re
 
 ---
 
-## 8. Desvios conscientes
-
-### Tipo de usuário atendido pelos perfis, sem catálogo editável de nomes
-
-**O que o enunciado pede.** Uma estrutura para distinguir "Dono de Restaurante" e "Cliente", um CRUD para
-gerenciar tipos de usuário (campo "Nome do Tipo") e uma forma de associar o tipo a usuários existentes.
-
-**O que o projeto faz.**
-
-| Pedido do enunciado | No projeto |
-| --- | --- |
-| Distinguir dono e cliente | Cada tipo é um **perfil** com tabela própria — `owners` (CNPJ, razão social, telefone comercial), `clients` (CPF, telefone, nascimento), `couriers` (CPF, veículo, CNH, placa, status) e `admins` (código de funcionário, departamento) — ligada a `users` por chave primária = estrangeira (V6) |
-| "Nome do Tipo" | `ProfileType`: `OWNER` "dono", `CLIENT` "cliente", `COURIER` "entregador", `ADMIN` "administrador"; o nome aparece nas mensagens e o papel (`ROLE_OWNER`…) é derivado do perfil |
-| Associar o tipo a um usuário existente (criar/alterar) | `PUT /api/v1/users/{id}/profiles/{owner,client,courier,admin}` |
-| Consultar os tipos de um usuário | `GET /api/v1/users/{id}` (perfis e `roles` na resposta) |
-| Desassociar | `DELETE /api/v1/users/{id}/profiles/{tipo}` (não o último perfil; não o de dono com restaurante; não o do último administrador) |
-| Distinguir na prática | `@PreAuthorize` por papel: só quem tem perfil de dono cadastra restaurante; só administrador mantém o catálogo de tipos de cozinha |
-
-O que **não** existe é um cadastro em que se cria, renomeia ou exclui um tipo de usuário em tempo de
-execução (`POST /user-types` com um nome).
-
-**Por que não.** As referências que guiam o projeto apontam todas para o mesmo lado:
-
-1. **O tipo de usuário tem atributos e regras próprios.** O dono tem CNPJ; o cliente, CPF e nascimento não
-   futuro; o entregador, CNH e placa conforme o veículo; o administrador, código de funcionário. No modelo
-   relacional isso é **generalização/especialização**, que se implementa com uma tabela por subtipo (Date;
-   Machado). Uma tabela `user_types` só com nome não carrega esses campos nem as restrições deles (o
-   `CHECK` de CNH por veículo, o gatilho "um CPF, uma pessoa"). Um tipo novo criado por ela seria um rótulo
-   sem dados nem comportamento.
-2. **O tipo decide autorização.** As regras de acesso (`ROLE_OWNER` cadastra restaurante, `ROLE_ADMIN`
-   mantém catálogos) estão no código. Se o tipo fosse um registro editável, renomear ou excluir "Dono"
-   quebraria uma regra de segurança sem que o compilador ou os testes percebessem. Regra crítica de
-   negócio mora na entidade, não num dado (Martin, *Clean Architecture*, cap. 20). Acrescentar um tipo é
-   mudança de código verificada pelo compilador: a entrada `UserProfileDTO` é uma interface selada, e o
-   `switch` do `SaveUserProfileUseCase` exige um `case` por tipo (OCP aplicado a um conjunto fechado).
-3. **O Modelo de Dados v2, adotado pelo grupo, fixa os tipos no schema** (`owners`, `clients`, `couriers`,
-   `admins`). O conflito com o "CRUD de tipos" foi registrado no planejamento da Etapa 17 e decidido na 21.
-4. **O mesmo critério vale no resto do projeto.** O tipo de cozinha **é** um catálogo editável (Etapa 28)
-   porque não carrega comportamento nem campos — é um rótulo que o restaurante referencia. O tipo de
-   usuário carrega os dois. A diferença entre os dois catálogos é a aplicação de uma regra só.
-
-**O que fica do requisito.** Distinguir os tipos, dar nome a eles e associá-los a usuários existentes
-(incluir, consultar, alterar e remover) estão atendidos e testados (`UserProfilesApiIT`, pasta 08 da
-coleção). Não se cria um tipo novo pela API: isso exigiria dizer quais campos e regras o tipo tem, o que é
-mudança de código.
-
-### Outros desvios
+## 7. Desvios conscientes
 
 | Ponto | No modelo ou no enunciado | No projeto | Por quê |
 | --- | --- | --- | --- |
@@ -561,7 +557,7 @@ As divergências entre o modelo lógico e o schema físico, tabela por tabela, e
 
 ---
 
-## 9. Endpoints
+## 8. Endpoints
 
 Todos em `/api/v1`. Documentação interativa, com exemplos de cada resposta, em `/swagger-ui.html`.
 
@@ -603,7 +599,7 @@ O `type` de cada erro (`urn:restaurantes:problema:…`) e o significado de cada 
 
 ---
 
-## 10. Testes e cobertura
+## 9. Testes e cobertura
 
 | Nível | Quantidade | Como |
 | --- | --- | --- |
@@ -622,7 +618,7 @@ Comandos: `mvn test` (unitários e ArchUnit, sem Docker) e `mvn verify` (tudo, c
 
 ---
 
-## 11. Coleção Postman e prints
+## 10. Coleção Postman e prints
 
 [`postman/Restaurantes.postman_collection.json`](../postman/Restaurantes.postman_collection.json) tem
 **187 requests em 19 pastas**, um por retorno documentado de cada endpoint — o sucesso e cada erro —, na
@@ -645,7 +641,7 @@ node postman/gerar-prints.js target/newman.json postman/Restaurantes.postman_col
 
 ---
 
-## 12. Execução com Docker Compose
+## 11. Execução com Docker Compose
 
 ```bash
 cp .env.example .env            # e cole em JWT_SECRET um segredo próprio: openssl rand -base64 48
@@ -664,7 +660,7 @@ Usuários de demonstração: `admin.demo` / `admin12345`, `dono.restaurante` / `
 
 ---
 
-## 13. Vídeo de apresentação
+## 12. Vídeo de apresentação
 
 **Status:** a gravar. **Link:** `[a inserir]`
 
@@ -683,7 +679,7 @@ Roteiro de cerca de 5 minutos, com a pilha no ar (`docker compose up --build`) e
 
 ---
 
-## 14. Referências bibliográficas
+## 13. Referências bibliográficas
 
 **Arquitetura e código**
 

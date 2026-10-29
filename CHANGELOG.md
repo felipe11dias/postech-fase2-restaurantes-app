@@ -685,11 +685,14 @@ daquela entrega; o estado atual está na Etapa 29 e no relatório final
 ## Etapa 29 — Revisão final da entrega
 *Felipe Dias Mac Dowell · branch `etapa-29-revisao-final` · 28/10/2026*
 
-- Relatório final consolidado em `relatorios/relatorio-tech-challenge-fase02-final.md`: as 29 etapas com o
-  conceito de cada decisão, a conformidade com o enunciado e os nove fatores de avaliação, a participação de
-  cada integrante (etapas, PRs, commits e linhas), as decisões técnicas, os desvios conscientes — entre eles
-  o tipo de usuário atendido pelos perfis, com a justificativa —, os endpoints e o roteiro do vídeo. As
-  versões v1.0 a v5.0 ficam como histórico.
+- Relatório final consolidado em `relatorios/relatorio-tech-challenge-fase02-final.md` e em PDF
+  (`relatorio-tech-challenge-fase02-final.pdf`): integrantes e RM, as 29 etapas com o conceito de cada decisão,
+  a conformidade com o enunciado e os nove fatores de avaliação — o tipo de usuário, com "Nome do Tipo",
+  atendido pelos perfis, com a justificativa —, o diagrama do sistema (usuários, aplicação em camadas, banco e
+  e-mail), as decisões técnicas, os desvios conscientes, os endpoints e o roteiro do vídeo. As versões v1.0 a
+  v5.0 ficam como histórico.
+- `relatorios/gerar-pdf.js`: gera o PDF de um relatório em Markdown pelo Chrome em modo headless, com as
+  tabelas e os diagramas Mermaid desenhados e os links relativos apontando para o GitHub.
 - Coleção Postman auditada contra cada `@ErrorResponse` e cada recusa implícita: 18 requests novos (400 de id
   que não é UUID nos `GET`/`DELETE` de restaurante e de tipo de cozinha e nos `DELETE` de usuário e produto;
   400 de paginação e de `ownerId` inválido na listagem de restaurantes e de tipos; 400, 401 e 404 do `PUT` e
