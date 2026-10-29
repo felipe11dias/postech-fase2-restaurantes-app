@@ -41,7 +41,7 @@ tecnologia. Trocar uma tecnologia é apagar um subpacote e criar outro ao lado.
 |---|---|---|---|
 | [`main`](../../src/main/java/com/postech/restaurantes/infrastructure/main) | a composição (Main, cap. 26): `CompositionConfig`, `PasswordResetProperties` | Spring (`@Configuration`) | — é o único que conhece todos |
 | [`api/rest/spring`](../../src/main/java/com/postech/restaurantes/infrastructure/api/rest/spring) | entrega HTTP, organizada como MVC: `controller` (`@RestController`), `dto/request` e `dto/response`, `assembler` (HATEOAS), `route` (caminhos), `config`, `exception` (ProblemDetail), `doc` (OpenAPI), `validation`, `security` | Spring MVC, Spring Security, Spring HATEOAS, springdoc, Bean Validation | `api/rest/<outra>` ou outro canal (`api/graphql/...`) chamando os mesmos controllers de adaptação |
-| [`persistence/jpa`](../../src/main/java/com/postech/restaurantes/infrastructure/persistence/jpa) | `I*DataSource` (`UserDataSourceJpa`, …), `IUnitOfWork` (`TransactionalUnitOfWork`), `audit` (colunas de auditoria) e `location` (entidades/repositórios de cidade e estado); um subpacote por agregado (`user`, `restaurant`, `product`), as partes do agregado de usuário em `user/{address,role,password}` (`user/address` é o vínculo `user_addresses`) e o endereço, compartilhado pelos agregados, em `address` — espelhando o domínio | JPA/Hibernate, Spring Data, PostgreSQL | `persistence/jdbc` com as mesmas interfaces; o schema continua do Flyway |
+| [`persistence/jpa`](../../src/main/java/com/postech/restaurantes/infrastructure/persistence/jpa) | `I*DataSource` (`UserDataSourceJpa`, …), `IUnitOfWork` (`TransactionalUnitOfWork`), `audit` (colunas de auditoria) e `location` (entidades/repositórios de cidade e estado); um subpacote por agregado (`user`, `restaurant`, `product`, `cuisine`), as partes de cada agregado num subpacote dele — `user/{address,password,owner,client,courier,admin}` (`user/address` é o vínculo `user_addresses`), `restaurant/officehour`, `product/{image,optiongroup,optionvalue}` — e o endereço, compartilhado pelos agregados, em `address` — espelhando o domínio | JPA/Hibernate, Spring Data, PostgreSQL | `persistence/jdbc` com as mesmas interfaces; o schema continua do Flyway |
 | [`token/jwt`](../../src/main/java/com/postech/restaurantes/infrastructure/token/jwt) | `ITokenEncoder` e `IAccessTokenReader` (`JwtTokenEncoder`, HS256 fixo) | jjwt | `token/<outro>` implementando as duas interfaces |
 | [`crypto`](../../src/main/java/com/postech/restaurantes/infrastructure/crypto) | `IPasswordEncoder` (`BCryptPasswordAdapter`), `ISecureTokenGenerator` (`SecureRandomTokenGenerator`) | spring-security-crypto, JDK | nova classe (ex.: Argon2) implementando a porta |
 | [`mail/smtp`](../../src/main/java/com/postech/restaurantes/infrastructure/mail/smtp) | `IMailSender` (`SmtpMailSender`) — **só transporte**, com timeouts de 5 s | Spring Mail | `mail/<provedor>` implementando `IMailSender`; o texto do e-mail está no adaptador e não muda |
@@ -64,7 +64,11 @@ de entrega, e fica na borda: o núcleo continua síncrono.
 
 **Schema versionado.** O Flyway é o dono do schema
 ([`db/migration`](../../src/main/resources/db/migration)); o JPA só valida (`ddl-auto: validate`).
-As migrations V1–V10 da main permanecem com suas versões originais. A V11 cria `states` e
+São 17 migrations (V1–V17), nunca editadas depois de aplicadas: V1–V3 criam o schema inicial, a seed
+de demonstração e os restaurantes; V4–V10 adequam o schema ao Modelo de Dados v2 (vínculo
+`user_addresses`, um token por usuário, perfis, integridade dos perfis, cascata do dono, horários por dia,
+ao menos um administrador); V11/V12 normalizam o endereço por cidade e estado; V13/V14 criam o catálogo de
+produtos e o preço decimal; V15–V17 trazem os tipos de cozinha. A V11 cria `states` e
 `cities`, converte cidade/UF em `addresses.city_id NOT NULL`, preserva ids e vínculos existentes
 e remove os campos textuais. A V12 semeia as 27 unidades federativas, as capitais e Campinas.
 É um catálogo inicial; os demais municípios entram por novas migrations, sem cadastro via API.
@@ -162,7 +166,7 @@ imagens de versão fixa e portas só em `127.0.0.1`.
 | Rotas em um lugar só | `route/ApiRoutes` | `@RequestMapping`, `SecurityConfig` e links HATEOAS leem o mesmo caminho, e `controller` ↔ `assembler` não formam ciclo |
 | Data mapper em duas camadas | `*JpaEntity` + gateway | domínio sem anotação; o mapeamento de banco muda sem mexer na entidade |
 | Chaves estrangeiras para localização | `AddressJpaEntity.city` → `CityJpaEntity.state` | normalização e integridade referencial sem acoplar as entidades de domínio a JPA |
-| Busca paginada em duas consultas | `UserDataSourceJpa.search` | `join fetch` com paginação faria o Hibernate recortar a página em memória |
+| Busca paginada em duas consultas | `search` de `UserDataSourceJpa`, `RestaurantDataSourceJpa`, `ProductDataSourceJpa` e `CuisineDataSourceJpa` | `join fetch` com paginação faria o Hibernate recortar a página em memória |
 
 ## 5. Desvios conscientes
 

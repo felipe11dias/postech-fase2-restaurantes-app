@@ -107,6 +107,7 @@ public class CuisineRestController {
     @SecurityRequirement(name = ApiDocumentation.BEARER_AUTH)
     @Operation(summary = "Exclui um tipo de cozinha que nenhum restaurante usa (só administrador)")
     @ApiResponse(responseCode = "204", description = "Tipo de cozinha excluído")
+    @ErrorResponse(type = ProblemType.INVALID_REQUEST, description = "Id não é um UUID")
     @ErrorResponse(type = ProblemType.UNAUTHENTICATED, description = "Sem token ou token inválido")
     @ErrorResponse(type = ProblemType.ACCESS_DENIED, description = "Quem chama não é administrador")
     @ErrorResponse(type = ProblemType.RESOURCE_NOT_FOUND, description = "Tipo de cozinha não encontrado")

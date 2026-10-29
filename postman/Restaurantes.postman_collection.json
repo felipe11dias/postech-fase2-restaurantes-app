@@ -3559,7 +3559,35 @@
           }
         },
         {
-          "name": "87 Exclusão do cadastro de outro usuário",
+          "name": "87 Exclusão com id que não é UUID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/123"
+          }
+        },
+        {
+          "name": "88 Exclusão do cadastro de outro usuário",
           "event": [
             {
               "listen": "test",
@@ -3590,7 +3618,7 @@
           }
         },
         {
-          "name": "88 Administrador exclui usuário inexistente",
+          "name": "89 Administrador exclui usuário inexistente",
           "event": [
             {
               "listen": "test",
@@ -3621,7 +3649,7 @@
           }
         },
         {
-          "name": "89 Administrador exclui o cadastro de outro usuário",
+          "name": "90 Administrador exclui o cadastro de outro usuário",
           "event": [
             {
               "listen": "test",
@@ -3646,7 +3674,7 @@
           }
         },
         {
-          "name": "90 Administrador exclui o dono criado pela coleção",
+          "name": "91 Administrador exclui o dono criado pela coleção",
           "event": [
             {
               "listen": "test",
@@ -3671,7 +3699,7 @@
           }
         },
         {
-          "name": "91 Administrador exclui o entregador criado pela coleção",
+          "name": "92 Administrador exclui o entregador criado pela coleção",
           "event": [
             {
               "listen": "test",
@@ -3696,7 +3724,7 @@
           }
         },
         {
-          "name": "92 Administrador tenta excluir o próprio cadastro, sendo o último administrador",
+          "name": "93 Administrador tenta excluir o próprio cadastro, sendo o último administrador",
           "event": [
             {
               "listen": "prerequest",
@@ -3761,7 +3789,7 @@
           }
         },
         {
-          "name": "93 Exclusão do próprio cadastro",
+          "name": "94 Exclusão do próprio cadastro",
           "event": [
             {
               "listen": "test",
@@ -3785,7 +3813,7 @@
           }
         },
         {
-          "name": "94 Consulta após a exclusão",
+          "name": "95 Consulta após a exclusão",
           "event": [
             {
               "listen": "test",
@@ -3822,7 +3850,7 @@
       "description": "Tratados pelo mesmo GlobalExceptionHandler, em qualquer endpoint.",
       "item": [
         {
-          "name": "95 Corpo JSON malformado",
+          "name": "96 Corpo JSON malformado",
           "event": [
             {
               "listen": "test",
@@ -3862,7 +3890,7 @@
           }
         },
         {
-          "name": "96 Método não suportado",
+          "name": "97 Método não suportado",
           "event": [
             {
               "listen": "test",
@@ -3888,7 +3916,7 @@
           }
         },
         {
-          "name": "97 Token malformado",
+          "name": "98 Token malformado",
           "event": [
             {
               "listen": "prerequest",
@@ -3929,7 +3957,7 @@
       "description": "Obtém o token do dono de restaurante da seed e seu endereço.",
       "item": [
         {
-          "name": "98 Login do dono do restaurante da seed",
+          "name": "99 Login do dono do restaurante da seed",
           "event": [
             {
               "listen": "test",
@@ -3977,7 +4005,7 @@
           }
         },
         {
-          "name": "99 Consulta do perfil do dono para obter o id",
+          "name": "100 Consulta do perfil do dono para obter o id",
           "event": [
             {
               "listen": "test",
@@ -4016,7 +4044,7 @@
           }
         },
         {
-          "name": "100 Autocadastro de um segundo dono (alvo dos casos de posse)",
+          "name": "101 Autocadastro de um segundo dono (alvo dos casos de posse)",
           "event": [
             {
               "listen": "prerequest",
@@ -4067,7 +4095,7 @@
           }
         },
         {
-          "name": "101 Login do segundo dono",
+          "name": "102 Login do segundo dono",
           "event": [
             {
               "listen": "test",
@@ -4113,7 +4141,7 @@
       "description": "Criação de novos restaurantes.",
       "item": [
         {
-          "name": "102 Cadastro de restaurante pelo dono",
+          "name": "103 Cadastro de restaurante pelo dono",
           "event": [
             {
               "listen": "test",
@@ -4179,7 +4207,7 @@
           }
         },
         {
-          "name": "103 Segundo dono cadastra o próprio restaurante",
+          "name": "104 Segundo dono cadastra o próprio restaurante",
           "event": [
             {
               "listen": "test",
@@ -4224,7 +4252,7 @@
           }
         },
         {
-          "name": "104 Dono tenta cadastrar restaurante para outro dono",
+          "name": "105 Dono tenta cadastrar restaurante para outro dono",
           "event": [
             {
               "listen": "test",
@@ -4268,14 +4296,16 @@
           }
         },
         {
-          "name": "105 Cadastro de restaurante com campos inválidos",
+          "name": "106 Cadastro de restaurante com campos inválidos",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status 400 Bad Request\", () => pm.response.to.have.status(400));"
+                  "pm.test(\"Status 400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\"));"
                 ]
               }
             }
@@ -4315,7 +4345,7 @@
           }
         },
         {
-          "name": "106 Cadastro de restaurante com horários sobrepostos",
+          "name": "107 Cadastro de restaurante com horários sobrepostos",
           "event": [
             {
               "listen": "test",
@@ -4369,14 +4399,16 @@
           }
         },
         {
-          "name": "107 Cadastro de restaurante sem token",
+          "name": "108 Cadastro de restaurante sem token",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status 401 Unauthorized\", () => pm.response.to.have.status(401));"
+                  "pm.test(\"Status 401 Unauthorized\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:nao-autenticado\"));"
                 ]
               }
             }
@@ -4412,14 +4444,16 @@
           }
         },
         {
-          "name": "108 Cliente comum tenta cadastrar restaurante",
+          "name": "109 Cliente comum tenta cadastrar restaurante",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status 403 Forbidden\", () => pm.response.to.have.status(403));"
+                  "pm.test(\"Status 403 Forbidden\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:acesso-negado\"));"
                 ]
               }
             }
@@ -4459,14 +4493,16 @@
           }
         },
         {
-          "name": "109 Cadastro de restaurante com dono inexistente",
+          "name": "110 Cadastro de restaurante com dono inexistente",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status 404 Not Found\", () => pm.response.to.have.status(404));"
+                  "pm.test(\"Status 404 Not Found\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\"));"
                 ]
               }
             }
@@ -4506,7 +4542,7 @@
           }
         },
         {
-          "name": "110 Cadastro de restaurante para usuário sem perfil de dono",
+          "name": "111 Cadastro de restaurante para usuário sem perfil de dono",
           "event": [
             {
               "listen": "test",
@@ -4567,7 +4603,7 @@
       "description": "Consulta individual de restaurantes por ID.",
       "item": [
         {
-          "name": "111 Consulta pública de restaurante por ID",
+          "name": "112 Consulta pública de restaurante por ID",
           "event": [
             {
               "listen": "test",
@@ -4597,14 +4633,16 @@
           }
         },
         {
-          "name": "112 Consulta de restaurante inexistente",
+          "name": "113 Consulta de restaurante inexistente",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status 404 Not Found\", () => pm.response.to.have.status(404));"
+                  "pm.test(\"Status 404 Not Found\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\"));"
                 ]
               }
             }
@@ -4625,6 +4663,29 @@
               ]
             }
           }
+        },
+        {
+          "name": "114 Consulta de restaurante com id que não é UUID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/restaurants/nao-uuid"
+          }
         }
       ]
     },
@@ -4633,7 +4694,7 @@
       "description": "Listagem pública com busca e paginação.",
       "item": [
         {
-          "name": "113 Listagem pública de restaurantes com busca e paginação",
+          "name": "115 Listagem pública de restaurantes com busca e paginação",
           "event": [
             {
               "listen": "test",
@@ -4680,7 +4741,7 @@
           }
         },
         {
-          "name": "114 Listagem dos restaurantes de um dono",
+          "name": "116 Listagem dos restaurantes de um dono",
           "event": [
             {
               "listen": "test",
@@ -4702,6 +4763,52 @@
             "header": [],
             "url": "{{baseUrl}}/api/v1/restaurants?ownerId={{outroDonoUserId}}&page=0&size=10"
           }
+        },
+        {
+          "name": "117 Listagem de restaurantes com tamanho de página acima do limite",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/restaurants?size=101"
+          }
+        },
+        {
+          "name": "118 Listagem de restaurantes com ownerId que não é UUID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/restaurants?ownerId=nao-uuid"
+          }
         }
       ]
     },
@@ -4710,7 +4817,7 @@
       "description": "Atualização de restaurante existente.",
       "item": [
         {
-          "name": "115 Atualização de restaurante pelo dono",
+          "name": "119 Atualização de restaurante pelo dono",
           "event": [
             {
               "listen": "test",
@@ -4765,14 +4872,16 @@
           }
         },
         {
-          "name": "116 Atualização de restaurante sem token",
+          "name": "120 Atualização de restaurante sem token",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status 401 Unauthorized\", () => pm.response.to.have.status(401));"
+                  "pm.test(\"Status 401 Unauthorized\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:nao-autenticado\"));"
                 ]
               }
             }
@@ -4809,7 +4918,89 @@
           }
         },
         {
-          "name": "117 Administrador indica usuário sem perfil de dono na atualização",
+          "name": "121 Atualização de restaurante com campos inválidos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"09:00:00\",\n      \"endTime\": \"23:00:00\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "122 Administrador atualiza restaurante inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants/00000000-0000-4000-8000-000000000000",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Sabor & Arte Renovado\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"09:00:00\",\n      \"endTime\": \"23:00:00\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "123 Administrador indica usuário sem perfil de dono na atualização",
           "event": [
             {
               "listen": "test",
@@ -4865,7 +5056,7 @@
           }
         },
         {
-          "name": "118 Dono tenta alterar o restaurante de outro dono",
+          "name": "124 Dono tenta alterar o restaurante de outro dono",
           "event": [
             {
               "listen": "test",
@@ -4908,7 +5099,7 @@
           }
         },
         {
-          "name": "119 Dono tenta passar o próprio restaurante para outro dono",
+          "name": "125 Dono tenta passar o próprio restaurante para outro dono",
           "event": [
             {
               "listen": "test",
@@ -4953,11 +5144,11 @@
         }
       ]
     },
-{
-      "name": "18 Produtos — Catálogo",
+    {
+      "name": "16 Produtos — Catálogo",
       "item": [
         {
-          "name": "120 Cadastro de produto pelo dono",
+          "name": "126 Cadastro de produto pelo dono",
           "event": [
             {
               "listen": "test",
@@ -4995,7 +5186,7 @@
           }
         },
         {
-          "name": "121 Cadastro de produto com preço inválido",
+          "name": "127 Cadastro de produto com preço inválido",
           "event": [
             {
               "listen": "test",
@@ -5028,7 +5219,7 @@
           }
         },
         {
-          "name": "122 Cadastro de produto sem autenticação",
+          "name": "128 Cadastro de produto sem autenticação",
           "event": [
             {
               "listen": "test",
@@ -5057,7 +5248,7 @@
           }
         },
         {
-          "name": "123 Segundo dono tenta cadastrar produto no restaurante alheio",
+          "name": "129 Segundo dono tenta cadastrar produto no restaurante alheio",
           "event": [
             {
               "listen": "test",
@@ -5090,7 +5281,7 @@
           }
         },
         {
-          "name": "124 Cadastro de produto em restaurante inexistente",
+          "name": "130 Cadastro de produto em restaurante inexistente",
           "event": [
             {
               "listen": "test",
@@ -5123,7 +5314,7 @@
           }
         },
         {
-          "name": "125 Lista produtos publicamente",
+          "name": "131 Lista produtos publicamente",
           "event": [
             {
               "listen": "test",
@@ -5143,7 +5334,7 @@
           }
         },
         {
-          "name": "126 Lista produtos com tamanho inválido",
+          "name": "132 Lista produtos com tamanho inválido",
           "event": [
             {
               "listen": "test",
@@ -5163,7 +5354,7 @@
           }
         },
         {
-          "name": "127 Lista produtos de restaurante inexistente",
+          "name": "133 Lista produtos de restaurante inexistente",
           "event": [
             {
               "listen": "test",
@@ -5183,7 +5374,7 @@
           }
         },
         {
-          "name": "128 Consulta produto com imagens e opções",
+          "name": "134 Consulta produto com imagens e opções",
           "event": [
             {
               "listen": "test",
@@ -5203,7 +5394,7 @@
           }
         },
         {
-          "name": "129 Consulta produto com identificador inválido",
+          "name": "135 Consulta produto com identificador inválido",
           "event": [
             {
               "listen": "test",
@@ -5223,7 +5414,7 @@
           }
         },
         {
-          "name": "130 Consulta produto inexistente",
+          "name": "136 Consulta produto inexistente",
           "event": [
             {
               "listen": "test",
@@ -5243,7 +5434,7 @@
           }
         },
         {
-          "name": "131 Dono atualiza produto e substitui suas opções",
+          "name": "137 Dono atualiza produto e substitui suas opções",
           "event": [
             {
               "listen": "test",
@@ -5276,7 +5467,7 @@
           }
         },
         {
-          "name": "132 Atualiza produto com preço inválido",
+          "name": "138 Atualiza produto com preço inválido",
           "event": [
             {
               "listen": "test",
@@ -5309,7 +5500,7 @@
           }
         },
         {
-          "name": "133 Atualiza produto sem autenticação",
+          "name": "139 Atualiza produto sem autenticação",
           "event": [
             {
               "listen": "test",
@@ -5338,7 +5529,7 @@
           }
         },
         {
-          "name": "134 Segundo dono tenta atualizar produto alheio",
+          "name": "140 Segundo dono tenta atualizar produto alheio",
           "event": [
             {
               "listen": "test",
@@ -5371,7 +5562,7 @@
           }
         },
         {
-          "name": "135 Atualiza produto inexistente",
+          "name": "141 Atualiza produto inexistente",
           "event": [
             {
               "listen": "test",
@@ -5404,7 +5595,7 @@
           }
         },
         {
-          "name": "136 Exclui produto sem autenticação",
+          "name": "142 Exclui produto sem autenticação",
           "event": [
             {
               "listen": "test",
@@ -5424,7 +5615,7 @@
           }
         },
         {
-          "name": "137 Segundo dono tenta excluir produto alheio",
+          "name": "143 Segundo dono tenta excluir produto alheio",
           "event": [
             {
               "listen": "test",
@@ -5449,7 +5640,35 @@
           }
         },
         {
-          "name": "138 Dono exclui produto e suas partes",
+          "name": "144 Exclui produto com identificador inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants/{{restaurantId}}/products/nao-uuid"
+          }
+        },
+        {
+          "name": "145 Dono exclui produto e suas partes",
           "event": [
             {
               "listen": "test",
@@ -5473,7 +5692,7 @@
           }
         },
         {
-          "name": "139 Exclui produto inexistente",
+          "name": "146 Exclui produto inexistente",
           "event": [
             {
               "listen": "test",
@@ -5500,18 +5719,20 @@
       ]
     },
     {
-      "name": "16 Restaurantes — Exclusão (DELETE /api/v1/restaurants/{id})",
+      "name": "17 Restaurantes — Exclusão (DELETE /api/v1/restaurants/{id})",
       "description": "Exclusão de restaurante.",
       "item": [
         {
-          "name": "140 Exclusão de restaurante sem token",
+          "name": "147 Exclusão de restaurante sem token",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status 401 Unauthorized\", () => pm.response.to.have.status(401));"
+                  "pm.test(\"Status 401 Unauthorized\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:nao-autenticado\"));"
                 ]
               }
             }
@@ -5534,7 +5755,7 @@
           }
         },
         {
-          "name": "141 Dono tenta excluir o restaurante de outro dono",
+          "name": "148 Dono tenta excluir o restaurante de outro dono",
           "event": [
             {
               "listen": "test",
@@ -5564,7 +5785,63 @@
           }
         },
         {
-          "name": "142 Exclusão de restaurante pelo dono",
+          "name": "149 Exclusão de restaurante com id que não é UUID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants/nao-uuid"
+          }
+        },
+        {
+          "name": "150 Administrador exclui restaurante inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/restaurants/00000000-0000-4000-8000-000000000000"
+          }
+        },
+        {
+          "name": "151 Exclusão de restaurante pelo dono",
           "event": [
             {
               "listen": "test",
@@ -5599,14 +5876,16 @@
           }
         },
         {
-          "name": "143 Consulta de restaurante após exclusão",
+          "name": "152 Consulta de restaurante após exclusão",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status 404 Not Found\", () => pm.response.to.have.status(404));"
+                  "pm.test(\"Status 404 Not Found\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\"));"
                 ]
               }
             }
@@ -5629,7 +5908,7 @@
           }
         },
         {
-          "name": "144 Administrador exclui o segundo dono, e o restaurante dele sai junto",
+          "name": "153 Administrador exclui o segundo dono, e o restaurante dele sai junto",
           "event": [
             {
               "listen": "test",
@@ -5654,14 +5933,16 @@
           }
         },
         {
-          "name": "145 Restaurante do dono excluído não existe mais",
+          "name": "154 Restaurante do dono excluído não existe mais",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));"
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\"));"
                 ]
               }
             }
@@ -5675,10 +5956,10 @@
       ]
     },
     {
-      "name": "17 Location catalog (read only)",
+      "name": "18 Catálogo de localidades (estados e cidades, só leitura)",
       "item": [
         {
-          "name": "126 Listagem dos estados da seed",
+          "name": "155 Listagem dos estados da seed",
           "event": [
             {
               "listen": "test",
@@ -5686,7 +5967,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"State catalog\", () => { const states = pm.response.json()._embedded.states; pm.expect(states).to.have.lengthOf(27); pm.expect(states.find(state => state.acronym === \"SP\")).to.have.property(\"id\"); });"
+                  "pm.test(\"Os 27 estados da seed, com SP\", () => { const states = pm.response.json()._embedded.states; pm.expect(states).to.have.lengthOf(27); pm.expect(states.find(state => state.acronym === \"SP\")).to.have.property(\"id\"); });"
                 ]
               }
             }
@@ -5698,7 +5979,7 @@
           }
         },
         {
-          "name": "127 Busca de cidades da seed",
+          "name": "156 Busca de cidades da seed",
           "event": [
             {
               "listen": "test",
@@ -5706,7 +5987,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"Nested city and state\", () => { const body = pm.response.json(); pm.expect(body.page.totalElements).to.eql(1); pm.expect(body._embedded.cities[0].state.acronym).to.eql(\"SP\"); pm.expect(body._links).to.have.property(\"self\"); });"
+                  "pm.test(\"A cidade vem com o estado aninhado\", () => { const body = pm.response.json(); pm.expect(body.page.totalElements).to.eql(1); pm.expect(body._embedded.cities[0].state.acronym).to.eql(\"SP\"); pm.expect(body._links).to.have.property(\"self\"); });"
                 ]
               }
             }
@@ -5718,7 +5999,7 @@
           }
         },
         {
-          "name": "128 Paginação inválida do catálogo",
+          "name": "157 Paginação inválida do catálogo",
           "event": [
             {
               "listen": "test",
@@ -5726,7 +6007,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
-                  "pm.test(\"Invalid request problem\", () => pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\"));"
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\"));"
                 ]
               }
             }
@@ -5738,7 +6019,7 @@
           }
         },
         {
-          "name": "129 Autocadastro com endereço sem cidade",
+          "name": "158 Autocadastro com endereço sem cidade",
           "event": [
             {
               "listen": "prerequest",
@@ -5755,7 +6036,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
-                  "pm.test(\"Problem type\", () => pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\"));"
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\"));"
                 ]
               }
             }
@@ -5781,7 +6062,7 @@
           }
         },
         {
-          "name": "130 Autocadastro com endereço com cidade inexistente",
+          "name": "159 Autocadastro com endereço com cidade inexistente",
           "event": [
             {
               "listen": "prerequest",
@@ -5798,7 +6079,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
-                  "pm.test(\"Problem type\", () => pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\"));"
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\"));"
                 ]
               }
             }
@@ -5830,7 +6111,7 @@
       "description": "Catálogo de tipos de cozinha: consulta pública, manutenção só do administrador, nome único sem diferenciar maiúsculas. A pasta também exercita a escolha dos tipos pelo restaurante (cuisineIds), o filtro da listagem de restaurantes por tipo (cuisineId) e a regra de que tipo em uso não sai do catálogo. Usa o dono da seed (login na pasta 11) e não altera a seed: cria o próprio tipo e o próprio restaurante, e exclui os dois ao fim.",
       "item": [
         {
-          "name": "146 Administrador cadastra tipo de cozinha",
+          "name": "160 Administrador cadastra tipo de cozinha",
           "event": [
             {
               "listen": "prerequest",
@@ -5888,7 +6169,7 @@
           }
         },
         {
-          "name": "147 Cadastro de tipo de cozinha sem token",
+          "name": "161 Cadastro de tipo de cozinha sem token",
           "event": [
             {
               "listen": "test",
@@ -5923,7 +6204,7 @@
           }
         },
         {
-          "name": "148 Dono de restaurante tenta cadastrar tipo de cozinha",
+          "name": "162 Dono de restaurante tenta cadastrar tipo de cozinha",
           "event": [
             {
               "listen": "test",
@@ -5962,7 +6243,7 @@
           }
         },
         {
-          "name": "149 Cadastro de tipo de cozinha com nome em branco",
+          "name": "163 Cadastro de tipo de cozinha com nome em branco",
           "event": [
             {
               "listen": "test",
@@ -6003,7 +6284,7 @@
           }
         },
         {
-          "name": "150 Cadastro de tipo de cozinha com nome repetido (maiúsculas diferentes)",
+          "name": "164 Cadastro de tipo de cozinha com nome repetido (maiúsculas diferentes)",
           "event": [
             {
               "listen": "test",
@@ -6042,7 +6323,7 @@
           }
         },
         {
-          "name": "151 Consulta pública de tipo de cozinha por ID",
+          "name": "165 Consulta pública de tipo de cozinha por ID",
           "event": [
             {
               "listen": "test",
@@ -6066,7 +6347,7 @@
           }
         },
         {
-          "name": "152 Consulta de tipo de cozinha inexistente",
+          "name": "166 Consulta de tipo de cozinha inexistente",
           "event": [
             {
               "listen": "test",
@@ -6087,7 +6368,30 @@
           }
         },
         {
-          "name": "153 Listagem pública de tipos de cozinha com busca e paginação",
+          "name": "167 Consulta de tipo de cozinha com id que não é UUID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/cuisines/nao-uuid"
+          }
+        },
+        {
+          "name": "168 Listagem pública de tipos de cozinha com busca e paginação",
           "event": [
             {
               "listen": "test",
@@ -6112,7 +6416,30 @@
           }
         },
         {
-          "name": "154 Administrador renomeia o tipo de cozinha",
+          "name": "169 Listagem de tipos de cozinha com tamanho de página acima do limite",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/cuisines?size=101"
+          }
+        },
+        {
+          "name": "170 Administrador renomeia o tipo de cozinha",
           "event": [
             {
               "listen": "test",
@@ -6154,7 +6481,7 @@
           }
         },
         {
-          "name": "155 Dono de restaurante tenta renomear tipo de cozinha",
+          "name": "171 Dono de restaurante tenta renomear tipo de cozinha",
           "event": [
             {
               "listen": "test",
@@ -6193,7 +6520,7 @@
           }
         },
         {
-          "name": "156 Renomear para o nome de outro tipo de cozinha",
+          "name": "172 Renomear para o nome de outro tipo de cozinha",
           "event": [
             {
               "listen": "test",
@@ -6233,7 +6560,126 @@
           }
         },
         {
-          "name": "157 Dono cadastra restaurante com tipo de cozinha",
+          "name": "173 Renomear tipo de cozinha sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:nao-autenticado\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/cuisines/{{cuisineId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{cozinhaNome}}SemToken\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "174 Renomear tipo de cozinha com nome em branco",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/cuisines/{{cuisineId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"   \"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "175 Administrador renomeia tipo de cozinha inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/cuisines/00000000-0000-4000-8000-000000000000",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{cozinhaNome}}Inexistente\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "176 Dono cadastra restaurante com tipo de cozinha",
           "event": [
             {
               "listen": "test",
@@ -6279,7 +6725,7 @@
           }
         },
         {
-          "name": "158 Listagem pública de restaurantes filtrada pelo tipo de cozinha",
+          "name": "177 Listagem pública de restaurantes filtrada pelo tipo de cozinha",
           "event": [
             {
               "listen": "test",
@@ -6305,7 +6751,7 @@
           }
         },
         {
-          "name": "159 Cadastro de restaurante com tipo de cozinha inexistente",
+          "name": "178 Cadastro de restaurante com tipo de cozinha inexistente",
           "event": [
             {
               "listen": "test",
@@ -6346,7 +6792,114 @@
           }
         },
         {
-          "name": "160 Administrador tenta excluir tipo de cozinha em uso por restaurante",
+          "name": "179 Exclusão de tipo de cozinha sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"ProblemDetail nao-autenticado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:nao-autenticado\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/cuisines/{{cuisineId}}"
+          }
+        },
+        {
+          "name": "180 Dono de restaurante tenta excluir tipo de cozinha",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"ProblemDetail acesso-negado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:acesso-negado\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/cuisines/{{cuisineId}}"
+          }
+        },
+        {
+          "name": "181 Exclusão de tipo de cozinha com id que não é UUID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"ProblemDetail requisicao-invalida\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:requisicao-invalida\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/cuisines/nao-uuid"
+          }
+        },
+        {
+          "name": "182 Administrador exclui tipo de cozinha inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/cuisines/00000000-0000-4000-8000-000000000000"
+          }
+        },
+        {
+          "name": "183 Administrador tenta excluir tipo de cozinha em uso por restaurante",
           "event": [
             {
               "listen": "test",
@@ -6372,7 +6925,7 @@
           }
         },
         {
-          "name": "161 Dono tira os tipos de cozinha do restaurante com lista vazia",
+          "name": "184 Dono tira os tipos de cozinha do restaurante com lista vazia",
           "event": [
             {
               "listen": "test",
@@ -6411,7 +6964,7 @@
           }
         },
         {
-          "name": "162 Dono exclui o restaurante de teste dos tipos de cozinha",
+          "name": "185 Dono exclui o restaurante de teste dos tipos de cozinha",
           "event": [
             {
               "listen": "test",
@@ -6435,7 +6988,7 @@
           }
         },
         {
-          "name": "163 Administrador exclui o tipo de cozinha que ninguém usa",
+          "name": "186 Administrador exclui o tipo de cozinha que ninguém usa",
           "event": [
             {
               "listen": "test",
@@ -6459,14 +7012,16 @@
           }
         },
         {
-          "name": "164 Consulta de tipo de cozinha após a exclusão",
+          "name": "187 Consulta de tipo de cozinha após a exclusão",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));"
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"ProblemDetail recurso-nao-encontrado\", () =>",
+                  "    pm.expect(pm.response.json().type).to.eql(\"urn:restaurantes:problema:recurso-nao-encontrado\"));"
                 ]
               }
             }

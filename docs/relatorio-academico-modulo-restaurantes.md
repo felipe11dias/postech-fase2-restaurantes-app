@@ -1,5 +1,20 @@
 # Relatório Acadêmico de Implementação — Módulo de Gestão de Restaurantes
 
+> **Documento histórico da Etapa 16** (entregue em 01/10/2026, PR #18). O texto abaixo descreve o
+> módulo como foi entregue e não foi alterado. Desde então, o restaurante mudou nestes pontos:
+> - **Etapa 18 (V4):** o restaurante tem endereço próprio; sai a regra "o endereço pertence ao dono".
+> - **Etapa 21 (V6):** o papel é derivado dos perfis; o dono do restaurante precisa ter perfil de dono
+>   (`ROLE_ADMIN` sozinho não basta).
+> - **Etapa 23 (V8):** regra de posse no `@PreAuthorize`; excluir o usuário exclui os restaurantes dele
+>   (`ON DELETE CASCADE`, no lugar do `RESTRICT` citado abaixo).
+> - **Etapa 24 (V9):** horários por dia da semana (`restaurant_office_hours`), no lugar do horário único.
+> - **Etapa 26 (V11/V12):** endereço ligado a uma cidade do catálogo; **Etapa 28 (V15–V17):** tipos de
+>   cozinha.
+> - **Etapa 17:** a cobertura de 100% citada abaixo exigiu complementos (testes de ramos e ajustes no
+>   `SchemaMigrationIT` e no `OpenApiDocumentationIT`).
+>
+> O estado atual está no [relatório final](../relatorios/relatorio-tech-challenge-fase02-final.md).
+
 **Autor do Módulo:** Aluno / Integrante da Equipe (Francisco)  
 **Curso:** Pós-Tech em Arquitetura e Desenvolvimento Java (Tech Challenge — Fase 2)  
 **Módulo Desenvolvido:** Agregado de Restaurante (`restaurants`) — Imagem 2 do Modelo ER  

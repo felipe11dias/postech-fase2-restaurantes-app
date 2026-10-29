@@ -41,7 +41,8 @@ Todos seguem as mesmas seis seções, para que a comparação entre camadas seja
 
 ## Relação com o resto do repositório
 
-- O **relatório técnico** (`relatorios/relatorio-tech-challenge-fase02-v2.0.md`) conta a história
+- O **relatório técnico final** ([`relatorios/relatorio-tech-challenge-fase02-final.md`](../../relatorios/relatorio-tech-challenge-fase02-final.md),
+  com as versões v1.0 a v5.0 ao lado como histórico detalhado) conta a história
   do projeto etapa por etapa — o que foi decidido, quando e por quê. Esta pasta descreve o
   **estado atual**, organizado por camada.
 - Cada `package-info.java` das camadas e sub-pacotes principais traz um resumo do papel do pacote

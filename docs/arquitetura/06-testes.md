@@ -40,8 +40,8 @@ objetivos da arquitetura.
 | Adaptadores | `src/test/.../adapter` | mocks de `I*DataSource` e de `adapter/service`; controllers com casos de uso, gateways e presenters **reais** | parte dos unitários |
 | Infraestrutura com lógica | `src/test/.../infrastructure` | classes instanciadas direto, com `JpaRepository`, `SecurityContext`, `MailSender` mockados | parte dos unitários |
 | Arquitetura e convenções | `ArchitectureTest`, `InfrastructureModulesTest`, `TestConventionsTest` | ArchUnit | 48 regras |
-| Integração | `*IT` | `@SpringBootTest`, PostgreSQL real (Testcontainers), Flyway, JWT ativo, HTTP de verdade; só o SMTP é substituído | 91 |
-| Aceitação manual/automatizada | `postman/` | coleção com um request por caso de cada endpoint, rodada com Newman | 52 requests |
+| Integração | `*IT` | `@SpringBootTest`, PostgreSQL real (Testcontainers), Flyway, JWT ativo, HTTP de verdade; só o SMTP é substituído | 164 |
+| Aceitação manual/automatizada | `postman/` | coleção com um request por caso de cada endpoint, rodada com Newman | 187 requests |
 
 **Os dois compromissos**, ambos verificados no build:
 
@@ -52,7 +52,7 @@ objetivos da arquitetura.
 
 **Convenções** (Aula 04 e *Clean Code* cap. 9), verificadas pelo
 [`TestConventionsTest`](../../src/test/java/com/postech/restaurantes/TestConventionsTest.java):
-`@DisplayName` em todo teste; nome `deve<Comportamento>[Quando<Condição>]` ou `naoDeve…`; teste
+`@DisplayName` em todo teste; nome `should<Behavior>[When<Condition>]` ou `shouldNot…` (os legados `deve…`/`naoDeve…` continuam aceitos); teste
 unitário sem Spring, Testcontainers nem JDBC; teste de integração estende uma das bases; `@MockitoBean`
 só no `JavaMailSender`; nenhum `@MockitoSpyBean`; nenhum `@Testcontainers`.
 
@@ -77,7 +77,7 @@ void deveGravarOAutorDeCadaAlteracao() {
 
 | Padrão | Onde | Problema que resolve |
 |---|---|---|
-| Pirâmide (Clean Coder cap. 8) | 465 unitários × 91 integração × 52 requests | feedback rápido na base; confiança de ponta a ponta no topo |
+| Pirâmide (Clean Coder cap. 8) | 939 unitários × 164 integração × 187 requests | feedback rápido na base; confiança de ponta a ponta no topo |
 | Mock da porta, não da implementação | casos de uso e adaptadores | o teste depende só de interfaces estáveis (CA cap. 28) |
 | Controle em teste negativo | `JwtAuthenticationIT`: o mesmo formato de token com a chave certa responde 200 | a recusa é provada pelo motivo certo, não por um token malformado pelo teste |
 | Conferência ao contrário | cada regra ArchUnit com uma violação proposital | uma regra que nunca falha pode não estar verificando nada |
@@ -88,7 +88,7 @@ void deveGravarOAutorDeCadaAlteracao() {
 | Na aula | No projeto | Por quê |
 |---|---|---|
 | "Evitar várias verificações num teste" (Aula 04, p. 8) | `UserLifecycleIT` percorre o cadastro inteiro num teste | é o cenário principal de sucesso encadeado (Cockburn): o objetivo é provar que o estado deixado por um passo serve ao seguinte — os passos isolados já têm testes próprios |
-| Nomes de teste no exemplo da Aula 03 (`testEstudanteOk`) | `deve…` / `naoDeve…` | segue a recomendação da Aula 04, que é posterior e explícita |
+| Nomes de teste no exemplo da Aula 03 (`testEstudanteOk`) | `should…` / `shouldNot…` (legados `deve…` / `naoDeve…`) | segue a recomendação da Aula 04, que é posterior e explícita |
 | Testes isolados "sem compartilhar estado" | banco compartilhado entre classes de integração | isolar por transação não alcança requisições HTTP (outra thread, outra transação); marcas únicas + ordem aleatória garantem a independência |
 
 ## 6. Como o build verifica

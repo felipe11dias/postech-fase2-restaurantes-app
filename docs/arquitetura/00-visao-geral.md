@@ -32,12 +32,12 @@
 
 | Camada (aula) | Pacote | O que contém |
 |---|---|---|
-| Entidades | [`domain`](../../src/main/java/com/postech/restaurantes/domain) | `User` e os perfis (`OwnerProfile`, `ClientProfile`, `CourierProfile`, `AdminProfile`), `RoleName`, `Address`, `City`, `State`, `PasswordResetToken`, VOs (`Email`, `ZipCode`, `Cpf`, `Cnpj`, `Phone`, `LicensePlate`, `DriverLicense`), exceções de negócio, `Guard` |
-| Casos de Uso | [`application`](../../src/main/java/com/postech/restaurantes/application) | 9 casos de uso (`create` + `run`), as portas (`I*Gateway`) e os DTOs de entrada |
+| Entidades | [`domain`](../../src/main/java/com/postech/restaurantes/domain) | `User` e os perfis (`OwnerProfile`, `ClientProfile`, `CourierProfile`, `AdminProfile`), `RoleName`, `Address`, `City`, `State`, `PasswordResetToken`, `Restaurant` e `OfficeHour`, `Cuisine`, `Product` (com `ProductOptionGroup` e `ProductOptionValue`), VOs (`Email`, `ZipCode`, `Cpf`, `Cnpj`, `Phone`, `LicensePlate`, `DriverLicense`), exceções de negócio, `Guard` |
+| Casos de Uso | [`application`](../../src/main/java/com/postech/restaurantes/application) | 31 casos de uso (`create` + `run`) em seis features — `user`, `auth`, `restaurant`, `product`, `cuisine`, `location` —, as políticas compartilhadas (`*Policy`), as portas (`I*Gateway`) e os DTOs de entrada |
 | Adaptadores de Interface | [`adapter`](../../src/main/java/com/postech/restaurantes/adapter) | controllers, gateways, interfaces de origem de dados e de serviços externos, presenters e views |
 | Frameworks & Drivers | [`infrastructure`](../../src/main/java/com/postech/restaurantes/infrastructure) | módulos `main`, `api/rest/spring`, `persistence/jpa`, `token/jwt`, `crypto`, `mail/smtp` — o único lugar com Spring |
 
-Dentro de cada camada o código é agrupado por **agregado ou feature** (`user`, `auth`, `address`):
+Dentro de cada camada o código é agrupado por **agregado ou feature** (`user`, `auth`, `address`, `restaurant`, `product`, `cuisine`, `location`):
 uma feature nova, como restaurante ou cardápio, ganha o seu subpacote em cada camada.
 
 ### O fluxo de uma requisição (cadastro de usuário)
@@ -93,7 +93,7 @@ flowchart LR
         PORT["gateway<br/>I*Gateway (portas)"]
     end
     subgraph dom["Entidades (domain)"]
-        E["User · perfis · Address · City · State · ..."]
+        E["User · perfis · Address · City · State · Restaurant · Product · Cuisine"]
     end
     REST --> C
     C --> G

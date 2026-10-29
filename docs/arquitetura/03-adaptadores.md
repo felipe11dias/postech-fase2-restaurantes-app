@@ -51,14 +51,17 @@
 
 ```
 adapter/
-  controller/   UserController, AuthController, ProductController — o maestro
-  gateway/      UserGateway, PasswordResetTokenGateway,
-                RestaurantGateway                                     — tradutores de dados
-  gateway/mapping/  AddressMapping                                 — tradução compartilhada (endereço)
+  controller/   UserController, AuthController, RestaurantController, ProductController,
+                CuisineController, LocationController (+ MailOutbox)   — o maestro
+  gateway/      UserGateway, PasswordResetTokenGateway, RestaurantGateway,
+                ProductGateway, CuisineGateway, LocationGateway        — tradutores de dados
                 PasswordResetMailGateway, TokenGateway                 — tradutores de serviços
-  datasource/   IUserDataSource, IPasswordResetTokenDataSource, IRestaurantDataSource  (+ data/ *Data)
+  gateway/mapping/  AddressMapping, LocationMapping                    — tradução compartilhada (endereço, cidade/estado)
+  datasource/   IUserDataSource, IPasswordResetTokenDataSource, IRestaurantDataSource,
+                IProductDataSource, ICuisineDataSource, ILocationDataSource   (+ data/ *Data)
   service/      IMailSender, ITokenEncoder                                        (+ data/ *Data)
-  presenter/    UserPresenter, AuthPresenter, RestaurantPresenter, AddressPresenter (+ view/ *View)
+  presenter/    UserPresenter, AuthPresenter, RestaurantPresenter, ProductPresenter,
+                CuisinePresenter, LocationPresenter, AddressPresenter       (+ view/ *View)
 ```
 
 ### Controllers — [`adapter/controller`](../../src/main/java/com/postech/restaurantes/adapter/controller)
@@ -89,6 +92,8 @@ o `UserController` recebe `IRestaurantDataSource` e entrega um `RestaurantGatewa
 | `UserGateway` | `IUserGateway` | `IUserDataSource` | `User` ↔ `UserData` (e-mail normalizado, CEP sem máscara, cada perfil como `OwnerData`/`ClientData`/`CourierData`/`AdminData` — documentos sem máscara, tipo de veículo e status pelo nome, convertidos de volta por `CourierVehicleType.from`/`CourierStatus.from` —, endereços como `UserAddressData` com rótulo e padrão); reconstrói com `User.restore`, que **revalida** |
 | `RestaurantGateway` | `IRestaurantGateway` | `IRestaurantDataSource` | `Restaurant` ↔ `RestaurantData`, com o endereço do restaurante aninhado |
 | `ProductGateway` (Etapa 27) | `IProductGateway` | `IProductDataSource` | `Product` ↔ `ProductData`, incluindo preço `BigDecimal`, caminhos/URLs de imagem, grupos e valores de opção |
+| `CuisineGateway` (Etapa 28) | `ICuisineGateway` | `ICuisineDataSource` | `Cuisine` ↔ `CuisineData`; responde se o tipo está em uso por algum restaurante |
+| `LocationGateway` (Etapa 26) | `ILocationGateway` | `ILocationDataSource` | `CityData`/`StateData` → `City`/`State`, pela tradução compartilhada `LocationMapping` |
 | `PasswordResetTokenGateway` | `IPasswordResetTokenGateway` | `IPasswordResetTokenDataSource` | `PasswordResetToken` ↔ `PasswordResetTokenData` |
 | [`PasswordResetMailGateway`](../../src/main/java/com/postech/restaurantes/adapter/gateway/PasswordResetMailGateway.java) | `IMailGateway` | `IMailSender` | pedido "token + validade" → **assunto e corpo** da mensagem em português |
 | [`TokenGateway`](../../src/main/java/com/postech/restaurantes/adapter/gateway/TokenGateway.java) | `ITokenIssuer` | `ITokenEncoder` | `User` → `TokenClaimsData` (id, login, nomes dos papéis derivados dos perfis) |
