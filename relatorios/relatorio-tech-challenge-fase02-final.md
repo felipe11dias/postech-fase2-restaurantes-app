@@ -16,7 +16,8 @@
 - **Repositório:** <https://github.com/felipe11dias/postech-fase2-restaurantes-app> (público)
 - **Stack:** Java 21 · Spring Boot 3.5.11 · Spring Data JPA · PostgreSQL 16 · Flyway · Docker Compose
 - **Arquitetura:** Clean Architecture (Robert C. Martin)
-- **Versão do relatório:** final (Etapa 29), 28/10/2026 — código de referência: branch `etapa-29-revisao-final`
+- **Versão do relatório:** final (Etapa 29), 02/11/2026 — código de referência: branch `etapa-29-revisao-final`
+- **Vídeo de apresentação:** <https://www.youtube.com/watch?v=N0ckKiKnPcw>
 
 > Este é o documento de referência da entrega. Ele consolida as 29 etapas, a conformidade com o
 > enunciado, a arquitetura e o roteiro do vídeo. As versões anteriores ficam em
@@ -182,7 +183,7 @@ pelo compilador, e não como um registro.
 | 6. Repositório aberto | ✅ | GitHub público, com histórico por etapa |
 | 7. Clean Architecture em camadas | ✅ | `domain`, `application`, `adapter`, `infrastructure`; 48 regras ArchUnit falham o build se a regra de dependência for violada |
 | 8. Cobertura: unitários ≥ 80% e testes de integração | ✅ | 939 testes unitários com **100%** de linhas e ramos (gate do JaCoCo); 165 testes de integração com PostgreSQL real (Testcontainers) |
-| 9. Vídeo de ~5 minutos | ⏳ a gravar | Roteiro pronto na [seção 12](#12-vídeo-de-apresentação) |
+| 9. Vídeo de ~5 minutos | ✅ | <https://www.youtube.com/watch?v=N0ckKiKnPcw>; roteiro na [seção 12](#12-vídeo-de-apresentação) |
 
 ---
 
@@ -517,6 +518,11 @@ código) está na seção homônima do relatório histórico indicado.
     os tipos logo após subir a pilha. Migration nova em vez de editar a V16 (conceito da Etapa 6: migration
     aplicada não se edita; o schema é versionado e reproduzível). Os 10 cadastros de restaurante da coleção
     enviam `cuisineIds` da seed, e os de sucesso conferem os tipos na ordem do português.
+  - **README reestruturado pelo enunciado:** o atendimento a cada requisito funcional (campo pedido → campo da
+    API), os nove fatores de avaliação com a evidência de cada um, a execução e a estrutura do repositório
+    arquivo a arquivo. Documentação revisada contra o código (números, classes, regras, links).
+  - **Vídeo publicado** no YouTube e registrado na [seção 12](#12-vídeo-de-apresentação); o arquivo fica fora do
+    git e do contexto de build da imagem (`.gitignore`, `.dockerignore`).
 - **Resultado:** 939 unitários e 165 de integração, cobertura unitária de 100% (2.766 linhas e
   626 ramos); Newman com 187 requests e 392 asserções, sem falhas, em duas execuções.
 
@@ -666,7 +672,9 @@ Usuários de demonstração: `admin.demo` / `admin12345`, `dono.restaurante` / `
 
 ## 12. Vídeo de apresentação
 
-**Status:** a gravar. **Link:** `[a inserir]`
+**Status:** publicado. **Link:** <https://www.youtube.com/watch?v=N0ckKiKnPcw> (também em
+[`video/video_link.txt`](../video/video_link.txt); o arquivo do vídeo não é versionado, porque passa do limite
+de tamanho do GitHub).
 
 Roteiro de cerca de 5 minutos, com a pilha no ar (`docker compose up --build`) e o Swagger aberto:
 

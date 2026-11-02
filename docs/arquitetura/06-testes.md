@@ -80,7 +80,7 @@ void deveGravarOAutorDeCadaAlteracao() {
 | Pirâmide (Clean Coder cap. 8) | 939 unitários × 165 integração × 187 requests | feedback rápido na base; confiança de ponta a ponta no topo |
 | Mock da porta, não da implementação | casos de uso e adaptadores | o teste depende só de interfaces estáveis (CA cap. 28) |
 | Controle em teste negativo | `JwtAuthenticationIT`: o mesmo formato de token com a chave certa responde 200 | a recusa é provada pelo motivo certo, não por um token malformado pelo teste |
-| Conferência ao contrário | cada regra ArchUnit com uma violação proposital | uma regra que nunca falha pode não estar verificando nada |
+| Conferência ao contrário | cada regra ArchUnit, na etapa em que foi criada, com uma classe temporária que a viola (removida depois) | uma regra que nunca falha pode não estar verificando nada |
 | Container único e compartilhado | `SharedPostgres` | contexto Spring em cache sempre aponta para um banco vivo |
 
 ## 5. Desvios conscientes
