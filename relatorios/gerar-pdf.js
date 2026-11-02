@@ -89,8 +89,13 @@ ${html}
 </script>
 </body></html>`);
 
+    // O Chrome imprime num arquivo temporário e sai com 0 mesmo quando não consegue gravar; a cópia é que
+    // falha (EBUSY) se o PDF de destino estiver aberto em outro programa — sem isso, o PDF antigo ficava.
+    const impresso = path.join(tmp, 'relatorio.pdf');
     execFileSync(CHROME, ['--headless=new', '--disable-gpu', '--no-pdf-header-footer', '--run-all-compositor-stages-before-draw',
-      '--virtual-time-budget=20000', `--print-to-pdf=${path.resolve(saida)}`, pathToFileURL(pagina).href], { stdio: 'ignore' });
+      '--virtual-time-budget=20000', `--print-to-pdf=${impresso}`, pathToFileURL(pagina).href], { stdio: 'ignore' });
+    if (!fs.existsSync(impresso)) throw new Error('o Chrome não gerou o PDF');
+    fs.copyFileSync(impresso, saida);
     console.log(`PDF gerado: ${saida}`);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
