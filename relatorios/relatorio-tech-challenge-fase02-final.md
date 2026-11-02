@@ -2,15 +2,15 @@
 
 ## Sistema de Gestão de Restaurantes
 
-**Grupo:**
+**Grupo 17:**
 
 | Integrante | RM |
 | --- | --- |
 | Felipe Dias Mac Dowell | `@rm375442` |
-| Francisco Ferreira de Araujo | `@RM a preencher` |
-| Rafael Brandão Silva | `@RM a preencher` |
-| Rodrigo do Carmo Cruz | `@RM a preencher` |
-| Ana Melissa | `@RM a preencher` |
+| Francisco Ferreira de Araujo | `@rm375897` |
+| Rafael Brandão Silva | `@rm376160` |
+| Rodrigo do Carmo Cruz | `@rm377016` |
+| Ana Melissa | `@rm375443` |
 
 - **Curso:** Pós-Tech — Arquitetura e Desenvolvimento Java
 - **Repositório:** <https://github.com/felipe11dias/postech-fase2-restaurantes-app> (público)
