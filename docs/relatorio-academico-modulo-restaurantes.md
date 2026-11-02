@@ -9,7 +9,7 @@
 >   (`ON DELETE CASCADE`, no lugar do `RESTRICT` citado abaixo).
 > - **Etapa 24 (V9):** horários por dia da semana (`restaurant_office_hours`), no lugar do horário único.
 > - **Etapa 26 (V11/V12):** endereço ligado a uma cidade do catálogo; **Etapa 28 (V15–V17):** tipos de
->   cozinha.
+>   cozinha; **Etapa 29 (V18):** catálogo de tipos de cozinha ampliado.
 > - **Etapa 17:** a cobertura de 100% citada abaixo exigiu complementos (testes de ramos e ajustes no
 >   `SchemaMigrationIT` e no `OpenApiDocumentationIT`).
 >

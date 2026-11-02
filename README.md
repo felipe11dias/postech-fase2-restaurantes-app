@@ -34,9 +34,9 @@ revisão final da entrega.
 | Entregável da avaliação | Estado |
 | --- | --- |
 | Clean Architecture em camadas | ✅ Quatro camadas, verificadas no build (ArchUnit, 48 regras) |
-| Testes: unitários com 80% e de integração | ✅ 939 unitários com **100%** de linhas e ramos; 164 de integração com PostgreSQL real |
+| Testes: unitários com 80% e de integração | ✅ 939 unitários com **100%** de linhas e ramos; 165 de integração com PostgreSQL real |
 | Documentação (arquitetura, endpoints, execução) | ✅ Este README, o relatório técnico, o Swagger, `docs/arquitetura/` e `docs/modelo-dados/` |
-| Coleção Postman | ✅ 187 requests, um por retorno documentado de cada endpoint; cobre usuários, perfis, restaurantes, catálogo geográfico, produtos e tipos de cozinha; um print por request; 389 asserções, sem falhas, em duas execuções seguidas |
+| Coleção Postman | ✅ 187 requests, um por retorno documentado de cada endpoint; cobre usuários, perfis, restaurantes, catálogo geográfico, produtos e tipos de cozinha; um print por request; 392 asserções, sem falhas, em duas execuções seguidas |
 | Docker Compose (aplicação e banco) | ✅ Aplicação, PostgreSQL e Mailpit |
 | Repositório aberto | ✅ Público, com histórico por etapa |
 | Vídeo de apresentação (cerca de 5 minutos) | ⏳ A gravar — roteiro pronto no [relatório final](relatorios/relatorio-tech-challenge-fase02-final.md#12-vídeo-de-apresentação) |
@@ -236,7 +236,9 @@ autocadastro não tem perfil de administrador.
 | `cliente.demo` | `cliente12345` | cliente (CPF `529.982.247-25`) | `ROLE_CLIENT` |
 
 A migration `V16` traz o catálogo inicial de tipos de cozinha (Brasileira, Italiana, Japonesa, Árabe, Mexicana,
-Vegetariana, Hamburgueria e Pizzaria), com ids fixos `c0000000-0000-4000-8000-000000000001` a `…008`.
+Vegetariana, Hamburgueria e Pizzaria), com ids fixos `c0000000-0000-4000-8000-000000000001` a `…008`; a `V18`
+acrescenta outros trinta (de Açaí a Vegana: cozinhas de outros países, regionais do Brasil e categorias como
+Padaria e Sorveteria), com ids `…010` a `…039`. A lista completa sai em `GET /api/v1/cuisines`.
 
 ## Autenticação e autorização
 
@@ -394,7 +396,7 @@ mvn verify    # + testes de integração (Testcontainers) + gate de 100% de cobe
   mocks das origens de dados e dos serviços; infraestrutura com lógica instanciada diretamente. Nenhum sobe
   contexto Spring nem toca em banco. Cobertura JaCoCo unitária de **100% de linhas e ramos**
   (2766 linhas e 626 ramos).
-- **Integração (164):** contexto Spring completo, PostgreSQL real, migrations do Flyway,
+- **Integração (165):** contexto Spring completo, PostgreSQL real, migrations do Flyway,
   segurança JWT ativa e chamadas HTTP de verdade. Nenhum bean é substituído, exceto o envio de
   e-mail.
 - **Cobertura:** o build **falha** abaixo de 100% de linhas e ramos **dos testes unitários**. A
@@ -413,7 +415,7 @@ src/main/java/com/postech/restaurantes/
   application/     casos de uso, portas (gateways) e DTOs do núcleo
   adapter/         controllers, gateways, origens de dados, serviços externos e presenters
   infrastructure/  módulos substituíveis: main, api/rest/spring, persistence/jpa, token/jwt, crypto, mail/smtp
-src/main/resources/db/migration/   V1–V17 (schema, catálogo, migrações e seeds; V15 a V17: tipos de cozinha)
+src/main/resources/db/migration/   V1–V18 (schema, catálogo, migrações e seeds; V15 a V18: tipos de cozinha)
 postman/                           coleção e prints
 relatorios/                        relatório final (Markdown e PDF, gerado por gerar-pdf.js) e as versões v1.0 a v5.0 (histórico)
 docs/arquitetura/                  cada camada: o que as aulas ensinam, o que os autores dizem, como o projeto faz

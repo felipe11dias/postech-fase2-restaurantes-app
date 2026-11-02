@@ -64,11 +64,11 @@ de entrega, e fica na borda: o núcleo continua síncrono.
 
 **Schema versionado.** O Flyway é o dono do schema
 ([`db/migration`](../../src/main/resources/db/migration)); o JPA só valida (`ddl-auto: validate`).
-São 17 migrations (V1–V17), nunca editadas depois de aplicadas: V1–V3 criam o schema inicial, a seed
+São 18 migrations (V1–V18), nunca editadas depois de aplicadas: V1–V3 criam o schema inicial, a seed
 de demonstração e os restaurantes; V4–V10 adequam o schema ao Modelo de Dados v2 (vínculo
 `user_addresses`, um token por usuário, perfis, integridade dos perfis, cascata do dono, horários por dia,
 ao menos um administrador); V11/V12 normalizam o endereço por cidade e estado; V13/V14 criam o catálogo de
-produtos e o preço decimal; V15–V17 trazem os tipos de cozinha. A V11 cria `states` e
+produtos e o preço decimal; V15–V18 trazem os tipos de cozinha. A V11 cria `states` e
 `cities`, converte cidade/UF em `addresses.city_id NOT NULL`, preserva ids e vínculos existentes
 e remove os campos textuais. A V12 semeia as 27 unidades federativas, as capitais e Campinas.
 É um catálogo inicial; os demais municípios entram por novas migrations, sem cadastro via API.
@@ -138,7 +138,7 @@ do restaurante e `RESTRICT` do lado do tipo. Na JPA, `persistence/jpa/cuisine` n
 `@EntityGraph` (um `Set` junto da lista de horários repetiria os horários). Por isso "algum restaurante usa este
 tipo?" é consulta nativa na tabela de ligação — uma consulta JPQL a partir do tipo faria os dois pacotes formarem
 ciclo. O filtro `?cuisineId=` da listagem de restaurantes fica na consulta paginada de ids (`join r.cuisines`); a
-carga continua pelo grafo. A V16 traz o catálogo inicial em migration própria, porque a V15 já estava aplicada nos bancos de quem a desenvolveu. A V17 dá à coluna `cuisines.name` a collation
+carga continua pelo grafo. A V16 traz o catálogo inicial em migration própria, porque a V15 já estava aplicada nos bancos de quem a desenvolveu; a V18 o amplia com trinta tipos (Etapa 29), pelo mesmo motivo sem editar a V16. A V17 dá à coluna `cuisines.name` a collation
 `pt-BR-x-icu`: o PostgreSQL da imagem Alpine ordena por byte, e a ordem do português passa a valer para todo
 `ORDER BY name`, a mesma do `Collator` do domínio.
 
