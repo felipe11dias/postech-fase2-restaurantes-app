@@ -26,3 +26,6 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Vídeo (publicado no YouTube; o link fica em video/video_link.txt)
+video/*.mp4

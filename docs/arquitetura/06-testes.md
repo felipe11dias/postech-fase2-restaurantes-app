@@ -40,7 +40,7 @@ objetivos da arquitetura.
 | Adaptadores | `src/test/.../adapter` | mocks de `I*DataSource` e de `adapter/service`; controllers com casos de uso, gateways e presenters **reais** | parte dos unitários |
 | Infraestrutura com lógica | `src/test/.../infrastructure` | classes instanciadas direto, com `JpaRepository`, `SecurityContext`, `MailSender` mockados | parte dos unitários |
 | Arquitetura e convenções | `ArchitectureTest`, `InfrastructureModulesTest`, `TestConventionsTest` | ArchUnit | 48 regras |
-| Integração | `*IT` | `@SpringBootTest`, PostgreSQL real (Testcontainers), Flyway, JWT ativo, HTTP de verdade; só o SMTP é substituído | 164 |
+| Integração | `*IT` | `@SpringBootTest`, PostgreSQL real (Testcontainers), Flyway, JWT ativo, HTTP de verdade; só o SMTP é substituído | 165 |
 | Aceitação manual/automatizada | `postman/` | coleção com um request por caso de cada endpoint, rodada com Newman | 187 requests |
 
 **Os dois compromissos**, ambos verificados no build:
@@ -77,10 +77,10 @@ void deveGravarOAutorDeCadaAlteracao() {
 
 | Padrão | Onde | Problema que resolve |
 |---|---|---|
-| Pirâmide (Clean Coder cap. 8) | 939 unitários × 164 integração × 187 requests | feedback rápido na base; confiança de ponta a ponta no topo |
+| Pirâmide (Clean Coder cap. 8) | 939 unitários × 165 integração × 187 requests | feedback rápido na base; confiança de ponta a ponta no topo |
 | Mock da porta, não da implementação | casos de uso e adaptadores | o teste depende só de interfaces estáveis (CA cap. 28) |
 | Controle em teste negativo | `JwtAuthenticationIT`: o mesmo formato de token com a chave certa responde 200 | a recusa é provada pelo motivo certo, não por um token malformado pelo teste |
-| Conferência ao contrário | cada regra ArchUnit com uma violação proposital | uma regra que nunca falha pode não estar verificando nada |
+| Conferência ao contrário | cada regra ArchUnit, na etapa em que foi criada, com uma classe temporária que a viola (removida depois) | uma regra que nunca falha pode não estar verificando nada |
 | Container único e compartilhado | `SharedPostgres` | contexto Spring em cache sempre aponta para um banco vivo |
 
 ## 5. Desvios conscientes

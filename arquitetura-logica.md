@@ -12,7 +12,7 @@ graph TD
         JPA[persistence/jpa<br/>JpaEntities, Spring Data, DataSourceJpa, UnitOfWork]
         MAIN[main<br/>CompositionConfig]
         OUT[token/jwt · crypto · mail/smtp]
-        DB[(PostgreSQL<br/>Flyway V1-V17)]
+        DB[(PostgreSQL<br/>Flyway V1-V18)]
     end
 
     subgraph Camada_Interface_Adapters [Interface Adapters - adapter]

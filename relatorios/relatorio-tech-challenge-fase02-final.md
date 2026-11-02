@@ -2,21 +2,22 @@
 
 ## Sistema de Gestão de Restaurantes
 
-**Grupo:**
+**Grupo 17:**
 
 | Integrante | RM |
 | --- | --- |
 | Felipe Dias Mac Dowell | `@rm375442` |
-| Francisco Ferreira de Araujo | `@RM a preencher` |
-| Rafael Brandão Silva | `@RM a preencher` |
-| Rodrigo do Carmo Cruz | `@RM a preencher` |
-| Ana Melissa | `@RM a preencher` |
+| Francisco Ferreira de Araujo | `@rm375897` |
+| Rafael Brandão Silva | `@rm376160` |
+| Rodrigo do Carmo Cruz | `@rm377016` |
+| Ana Melissa | `@rm375443` |
 
 - **Curso:** Pós-Tech — Arquitetura e Desenvolvimento Java
 - **Repositório:** <https://github.com/felipe11dias/postech-fase2-restaurantes-app> (público)
 - **Stack:** Java 21 · Spring Boot 3.5.11 · Spring Data JPA · PostgreSQL 16 · Flyway · Docker Compose
 - **Arquitetura:** Clean Architecture (Robert C. Martin)
-- **Versão do relatório:** final (Etapa 29), 28/10/2026 — código de referência: branch `etapa-29-revisao-final`
+- **Versão do relatório:** final (Etapa 29), 02/11/2026 — código de referência: branch `etapa-29-revisao-final`
+- **Vídeo de apresentação:** <https://www.youtube.com/watch?v=N0ckKiKnPcw>
 
 > Este é o documento de referência da entrega. Ele consolida as 29 etapas, a conformidade com o
 > enunciado, a arquitetura e o roteiro do vídeo. As versões anteriores ficam em
@@ -174,15 +175,15 @@ pelo compilador, e não como um registro.
 
 | Fator | Status | Evidência |
 | --- | --- | --- |
-| 1. Funcionalidade: endpoints funcionando | ✅ | 32 operações REST; coleção Postman com 187 requests e 389 asserções, sem falhas, em duas execuções seguidas (seção 10) |
+| 1. Funcionalidade: endpoints funcionando | ✅ | 32 operações REST; coleção Postman com 187 requests e 392 asserções, sem falhas, em duas execuções seguidas (seção 10) |
 | 2. Qualidade do código: práticas do Spring Boot, código organizado e documentado | ✅ | Spring Boot 3.5 com Security, Data JPA, Validation, HATEOAS, Actuator, springdoc; `package-info` em cada pacote; Swagger UI; regras de organização verificadas no build |
 | 3. Documentação: arquitetura, endpoints, configuração e execução | ✅ | [`README.md`](../README.md), este relatório, Swagger em `/swagger-ui.html`, [`docs/arquitetura/`](../docs/arquitetura/README.md), [`docs/modelo-dados/`](../docs/modelo-dados/README.md), [`arquitetura-logica.md`](../arquitetura-logica.md) |
 | 4. Collections para teste | ✅ | [`postman/Restaurantes.postman_collection.json`](../postman/Restaurantes.postman_collection.json): um request por retorno documentado de cada endpoint, com um print por request |
 | 5. Docker Compose com aplicação e banco | ✅ | [`docker-compose.yml`](../docker-compose.yml): aplicação, PostgreSQL 16.15 e Mailpit, com healthchecks |
 | 6. Repositório aberto | ✅ | GitHub público, com histórico por etapa |
 | 7. Clean Architecture em camadas | ✅ | `domain`, `application`, `adapter`, `infrastructure`; 48 regras ArchUnit falham o build se a regra de dependência for violada |
-| 8. Cobertura: unitários ≥ 80% e testes de integração | ✅ | 939 testes unitários com **100%** de linhas e ramos (gate do JaCoCo); 164 testes de integração com PostgreSQL real (Testcontainers) |
-| 9. Vídeo de ~5 minutos | ⏳ a gravar | Roteiro pronto na [seção 12](#12-vídeo-de-apresentação) |
+| 8. Cobertura: unitários ≥ 80% e testes de integração | ✅ | 939 testes unitários com **100%** de linhas e ramos (gate do JaCoCo); 165 testes de integração com PostgreSQL real (Testcontainers) |
+| 9. Vídeo de ~5 minutos | ✅ | <https://www.youtube.com/watch?v=N0ckKiKnPcw>; roteiro na [seção 12](#12-vídeo-de-apresentação) |
 
 ---
 
@@ -207,7 +208,7 @@ flowchart TB
         INF -. implementa as interfaces .-> ADP
     end
 
-    DB[("Container db<br/>PostgreSQL 16<br/>Flyway V1 a V17")]
+    DB[("Container db<br/>PostgreSQL 16<br/>Flyway V1 a V18")]
     MAIL["Container mailpit<br/>SMTP de testes<br/>caixa web :8025"]
 
     VIS & CLI & DONO & ADM -->|"HTTP/JSON + JWT"| API
@@ -513,8 +514,17 @@ código) está na seção homônima do relatório histórico indicado.
     código; relatório da Etapa 16 marcado como histórico.
   - **Este relatório final**, com a conformidade, a forma como o tipo de usuário é atendido, o diagrama do
     sistema e o roteiro do vídeo.
-- **Resultado:** 939 unitários e 164 de integração, cobertura unitária de 100% (2.766 linhas e
-  626 ramos); Newman com 187 requests e 389 asserções, sem falhas, em duas execuções.
+  - **Catálogo de tipos de cozinha ampliado (V18):** 30 tipos novos com id fixo, para o restaurante escolher
+    os tipos logo após subir a pilha. Migration nova em vez de editar a V16 (conceito da Etapa 6: migration
+    aplicada não se edita; o schema é versionado e reproduzível). Os 10 cadastros de restaurante da coleção
+    enviam `cuisineIds` da seed, e os de sucesso conferem os tipos na ordem do português.
+  - **README reestruturado pelo enunciado:** o atendimento a cada requisito funcional (campo pedido → campo da
+    API), os nove fatores de avaliação com a evidência de cada um, a execução e a estrutura do repositório
+    arquivo a arquivo. Documentação revisada contra o código (números, classes, regras, links).
+  - **Vídeo publicado** no YouTube e registrado na [seção 12](#12-vídeo-de-apresentação); o arquivo fica fora do
+    git e do contexto de build da imagem (`.gitignore`, `.dockerignore`).
+- **Resultado:** 939 unitários e 165 de integração, cobertura unitária de 100% (2.766 linhas e
+  626 ramos); Newman com 187 requests e 392 asserções, sem falhas, em duas execuções.
 
 ---
 
@@ -605,7 +615,7 @@ O `type` de cada erro (`urn:restaurantes:problema:…`) e o significado de cada 
 | --- | --- | --- |
 | Unitários | 939 | entidades sem mocks; casos de uso com mocks das portas; adaptadores com mocks das origens de dados; nenhum sobe Spring nem toca banco |
 | Arquitetura | 48 regras | ArchUnit (`ArchitectureTest`, `InfrastructureModulesTest`, `TestConventionsTest`) |
-| Integração | 164 | `@SpringBootTest`, PostgreSQL real (Testcontainers), Flyway, JWT ativo, HTTP de verdade; só o SMTP é dublê |
+| Integração | 165 | `@SpringBootTest`, PostgreSQL real (Testcontainers), Flyway, JWT ativo, HTTP de verdade; só o SMTP é dublê |
 | Aceitação | 187 requests | coleção Postman rodada com Newman contra a pilha do Compose |
 
 - **Cobertura unitária: 100% de linhas e ramos** (2.766 linhas, 626 ramos) — o build falha
@@ -624,7 +634,7 @@ Comandos: `mvn test` (unitários e ArchUnit, sem Docker) e `mvn verify` (tudo, c
 **187 requests em 19 pastas**, um por retorno documentado de cada endpoint — o sucesso e cada erro —, na
 ordem em que rodam. Cada teste confere o status e, nos erros, o `type` do ProblemDetail.
 
-- **Execução da Etapa 29:** 187 requests, 389 asserções, nenhuma falha, em **duas execuções
+- **Execução da Etapa 29:** 187 requests, 392 asserções, nenhuma falha, em **duas execuções
   seguidas** contra o mesmo banco (a coleção cria e exclui os próprios dados; CPF, CNPJ e CNH são gerados
   a cada request).
 - **Auditoria da Etapa 29:** cada `@ErrorResponse` de cada operação tem um request; entraram os retornos
@@ -662,7 +672,9 @@ Usuários de demonstração: `admin.demo` / `admin12345`, `dono.restaurante` / `
 
 ## 12. Vídeo de apresentação
 
-**Status:** a gravar. **Link:** `[a inserir]`
+**Status:** publicado. **Link:** <https://www.youtube.com/watch?v=N0ckKiKnPcw> (também em
+[`video/video_link.txt`](../video/video_link.txt); o arquivo do vídeo não é versionado, porque passa do limite
+de tamanho do GitHub).
 
 Roteiro de cerca de 5 minutos, com a pilha no ar (`docker compose up --build`) e o Swagger aberto:
 

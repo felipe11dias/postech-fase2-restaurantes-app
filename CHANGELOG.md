@@ -683,7 +683,7 @@ daquela entrega; o estado atual está na Etapa 29 e no relatório final
   `restaurant_cuisines` em `docs/modelo-dados/README.md`.
 
 ## Etapa 29 — Revisão final da entrega
-*Felipe Dias Mac Dowell · branch `etapa-29-revisao-final` · 28/10/2026*
+*Felipe Dias Mac Dowell · branch `etapa-29-revisao-final` · 28/10/2026 a 02/11/2026*
 
 - Relatório final consolidado em `relatorios/relatorio-tech-challenge-fase02-final.md` e em PDF
   (`relatorio-tech-challenge-fase02-final.pdf`): integrantes e RM, as 29 etapas com o conceito de cada decisão,
@@ -716,3 +716,28 @@ daquela entrega; o estado atual está na Etapa 29 e no relatório final
   atual), nota de documento histórico no relatório da Etapa 16 e `CLAUDE.md`.
 - `mvn clean verify`: 939 testes unitários e 164 de integração, sem falhas; cobertura unitária 100% (2766
   linhas, 626 ramos). Newman: 187 requests e 389 asserções, sem falhas, em duas execuções seguidas.
+- Catálogo de tipos de cozinha ampliado: migration `V18__seed_more_cuisines.sql` com 30 tipos (cozinhas de
+  outros países, regionais do Brasil e categorias como Padaria e Sorveteria), ids fixos `c0000000-0000-4000-8000-000000000010`
+  a `…039` — sufixo de dois dígitos para não se confundirem com os oito da V16. Migration própria, porque a V16 já
+  está aplicada; `ON CONFLICT DO NOTHING` sem alvo cobre o índice em `LOWER(name)`, então um nome que o administrador
+  já tenha cadastrado pela API é mantido. `SchemaMigrationIT` confere os 30 tipos e a ordem do português (V17).
+- Coleção Postman: os 10 cadastros de restaurante (`POST /api/v1/restaurants`, requests 83 e 103 a 111) passam a
+  enviar `cuisineIds` com ids da seed; os três de sucesso (83, 103, 104) conferem os tipos devolvidos, na ordem
+  alfabética do português (o 103 envia "Contemporânea", "Brasileira" e "Frutos do mar" fora de ordem). Prints
+  regenerados. `mvn verify`: 939 unitários e 165 de integração, sem falhas; cobertura unitária 100%. Newman: 187
+  requests e 392 asserções, sem falhas, em duas execuções seguidas.
+- Relatório final: Grupo 17 e o RM de cada integrante no cabeçalho. `gerar-pdf.js` imprime num arquivo temporário
+  e o copia para o destino: o Chrome sai com sucesso mesmo quando não grava, e o PDF aberto em outro programa
+  ficava desatualizado sem aviso; agora a cópia falha (`EBUSY`).
+- README reestruturado pelo enunciado: Grupo 17 e links (repositório, vídeo, relatório, coleção); o atendimento a
+  cada requisito funcional, campo do enunciado → campo da API; os nove fatores de avaliação com a evidência de
+  cada um; execução; endpoints e erros; coleção e testes; e a estrutura do repositório arquivo a arquivo (raiz,
+  pacotes de `src/main`, cada migration, `src/test`, `docs/`, `relatorios/`, `postman/`, `video/`).
+- Revisão dos documentos contra o código: números (48 regras ArchUnit, 31 casos de uso, 32 operações REST, 939/165
+  testes, 187 requests em 19 pastas), classes, regras e restrições citadas, e links relativos e âncoras. Corrigidos o
+  status do vídeo no README e no relatório e a descrição da conferência ao contrário em `docs/arquitetura/06-testes.md`.
+  Os links quebrados dos prints no relatório v3.0 (renumerados nesta etapa) ficam como estão: as versões históricas
+  não se editam.
+- Vídeo de apresentação publicado no YouTube (<https://www.youtube.com/watch?v=N0ckKiKnPcw>), com o link em
+  `video/video_link.txt` e na seção 12 do relatório. O arquivo do vídeo (250 MB, acima do limite de 100 MB do
+  GitHub) fica fora do git (`.gitignore`) e do contexto de build da imagem (`.dockerignore`, junto com `docs/`).

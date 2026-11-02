@@ -3433,7 +3433,10 @@
                 "exec": [
                   "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
                   "if (pm.response.code === 201) {",
-                  "    pm.collectionVariables.set(\"donoRestaurantId\", pm.response.json().id);",
+                  "    const corpo = pm.response.json();",
+                  "    pm.test(\"Tipos de cozinha do catálogo da seed, na ordem do português\", () =>",
+                  "        pm.expect(corpo.cuisines.map(c => c.name)).to.eql([\"Italiana\",\"Pizzaria\"]));",
+                  "    pm.collectionVariables.set(\"donoRestaurantId\", corpo.id);",
                   "} else {",
                   "    console.error(\"donoRestaurantId não foi obtido (status \" + pm.response.code + \"): execução interrompida\");",
                   "    postman.setNextRequest(null);",
@@ -3457,7 +3460,7 @@
             "url": "{{baseUrl}}/api/v1/restaurants",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{donoUserId}}\",\n  \"address\": {\n    \"street\": \"Rua do Dono Postman\",\n    \"number\": \"10\",\n    \"neighborhood\": \"Centro\",\n    \"zipCode\": \"01001-000\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante do Dono Postman\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"{{donoUserId}}\",\n  \"address\": {\n    \"street\": \"Rua do Dono Postman\",\n    \"number\": \"10\",\n    \"neighborhood\": \"Centro\",\n    \"zipCode\": \"01001-000\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante do Dono Postman\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ],\n  \"cuisineIds\": [\"c0000000-0000-4000-8000-000000000008\", \"c0000000-0000-4000-8000-000000000002\"]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4152,6 +4155,8 @@
                   "pm.test(\"Header Location presente\", () => pm.response.to.have.header(\"Location\"));",
                   "if (pm.response.code === 201) {",
                   "    const corpo = pm.response.json();",
+                  "    pm.test(\"Tipos de cozinha do catálogo da seed, na ordem do português\", () =>",
+                  "        pm.expect(corpo.cuisines.map(c => c.name)).to.eql([\"Brasileira\",\"Contemporânea\",\"Frutos do mar\"]));",
                   "    pm.collectionVariables.set(\"restaurantId\", corpo.id);",
                   "    pm.collectionVariables.set(\"restaurantAddressId\", corpo.address.id);",
                   "    pm.test(\"Endereço próprio do restaurante, com CEP normalizado\", () => {",
@@ -4196,14 +4201,14 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Sabor & Arte\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"11:00:00\",\n      \"endTime\": \"15:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"18:00:00\",\n      \"endTime\": \"23:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"FRIDAY\",\n      \"startTime\": \"18:00:00\",\n      \"endTime\": \"02:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"SUNDAY\",\n      \"startTime\": \"10:00:00\",\n      \"endTime\": \"16:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Sabor & Arte\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"11:00:00\",\n      \"endTime\": \"15:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"18:00:00\",\n      \"endTime\": \"23:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"FRIDAY\",\n      \"startTime\": \"18:00:00\",\n      \"endTime\": \"02:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"SUNDAY\",\n      \"startTime\": \"10:00:00\",\n      \"endTime\": \"16:00:00\"\n    }\n  ],\n  \"cuisineIds\": [\"c0000000-0000-4000-8000-000000000020\", \"c0000000-0000-4000-8000-000000000001\", \"c0000000-0000-4000-8000-000000000024\"]\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             },
-            "description": "Sem userId no corpo: o dono do restaurante é quem está autenticado."
+            "description": "Sem userId no corpo: o dono do restaurante é quem está autenticado. Os tipos de cozinha vêm do catálogo da seed (V16 e V18), por id fixo, e voltam na ordem alfabética do português."
           }
         },
         {
@@ -4217,6 +4222,8 @@
                   "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
                   "if (pm.response.code === 201) {",
                   "    const corpo = pm.response.json();",
+                  "    pm.test(\"Tipos de cozinha do catálogo da seed, na ordem do português\", () =>",
+                  "        pm.expect(corpo.cuisines.map(c => c.name)).to.eql([\"Japonesa\",\"Poke\"]));",
                   "    pm.test(\"O dono é quem cadastrou\", () => pm.expect(corpo.userId).to.eql(pm.collectionVariables.get(\"outroDonoUserId\")));",
                   "    pm.collectionVariables.set(\"outroDonoRestaurantId\", corpo.id);",
                   "} else {",
@@ -4242,7 +4249,7 @@
             "url": "{{baseUrl}}/api/v1/restaurants",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"address\": {\n    \"street\": \"Rua do Segundo Dono\",\n    \"number\": \"20\",\n    \"neighborhood\": \"Centro\",\n    \"zipCode\": \"01001-000\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante do Segundo Dono\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"address\": {\n    \"street\": \"Rua do Segundo Dono\",\n    \"number\": \"20\",\n    \"neighborhood\": \"Centro\",\n    \"zipCode\": \"01001-000\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante do Segundo Dono\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ],\n  \"cuisineIds\": [\"c0000000-0000-4000-8000-000000000003\", \"c0000000-0000-4000-8000-000000000034\"]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4285,7 +4292,7 @@
             "url": "{{baseUrl}}/api/v1/restaurants",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{outroDonoUserId}}\",\n  \"address\": {\n    \"street\": \"Rua do Segundo Dono\",\n    \"number\": \"20\",\n    \"neighborhood\": \"Centro\",\n    \"zipCode\": \"01001-000\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Alheio\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"{{outroDonoUserId}}\",\n  \"address\": {\n    \"street\": \"Rua do Segundo Dono\",\n    \"number\": \"20\",\n    \"neighborhood\": \"Centro\",\n    \"zipCode\": \"01001-000\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Alheio\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ],\n  \"cuisineIds\": [\"c0000000-0000-4000-8000-000000000001\"]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4335,7 +4342,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"08:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"08:00:00\"\n    }\n  ],\n  \"cuisineIds\": [\"c0000000-0000-4000-8000-000000000001\"]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4388,7 +4395,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Sobreposto\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"FRIDAY\",\n      \"startTime\": \"18:00:00\",\n      \"endTime\": \"02:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"SATURDAY\",\n      \"startTime\": \"01:00:00\",\n      \"endTime\": \"10:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Sobreposto\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"FRIDAY\",\n      \"startTime\": \"18:00:00\",\n      \"endTime\": \"02:00:00\"\n    },\n    {\n      \"dayOfWeek\": \"SATURDAY\",\n      \"startTime\": \"01:00:00\",\n      \"endTime\": \"10:00:00\"\n    }\n  ],\n  \"cuisineIds\": [\"c0000000-0000-4000-8000-000000000001\"]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4434,7 +4441,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Sem Token\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"{{ownerUserId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Sem Token\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ],\n  \"cuisineIds\": [\"c0000000-0000-4000-8000-000000000001\"]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4483,7 +4490,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Cliente\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Cliente\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ],\n  \"cuisineIds\": [\"c0000000-0000-4000-8000-000000000001\"]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4532,7 +4539,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000000\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Dono Inexistente\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"00000000-0000-0000-0000-000000000000\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante Dono Inexistente\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ],\n  \"cuisineIds\": [\"c0000000-0000-4000-8000-000000000001\"]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4587,7 +4594,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"a0000000-0000-4000-8000-000000000002\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante de Quem Não É Dono\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ]\n}",
+              "raw": "{\n  \"userId\": \"a0000000-0000-4000-8000-000000000002\",\n  \"address\": {\n    \"street\": \"Avenida Paulista\",\n    \"number\": \"500\",\n    \"complement\": \"Loja 1\",\n    \"neighborhood\": \"Bela Vista\",\n    \"zipCode\": \"01310-100\",\n    \"cityId\": \"c0000000-0000-4000-8000-000000000001\"\n  },\n  \"name\": \"Restaurante de Quem Não É Dono\",\n  \"officeHours\": [\n    {\n      \"dayOfWeek\": \"MONDAY\",\n      \"startTime\": \"08:00:00\",\n      \"endTime\": \"22:00:00\"\n    }\n  ],\n  \"cuisineIds\": [\"c0000000-0000-4000-8000-000000000001\"]\n}",
               "options": {
                 "raw": {
                   "language": "json"
