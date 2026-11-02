@@ -73,14 +73,14 @@ class SchemaMigrationIT extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("As dezessete migrations foram aplicadas com sucesso e ficaram registradas no histórico")
+    @DisplayName("As dezoito migrations foram aplicadas com sucesso e ficaram registradas no histórico")
     void deveAplicarAsMigrations() {
         List<String> versoes = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = true AND version IS NOT NULL "
                         + "ORDER BY installed_rank", String.class);
 
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"),
-                versoes);
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17",
+                "18"), versoes);
     }
 
     @Test
@@ -407,6 +407,19 @@ class SchemaMigrationIT extends IntegrationTestSupport {
 
         assertEquals(List.of("Árabe", "Brasileira", "Hamburgueria", "Italiana", "Japonesa", "Mexicana", "Pizzaria",
                 "Vegetariana"), nomes);
+    }
+
+    @Test
+    @DisplayName("O catálogo de tipos de cozinha é ampliado com trinta tipos de id fixo, sem repetir os da V16 (V18)")
+    void shouldExpandTheCuisineCatalog() {
+        List<String> nomes = jdbc.queryForList(
+                "SELECT name FROM cuisines WHERE id::text LIKE 'c0000000-0000-4000-8000-0000000000__' "
+                        + "AND id::text NOT LIKE 'c0000000-0000-4000-8000-00000000000_' ORDER BY name",
+                String.class);
+
+        assertEquals(30, nomes.size(), "um nome repetido da V16 seria pulado pelo ON CONFLICT e faltaria aqui");
+        assertEquals("Açaí", nomes.get(0), "a ordem do português põe o acento junto da letra (V17)");
+        assertTrue(nomes.containsAll(List.of("Chinesa", "Contemporânea", "Portuguesa", "Vegana")));
     }
 
     @Test
