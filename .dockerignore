@@ -10,3 +10,5 @@ target/
 .env
 relatorios/
 postman/
+docs/
+video/
